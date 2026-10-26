@@ -22,6 +22,7 @@
 #include <QHash>
 #include <QSet>
 #include <QXmlStreamReader>
+#include <algorithm>
 #include <QProcess>
 #include <QProcessEnvironment>
 namespace ac::setup {
@@ -389,14 +390,51 @@ QVariantMap supermodelFiles(const QString &gamesXml,const QString &game){
  for(auto it=wanted.begin();it!=wanted.end();++it)files.insert(QString::number(it.key()),it.value());
  return {{"parent",sets.value(game).parent},{"files",files}};
 }
+namespace {
+QString folderOf(const QString &system,const QVariantMap &settings){
+ for(const auto &value:systems()){const auto row=value.toMap();if(row.value("id").toString()==system)return row.value("folderKey").toString().isEmpty()?QString():settings.value(row.value("folderKey").toString()).toString();}
+ return {};
+}
+QString titleOf(const QString &system){
+ for(const auto &value:systems())if(value.toMap().value("id").toString()==system)return value.toMap().value("title").toString();
+ return system;
+}
+// The Wii folder also holds GameCube discs.
+bool sameFamily(const QString &system,const QString &disc){return disc==system||(system=="wii"&&disc=="gamecube");}
+constexpr int kMostListed=50;
+// What the library already knows about this system's folder: the files it matched to nothing, and the games found twice.
+QVariantMap withFinds(QVariantMap result,const QString &system,const QVariantMap &settings,const QVariantMap &context){
+ const auto found=context.value("library").toMap();
+ if(found.isEmpty())return result;
+ const auto folder=folderOf(system,settings);
+ // The pinball folder's own report names its tables and ROMs; a zip is not an unknown there.
+ if(!folder.isEmpty()&&system!="pinball"){
+  const bool arcade=system=="model2"||system=="model3";
+  QVariantList files;
+  for(const auto &value:library::unrecognisedIn(found,folder)){
+   const auto entry=value.toMap();const auto kind=entry.value("kind").toString();
+   if(arcade?kind!="archive":kind=="archive")continue;
+   if(kind=="other"&&sameFamily(system,entry.value("system").toString()))continue; // Already in "other".
+   files<<value;
+  }
+  result["unrecognisedChecked"]=library::covers(found,folder);
+  result["unrecognisedMore"]=qMax(0,int(files.size())-kMostListed);
+  result["unrecognised"]=files.size()>kMostListed?files.mid(0,kMostListed):files;
+ }
+ QVariantList twice;
+ for(const auto &value:found.value("duplicates").toList())if(value.toMap().value("system").toString()==system)twice<<value;
+ if(!twice.isEmpty()){result["duplicates"]=twice.size()>kMostListed?twice.mid(0,kMostListed):twice;result["duplicateRule"]=library::duplicateRule();}
+ return result;
+}
+}
 QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto scanner=scanners().value(system);
- if(scanner)return scanner(settings,context,progress?progress:[](const QString &){},cancel);
+ if(scanner)return withFinds(scanner(settings,context,progress?progress:[](const QString &){},cancel),system,settings,context);
  Groups none;return none.result(system,"The Hub cannot check this system yet.");
 }
 QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
  // Raised whenever a system is read differently, so every saved report is read again.
- static constexpr int kVersion=2;
+ static constexpr int kVersion=3;
  static const QStringList folders{"model3GameFolder","model2GameFolder","model2RuntimePath","pinballFolder","pinballRoms","ps2GameFolder","wiiGameFolder","dreamcastGameFolder","threedsGameFolder"};
  static const QStringList programs{"model3Executable","model2Executable","system22Executable","pinballExecutable","pinballDatabase","pinballMedia","pinballOverrides",
                                    "ps2Python","ps2StopFile","wiiExecutable","dreamcastExecutable","libretroHost","threedsCore","libretroProfiles","queryEmulators"};
@@ -410,5 +448,130 @@ QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
   times[key]=value.isEmpty()?QString():time(QFileInfo(value).absoluteDir().filePath("games.json"));}
  auto read=systems;read.sort();
  return {{"version",kVersion},{"discData",scan::DiscIndex::fingerprint()},{"systems",read},{"settings",values},{"times",times}};
+}
+namespace {
+// The Hub's names for arcade sets, to tell a set it knows from any other zip; a disc, table or cartridge needs none.
+struct Probe{QString system;QSet<QString> sets;};
+Probe probeFor(const QString &system){
+ Probe probe{system,{}};
+ if(system=="model3")for(const auto &value:model3::games())probe.sets<<value.toMap().value("id").toString();
+ else if(system=="model2")for(const auto &value:model2::games()){const auto game=value.toMap();probe.sets<<game.value("id").toString();if(!game.value("file").toString().isEmpty())probe.sets<<game.value("file").toString();}
+ return probe;
+}
+bool belongs(const Probe &probe,const QString &path,std::atomic_bool &cancel){
+ // Arcade sets are known by their set name, as the library knows them; the zip must also open.
+ if((probe.system=="model3"||probe.system=="model2")&&!probe.sets.contains(QFileInfo(path).completeBaseName().toLower()))return false;
+ return scan::looksLike(probe.system,path,cancel);
+}
+// The files of the system's kinds in these folders and a few levels below. A track file of a cue or gdi sheet is left out:
+// it is read through its sheet, never on its own.
+QStringList kindFiles(const QString &system,const QStringList &roots,int depth,std::atomic_bool &cancel){
+ const auto all=scan::walk(roots,scan::systemExtensions(system),depth,cancel);
+ QSet<QString> sheets;
+ for(const auto &file:all){const QFileInfo info(file);const auto ext=info.suffix().toLower();if(ext=="cue"||ext=="gdi")sheets<<info.absolutePath();}
+ QStringList kept;
+ for(const auto &file:all){const QFileInfo info(file);if(info.suffix().compare("bin",Qt::CaseInsensitive)==0&&sheets.contains(info.absolutePath()))continue;kept<<QDir::fromNativeSeparators(info.absoluteFilePath());}
+ kept.removeDuplicates();kept.sort();
+ return kept;
+}
+struct Tally{int checked=0,matched=0;};
+// A few files spread evenly through the list are read, each at most once however many folders hold it, and the whole
+// check stops when the budget of reads is spent.
+Tally tally(const Probe &probe,const QStringList &files,int count,QHash<QString,bool> &seen,int &budget,std::atomic_bool &cancel){
+ Tally result;const int n=int(files.size()),take=qMin(n,count);
+ for(int k=0;k<take&&!cancel;++k){
+  const auto file=files.at(k*n/take);bool yes=false;
+  const auto known=seen.constFind(file);
+  if(known!=seen.cend())yes=known.value();
+  else{if(budget<=0)break;--budget;yes=belongs(probe,file,cancel);if(cancel)break;seen.insert(file,yes);}
+  ++result.checked;if(yes)++result.matched;
+ }
+ return result;
+}
+QString describe(const QString &system,qsizetype files,const Tally &t){
+ if(files==0)return "No files of the kinds this system uses were found here.";
+ if(t.matched==0)return QString("None of the %1 files checked look like %2 games.").arg(t.checked).arg(titleOf(system));
+ return QString("%1 of the %2 files checked look like %3 games.").arg(t.matched).arg(t.checked).arg(titleOf(system));
+}
+bool inside(const QString &path,const QString &folder){return path==folder||path.startsWith(folder+"/");}
+struct Candidate{QString folder;int files,checked,matched;bool sure;};
+}
+QVariantMap folderCheck(const QString &system,const QString &folder,std::atomic_bool &cancel){
+ const auto where=QDir::cleanPath(QDir::fromNativeSeparators(folder));
+ const auto files=folder.isEmpty()||!QFileInfo(folder).isDir()?QStringList{}:kindFiles(system,QStringList{folder},2,cancel);
+ QHash<QString,bool> seen;int budget=8;
+ const auto t=tally(probeFor(system),files,8,seen,budget,cancel);
+ return {{"folder",where},{"files",int(files.size())},{"checked",t.checked},{"matched",t.matched},{"detail",describe(system,files.size(),t)}};
+}
+QVariantList suggestFolders(const QString &system,const QString &configured,const QStringList &knownFolders,const QStringList &libraryRoots,std::atomic_bool &cancel){
+ if(scan::systemExtensions(system).isEmpty())return {};
+ // Where to look: beside and above each chosen folder (and a roms folder at either place), the library's roots, and below
+ // the configured folder itself. A drive's own root is never searched.
+ QStringList roots;
+ const auto add=[&roots](const QString &path){
+  if(path.isEmpty())return;
+  const QDir dir(path);
+  if(!dir.exists()||dir.isRoot())return;
+  const auto clean=QDir::cleanPath(dir.absolutePath());
+  if(!roots.contains(clean))roots<<clean;
+ };
+ for(const auto &known:knownFolders+QStringList{configured}){
+  if(known.isEmpty()||!QFileInfo(known).isDir())continue;
+  QDir above(known);
+  for(int level=0;level<2&&above.cdUp();++level){add(above.absolutePath());add(above.absoluteFilePath("roms"));}
+ }
+ add(configured);
+ for(const auto &root:libraryRoots)add(root);
+ const auto files=kindFiles(system,roots,3,cancel);
+ // Every folder holding some of those files, itself or below it.
+ QHash<QString,QStringList> held;
+ for(const auto &file:files)
+  for(const auto &root:roots){
+   if(!inside(file,root))continue;
+   auto dir=QFileInfo(file).absolutePath();
+   while(inside(dir,root)){
+    held[dir]<<file;
+    const auto up=QFileInfo(dir).absolutePath();
+    if(up==dir)break;
+    dir=up;
+   }
+  }
+ for(auto it=held.begin();it!=held.end();++it)it.value().removeDuplicates();
+ const auto skip=QDir::cleanPath(QDir::fromNativeSeparators(configured));
+ QStringList order;
+ for(auto it=held.cbegin();it!=held.cend();++it)if(it.key()!=skip)order<<it.key();
+ // The fullest folders are read first, up to a fixed number, so a big collection is never read through.
+ std::sort(order.begin(),order.end(),[&held](const QString &a,const QString &b){const auto x=held.value(a).size(),y=held.value(b).size();return x!=y?x>y:a<b;});
+ if(order.size()>60)order=order.mid(0,60);
+ QList<Candidate> found;
+ const auto probe=probeFor(system);
+ QHash<QString,bool> seen;
+ int budget=200;
+ for(const auto &folder:order){
+  if(cancel)break;
+  auto inFolder=held.value(folder);
+  inFolder.sort();
+  const auto t=tally(probe,inFolder,5,seen,budget,cancel);
+  if(t.matched>0)found.push_back(Candidate{folder,int(inFolder.size()),t.checked,t.matched,t.matched*5>=t.checked*4});
+ }
+ // A folder most of whose files are the system's comes first, then the fuller one, then the more specific.
+ std::sort(found.begin(),found.end(),[](const Candidate &a,const Candidate &b){return a.sure!=b.sure?a.sure:a.files!=b.files?a.files>b.files:a.folder.size()!=b.folder.size()?a.folder.size()>b.folder.size():a.folder<b.folder;});
+ // When one folder fits well, the ones that only half fit are not offered.
+ const bool anySure=!found.isEmpty()&&found.first().sure;
+ QVariantList suggestions;
+ QList<Candidate> chosen;
+ for(const auto &candidate:found){
+  if(anySure&&!candidate.sure)break;
+  // Not a folder inside one already offered, nor one that holds no more than a more specific one already offered.
+  bool nested=false;
+  for(const auto &other:chosen)nested=nested||inside(candidate.folder,other.folder)||(inside(other.folder,candidate.folder)&&candidate.files==other.files);
+  if(nested)continue;
+  chosen.push_back(candidate);
+  Tally seenOf;seenOf.checked=candidate.checked;seenOf.matched=candidate.matched;
+  suggestions<<QVariantMap{{"folder",candidate.folder},{"files",candidate.files},{"checked",candidate.checked},{"matched",candidate.matched},
+   {"detail",describe(system,candidate.files,seenOf)}};
+  if(suggestions.size()==3)break;
+ }
+ return suggestions;
 }
 }

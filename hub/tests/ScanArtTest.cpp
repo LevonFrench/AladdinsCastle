@@ -1125,6 +1125,90 @@ private slots:
     QVERIFY(texture);
     QCOMPARE(texture->image().pixelColor(0, 0).alpha(), 0);
   }
+  // Why a file gave no game is told from the reader's own words and the extension, with no file opened.
+  void unreadReasonsAreInPlainWords() {
+    struct Row {const char *ext, *error, *code;};
+    const Row rows[] = {{"iso", "Protected media name", "protected"},
+                        {"iso", "Unreadable media", "unreadable"},
+                        {"cue", "Unreadable or oversized disc sheet", "badSheet"},
+                        {"cue", "No readable disc in sheet", "badSheet"},
+                        {"m3u", "Disc reference recursion limit", "badSheet"},
+                        {"chd", "Unsupported header", "notDisc"},
+                        {"chd", "CHD decoded-header budget exceeded", "slow"},
+                        {"gdi", "Dreamcast header time budget reached", "slow"},
+                        {"wbfs", "Unsupported or invalid single-disc WBFS metadata", "damaged"},
+                        {"cso", "No readable compressed disc identity", "damaged"},
+                        {"chd", "", "unknownDisc"},
+                        {"WBFS", "", "unknownDisc"},
+                        {"iso", "", "unidentified"},
+                        {"bin", "", "unidentified"}};
+    for (const auto &row : rows) {
+      const auto why = ac::scan::unreadReason(row.ext, row.error);
+      QVERIFY2(why.code == row.code, row.error);
+      QVERIFY2(why.reason.size() > 20 && why.reason.endsWith('.'), row.error);
+      QCOMPARE(why.detail, QString(row.error));
+      QVERIFY2(!why.reason.contains(row.error) || QString(row.error).isEmpty(), row.error); // The reader's words stay in the log, not the reason.
+    }
+  }
+  void looksLikeReadsBytesNotNames() {
+    QTemporaryDir t;
+    QVERIFY(t.isValid());
+    std::atomic_bool cancel = false;
+    // A PS2 disc named for another system, and the same bytes under another extension.
+    save(t.filePath("wii-game.iso"), iso());
+    QVERIFY(ac::scan::looksLike("ps2", t.filePath("wii-game.iso"), cancel));
+    QVERIFY(!ac::scan::looksLike("wii", t.filePath("wii-game.iso"), cancel));
+    QVERIFY(!ac::scan::looksLike("ps1", t.filePath("wii-game.iso"), cancel));
+    save(t.filePath("ps2.txt"), iso());
+    QVERIFY(!ac::scan::looksLike("ps2", t.filePath("ps2.txt"), cancel)); // Not a kind of file the system uses.
+    // A Wii header in a file named for a PS2 disc, and a GameCube one.
+    QByteArray wii(0x400, '\0');
+    wii.replace(0, 6, "RBUE08");
+    qToBigEndian<quint32>(0x5D1C9EA3, wii.data() + 0x18);
+    save(t.filePath("SLUS_202.19.iso"), wii);
+    QVERIFY(ac::scan::looksLike("wii", t.filePath("SLUS_202.19.iso"), cancel));
+    QVERIFY(!ac::scan::looksLike("ps2", t.filePath("SLUS_202.19.iso"), cancel));
+    QByteArray cube(0x400, '\0');
+    cube.replace(0, 6, "GFZE01");
+    qToBigEndian<quint32>(0xc2339f3d, cube.data() + 0x1c);
+    save(t.filePath("cube.iso"), cube);
+    QVERIFY(ac::scan::looksLike("gamecube", t.filePath("cube.iso"), cancel));
+    QVERIFY(ac::scan::looksLike("wii", t.filePath("cube.iso"), cancel)); // The Wii folder holds GameCube discs too.
+    QVERIFY(!ac::scan::looksLike("gamecube", t.filePath("wii-game.iso"), cancel));
+    // Tables, cartridges and 3DS dumps by their magic bytes.
+    save(t.filePath("table.vpx"), QByteArray::fromHex("d0cf11e0a1b11ae1") + QByteArray(32, '\0'));
+    save(t.filePath("fake.vpx"), "plain text");
+    QVERIFY(ac::scan::looksLike("pinball", t.filePath("table.vpx"), cancel));
+    QVERIFY(!ac::scan::looksLike("pinball", t.filePath("fake.vpx"), cancel));
+    for (const auto &magic : {QByteArray::fromHex("80371240"), QByteArray::fromHex("37804012"), QByteArray::fromHex("40123780")}) {
+      save(t.filePath("cart.z64"), magic + QByteArray(32, '\0'));
+      QVERIFY(ac::scan::looksLike("n64", t.filePath("cart.z64"), cancel));
+    }
+    save(t.filePath("cart.z64"), QByteArray(32, 'a'));
+    QVERIFY(!ac::scan::looksLike("n64", t.filePath("cart.z64"), cancel));
+    QByteArray ncsd(0x200, '\0');
+    ncsd.replace(0x100, 4, "NCSD");
+    save(t.filePath("game.3ds"), ncsd);
+    QVERIFY(ac::scan::looksLike("3ds", t.filePath("game.3ds"), cancel));
+    ncsd.replace(0x100, 4, "XXXX");
+    save(t.filePath("game.3ds"), ncsd);
+    QVERIFY(!ac::scan::looksLike("3ds", t.filePath("game.3ds"), cancel));
+    QByteArray cia(0x40, '\0');
+    qToLittleEndian<quint32>(0x2020, cia.data());
+    save(t.filePath("game.cia"), cia);
+    QVERIFY(ac::scan::looksLike("3ds", t.filePath("game.cia"), cancel));
+    // An arcade set must at least open as a zip; naming the set is the caller's.
+    save(t.filePath("set.zip"), zip({{crc32("a"), 1}}));
+    QVERIFY(ac::scan::looksLike("model3", t.filePath("set.zip"), cancel));
+    save(t.filePath("broken.zip"), "not a zip");
+    QVERIFY(!ac::scan::looksLike("model3", t.filePath("broken.zip"), cancel));
+    QVERIFY(!ac::scan::looksLike("model3", t.filePath("missing.zip"), cancel));
+    QVERIFY(!ac::scan::looksLike("not-a-system", t.filePath("table.vpx"), cancel));
+    QVERIFY(ac::scan::systemExtensions("not-a-system").isEmpty());
+    // A cancelled check answers no without reading.
+    cancel = true;
+    QVERIFY(!ac::scan::looksLike("pinball", t.filePath("table.vpx"), cancel));
+  }
 };
 QTEST_MAIN(ScanArtTest)
 #include "ScanArtTest.moc"
