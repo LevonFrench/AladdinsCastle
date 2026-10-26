@@ -48,6 +48,7 @@
 
 #include "SDLIncludes.h"
 #include "OSD/ACVRStereo.h"
+#include "OSD/acvr/hold_ring_gl.hpp"     // after the GL headers: draws the ring with scissored clears
 
 namespace
 {
@@ -888,6 +889,18 @@ void ACVR_XR_Publish(const ACVRPublish &p)
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_pubFboMain[i]);
     glBlitFramebuffer(0, 0, p.w, p.h, 0, 0, p.w, p.h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
   }
+  // U4: the hold ring over both eye pictures (the HUD layer stays clean). In VR it sits straight ahead in each eye,
+  // so the two rings meet far away; on the flat screen it sits in the middle of the picture, as in acvr-ps1.
+  if (p.ring.visible)
+    for (int i = 0; i < 2; i++)
+    {
+      if (!src[i]) continue;
+      const ACVREyeView &v = p.views[i];
+      const acvr::HoldRingSpot at = p.vr ? acvr::hold_ring_eye_spot(v.tan[0], v.tan[1], v.tan[2], v.tan[3], (int)p.w, (int)p.h)
+                                         : acvr::hold_ring_screen_spot((int)p.w, (int)p.h);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_pubFboMain[i]);
+      acvr::draw_hold_ring_gl(p.ring, at.cx, at.cy, at.radius, (int)p.w, (int)p.h);
+    }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   if (scissor) glEnable(GL_SCISSOR_TEST);
   if (s_pubReady) glDeleteSync(s_pubReady);
