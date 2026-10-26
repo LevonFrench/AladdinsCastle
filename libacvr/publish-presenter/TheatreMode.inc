@@ -54,7 +54,7 @@ TheatreFrame TheatreState(XrTime time,bool focused){
    clicksRead=true;
    const auto stickState=s_chord.step(GetTickCount64(),button(s_leftClick,s_left),button(s_rightClick,s_right));
    frame.start=stickState.start;frame.coin=stickState.select;frame.quitHeld=stickState.chord;
-   frame.recenter=frame.recenter||stickState.recenter;frame.chordMs=stickState.chord_ms;frame.quitProgress=stickState.quit_visible?stickState.quit_progress:0.f;
+   frame.recenter=frame.recenter||stickState.recenter;frame.chordMs=stickState.chord_ms;frame.quitProgress=stickState.quit_visible&&!stickState.quit_cancelled?stickState.quit_progress:0.f;
   }
  }
  if(!clicksRead)s_chord.step(GetTickCount64(),false,false); // focus loss or a failed sync releases every click
