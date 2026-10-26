@@ -5,6 +5,7 @@ name: Dolphin VR compile check
 # Runs only on changes to the patch folders it uses (and this file), on demand, and every Monday.
 on:
   push:
+    branches: [main]
     paths:
       - 'setups/dolphin-vr/upstream-pin.json'
       - 'setups/dolphin-vr/facing/**'

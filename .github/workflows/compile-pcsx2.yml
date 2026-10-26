@@ -4,6 +4,7 @@ name: PCSX2 compile check
 # Runs on changes to setups/pcsx2-vr (and this file), on demand, and every Monday.
 on:
   push:
+    branches: [main]
     paths:
       - 'setups/pcsx2-vr/**'
       - '.github/workflows/compile-pcsx2.yml'

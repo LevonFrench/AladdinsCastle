@@ -5,6 +5,7 @@ name: MAME Model 2 compile check
 # The compiler cache is kept between runs, so a re-run after a small change is much shorter than the first.
 on:
   push:
+    branches: [main]
     paths:
       - 'setups/mame-model2-vr/**'
       - '.github/workflows/compile-mame-model2.yml'
