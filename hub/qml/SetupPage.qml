@@ -95,6 +95,8 @@ Item {
  function hasUpdate(id,entry){return (entry&&entry.updateAvailable===true)||((byId[id]||{}).updateAvailable===true)}
  // Leaving "Where it is" forwards accepts the suggested folders and reads them; the report page shows the result.
  function go(to){if(step===3&&to>step){uiController.acceptSetupGuesses();uiController.scanSetup()} if(to>=names.length){uiController.finishSetup();page.finished()}else step=Math.max(0,to)}
+ // Back on the panel, or B: the step before; false on the first step, so Back then leaves the set-up.
+ function handleBack(){if(step>0){go(step-1);return true}return false}
  function names_of(list){return Array.from(list||[]).map(e=>e.title).join(",  ")}
  FolderDialog {id:folder;title:"Choose the folder holding your own files";onAccepted:uiController.setSetupFolder(page.pendingId,uiController.localPath(selectedFolder))}
  // The few settings a system needs beside its folder and program, each said in plain words.

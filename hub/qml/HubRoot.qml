@@ -30,16 +30,53 @@ FocusScope {
  onActiveFocusChanged:if(!activeFocus)uiController.clearDetailControlStates()
  // Any page change closes every menu and dialog, so nothing is left open over the new page.
  function closeMenus(){filters.close();sort.close();help.close();scanDialog.close();toolDialog.close();steamDialog.close();removeDialog.close();preview.visible=false}
- function navigate(page,id){closeMenus();history=history.concat([view]);view=page;if(id)uiController.openDetail(id)}
+ // The pages form one path from home, and Back goes up it one page at a time. Home has nothing above it, so
+ // going there empties the path; going to a page already on the path goes up to it; the page on show adds nothing.
+ // So Back never goes sideways or round in circles, and never takes two presses to leave one page.
+ function navigate(page,id){
+  closeMenus()
+  if(page===home)history=[]
+  else if(page!==view){const at=history.indexOf(page);history=at>=0?history.slice(0,at):history.concat([view])}
+  view=page;if(id)uiController.openDetail(id)
+ }
  function back(){closeMenus();if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view=home}
+ // Home: the main library, at its top level, whatever page or level is on show. On the SteamVR panel the library
+ // also leaves its game page, tab, search and filter, and scrolls to the top.
+ function goHome(){
+  closeMenus();history=[];view=home
+  if(uiController.pinballSelection&&uiController.pinballSelection.id)uiController.selectPinball("")
+  const library=view==="Model3"?pageItem:null
+  if(library&&typeof library.goHome==="function")library.goHome()
+ }
+ function panelHome(){
+  if(!canGoBack){noteBack("home ignored: already home");return false}
+  if(uiController.nowPlaying.gameId!==undefined){noteBack("home ignored: a game is running ("+uiController.nowPlaying.gameId+")");return false}
+  goHome();++homeSteps;pageChanged();noteBack("home");return true
+ }
  function closeTop(){for(const open of [removeDialog,steamDialog,toolDialog,scanDialog,filters,sort,help])if(open.opened){open.close();return}
   if(showAll&&gameFilter.query.length)gameFilter.query="";else back()}
  function showDetail(id){navigate("Detail",id)}
+ // The panel's own way around, for the laser: large, always in the same place, dimmed where it would do nothing.
+ component NavButton:Rectangle {
+  id:nav
+  property string glyph:""
+  property string label:""
+  signal activated()
+  visible:root.vrOverlayMode;Layout.preferredHeight:72;Layout.preferredWidth:Math.max(220,navRow.implicitWidth+56);radius:36
+  color:navArea.containsMouse&&root.canGoBack?Theme.get("color.surface.menu_hover"):Theme.get("color.surface.pill");border.width:root.canGoBack?3:0;border.color:Theme.get("color.text.primary")
+  opacity:root.canGoBack?1:0.4;Accessible.name:label;Accessible.role:Accessible.Button
+  Row {id:navRow;anchors.centerIn:parent;spacing:14
+   Text {anchors.verticalCenter:parent.verticalCenter;text:nav.glyph;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:nav.glyph==="‹"?44:34}
+   Text {anchors.verticalCenter:parent.verticalCenter;text:nav.label;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:800;font.pixelSize:30}
+  }
+  MouseArea {id:navArea;anchors.fill:parent;hoverEnabled:true;onClicked:nav.activated()}
+ }
  // The panel's guards against double presses. After any page change, trigger clicks are ignored for a moment,
  // so a double click on a tile cannot also press the Play button that appears under the pointer. B presses
  // inside a page change are dropped, so one burst of presses never goes back two levels at once.
  property real lastPageChange:0
  property int backSteps:0
+ property int homeSteps:0
  readonly property int backQuietMs:250
  // The click guard is for the SteamVR panel's trigger; the desktop mouse is left alone.
  // Presses on the panel before this time land nowhere. A clock, not a Timer: the panel draws only when something
@@ -65,7 +102,7 @@ FocusScope {
   if(!done&&uiController.nowPlaying.gameId!==undefined){noteBack("ignored: a game is running ("+uiController.nowPlaying.gameId+")");return false}
   if(!done&&!!uiController.steamVrStarting){noteBack("ignored: SteamVR is starting");return false}
   // The page's own level first: the library's game page, tab or search; Pinball's table page or filters.
-  const page=view==="Model3"?pageItem:view==="Pinball"?pinballLoader.item:null
+  const page=view==="Model3"?pageItem:view==="Pinball"?pinballLoader.item:view==="Setup"?setupLoader.item:null
   if(!done&&page&&typeof page.handleBack==="function"&&page.handleBack()){done=true;what=view+" page level"}
   if(!done&&(history.length>0||view!==home)){back();done=true;what="to "+view}
   if(done){++backSteps;pageChanged()}
@@ -98,8 +135,8 @@ FocusScope {
      PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}}
     }
    }
-   Loader {id:pinballLoader;objectName:"pinballLoader";anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
-   Loader {anchors.fill:parent;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
+   Loader {id:pinballLoader;objectName:"pinballLoader";anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;reduceMotion:root.reduceMotion;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
+   Loader {id:setupLoader;objectName:"setupLoader";anchors.fill:parent;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
    // The SteamVR panel shows its Steam-like library; the desktop keeps the VR games page. The panel's
    // library stays loaded behind other pages, so B comes back to the same tab and scroll position.
    Loader {id:model3Loader;objectName:"model3Loader";anchors.fill:parent;property bool keep:false;active:root.view==="Model3"||keep;visible:root.view==="Model3";focus:root.view==="Model3"
@@ -122,15 +159,9 @@ FocusScope {
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:root.vrOverlayMode?28:40;Layout.rightMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;spacing:14
    // On every panel page: one large Back for the laser. SteamVR keeps the controller's B while its dashboard is
    // open (the Hub's log shows B unbound for whole sessions), so this button is the dependable way back.
-   Rectangle {id:backHint;objectName:"panelBackHint";visible:root.vrOverlayMode;Layout.preferredHeight:72;Layout.preferredWidth:Math.max(240,hintRow.implicitWidth+56);radius:36
-    color:backArea.containsMouse&&root.canGoBack?Theme.get("color.surface.menu_hover"):Theme.get("color.surface.pill");border.width:root.canGoBack?3:0;border.color:Theme.get("color.text.primary")
-    opacity:root.canGoBack?1:0.4;Accessible.name:"Back";Accessible.role:Accessible.Button
-    Row {id:hintRow;anchors.centerIn:parent;spacing:14
-     Text {anchors.verticalCenter:parent.verticalCenter;text:"‹";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:44}
-     Text {anchors.verticalCenter:parent.verticalCenter;text:"Back";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:800;font.pixelSize:30}
-    }
-    MouseArea {id:backArea;anchors.fill:parent;hoverEnabled:true;onClicked:root.panelBack()}
-   }
+   // Beside it, Home: straight back to the main library's top level from any page or level.
+   NavButton {objectName:"panelBackHint";glyph:"‹";label:"Back";onActivated:root.panelBack()}
+   NavButton {objectName:"panelHome";glyph:"⌂";label:"Home";onActivated:root.panelHome()}
    UiText{objectName:"statusLine";Layout.fillWidth:true;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games":"");font.pixelSize:root.vrOverlayMode?16:11;elide:Text.ElideRight;maximumLineCount:2;color:Theme.get("color.text.muted_detail")}
   }
  }
