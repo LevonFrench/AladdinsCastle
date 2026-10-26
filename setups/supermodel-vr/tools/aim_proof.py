@@ -9,6 +9,9 @@ ray says it should be. No headset, no OpenXR runtime: the run is hidden, muted a
                                 --out <folder> --scenarios scenarios.json [--env NAME=VALUE ...]
     python aim_proof.py measure --out <folder> --scenarios scenarios.json --template reticle.png
 
+With --screen (both commands) the same check is made for the Hub's Screen view: the game drawn in stereo for a
+flat screen 2.5 m ahead, the controller pointing at it, and the eye pictures read as that screen (head_yaw 0).
+
 scenarios.json: {"segment": 60, "points": [{"name": "...", "head": [x, y, z], "head_yaw": deg, "hand": [x, y, z],
 "aim": [yaw, pitch], "grip": 0}, ...]}. Metres and degrees, left and up positive, in the frame the made-up head
 was recentred in (the origin, facing -z). Each point is held for one segment and its last frame is saved.
@@ -74,16 +77,21 @@ def cmd_run(a):
     env = {k: v for k, v in os.environ.items() if not k.startswith('ACVR_') and not k.startswith('XR_')}
     frames = sorted(set([p['last'] for p in pts] + list(extra)))
     env.update({'XR_RUNTIME_JSON': os.path.join(a.work, 'no-openxr-runtime.json'),   # does not exist: no runtime
-                'ACVR_HIDDEN': '1', 'ACVR_VR_FAKE': '1', 'ACVR_WORLD_SCALE': '1',
+                'ACVR_HIDDEN': '1', 'ACVR_WORLD_SCALE': '1',
                 'ACVR_HUD_DISTANCE': '1.6', 'ACVR_HUD_WIDTH': '1.6',
                 'ACVR_CAPTURE_FRAME': ','.join(str(f) for f in frames), 'ACVR_CAPTURE_DIR': os.path.abspath(a.out),
                 'ACVR_FAKE_CONTROLLERS': fake_script(pts)})
+    if a.screen:   # the Hub's screen view, without a headset: the convergence the presenter would set
+        env.update({'ACVR_STEREO': '1', 'ACVR_EYE_SEP': '0.065', 'ACVR_CONVERGENCE': '2.5'})
+    else:
+        env['ACVR_VR_FAKE'] = '1'
     for kv in a.env or []:
         k, v = kv.split('=', 1)
         if k in ('ACVR_XR', 'ACVR_VR'):
             sys.exit('ACVR_XR and ACVR_VR are not allowed in offline runs')
         env[k] = v
-    args = [a.exe, a.game, '-window', '-res=%d,%d' % (a.res, a.res), '-no-sound', '-no-dsb', '-input-system=sdl',
+    rw, rh = (a.res, a.res * 3 // 4) if a.screen else (a.res, a.res)
+    args = [a.exe, a.game, '-window', '-res=%d,%d' % (rw, rh), '-no-sound', '-no-dsb', '-input-system=sdl',
             '-no-vsync', '-no-throttle', '-stretch', '-ss=2', '-load-state=' + a.state]
     with open(os.path.join(a.out, 'run.json'), 'w', encoding='utf-8') as f:
         json.dump({'args': args[1:], 'env': {k: v for k, v in env.items() if k.startswith(('ACVR_', 'XR_'))}}, f, indent=1)
@@ -184,6 +192,15 @@ def eye_to_tan(x, y, W, H, yaw_deg):
     return X / -Z, ey / -Z
 
 
+def screen_to_dir(x, y, W, H, eye, tan, dist, height):
+    """Screen mode: a pixel of one eye's picture is a point on the screen (the whole picture, dist metres ahead of
+    the recentred head, sized to the game's field of view); the direction from that eye to it, as tangents."""
+    w, h = dist * (tan[1] - tan[0]), dist * (tan[3] - tan[2])
+    px, py = -w / 2 + x / W * w, height + h / 2 - y / H * h
+    dx, dy, dz = px - eye[0], py - eye[1], -dist - eye[2]
+    return dx / -dz, dy / -dz
+
+
 def cmd_measure(a):
     import numpy as np
     from PIL import Image
@@ -202,11 +219,15 @@ def cmd_measure(a):
         if not os.path.exists(L):
             rows.append({'name': p['name'], 'missing': True}); continue
         W = Image.open(L).size[0]
-        k = (W / 2.0) * (tan[1] - tan[0]) / GAME_W            # eye pixels per game pixel at the centre
+        k = W / GAME_W if a.screen else (W / 2.0) * (tan[1] - tan[0]) / GAME_W   # eye pixels per game pixel
         got, row = [], {'name': p['name'], 'frame': f}
         for eye, png in (('left', L), ('right', R)):
             x, y, score, W, H = find_reticle(png, T, k)
-            got.append(eye_to_tan(x, y, W, H, p['head_yaw']) + (score,))
+            if a.screen:   # the eyes the screen pictures are drawn for: half the separation each side of the head
+                e = [p['head'][0] + (-a.half_sep if eye == 'left' else a.half_sep), p['head'][1], p['head'][2]]
+                got.append(screen_to_dir(x, y, W, H, e, tan, a.screen_distance, a.screen_height) + (score,))
+            else:
+                got.append(eye_to_tan(x, y, W, H, p['head_yaw']) + (score,))
             dot = find_dot(png, os.path.join(a.base, os.path.basename(png)) if a.base else None) if a.dot else None
             if dot:
                 row['dot_' + eye] = to_game(*eye_to_tan(dot[0], dot[1], W, H, p['head_yaw']), tan)
@@ -266,11 +287,15 @@ def main():
         r.add_argument('--' + n, required=True)
     r.add_argument('--env', action='append'); r.add_argument('--res', type=int, default=900)
     r.add_argument('--timeout', type=int, default=240)
+    r.add_argument('--screen', action='store_true', help="screen mode (the Hub's Screen view) instead of head-tracked")
     m = sp.add_parser('measure')
     m.add_argument('--out', required=True); m.add_argument('--scenarios', required=True)
     m.add_argument('--template', required=True); m.add_argument('--tangents', default='')
     m.add_argument('--depth', type=float, default=None, help='crosshair depth in metres (default: infinity)')
     m.add_argument('--dot', action='store_true', help='also find the yellow aim dot (runs with the laser on)')
+    m.add_argument('--screen', action='store_true', help='screen mode: the eye pictures are the screen itself')
+    m.add_argument('--screen-distance', type=float, default=2.5); m.add_argument('--screen-height', type=float, default=0.0)
+    m.add_argument('--half-sep', type=float, default=0.0325, help='screen mode: half the eye separation, metres')
     m.add_argument('--base', default='', help='with --dot: a run of the same points with the laser off')
     m.add_argument('--result', default='aim-result.json')
     t = sp.add_parser('template')

@@ -46,8 +46,11 @@
                           wheel, positive turns right); aim.u aim.v (the right controller points at that place of
                           the game picture, 0..1 from the top left); aim.yaw aim.pitch (degrees, left and up
                           positive); hand.x hand.y hand.z (where the right controller is, metres from the head);
-                          with ACVR_VR_FAKE also head.x head.y head.z (the made-up head moved from where it was
-                          recentred, metres) and head.yaw (degrees to the left), for checks of the pointing
+                          head.x head.y head.z (the made-up head moved from where it was recentred, metres: the
+                          eyes with ACVR_VR_FAKE, the pointing ray's start in screen mode) and head.yaw (degrees
+                          to the left, ACVR_VR_FAKE), for checks of the pointing
+   ACVR_AIM_FROM=hand     screen mode: the pointing ray starts at the hand, as before 2026-10-26 (default: at the
+                          head, in the controller's direction, so the game's far crosshair lies on that line)
 ******************************************************************************/
 
 ACVRStereoState g_acvrStereo;
@@ -304,6 +307,19 @@ static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
 static float s_acvrAimFrom[3] = { 0, 0, 0 }, s_acvrAimHit[3] = { 0, 0, 0 };
 static long  s_acvrAimFrame = -10;
 
+static bool ACVR_AimHead(float head[3]);
+
+// Screen mode: where the pointing ray starts. The game's crosshair is far behind the screen (its two pictures are
+// an eye separation apart), so it is seen in the direction from the head through its place on the screen. A ray
+// from the head, in the direction the controller points, puts it on the controller's line wherever the hand and
+// head are. ACVR_AIM_FROM=hand restores the older rule (the ray from the hand, like a light gun at a flat screen).
+static bool ACVR_AimFromHead()
+{
+  static int fromHead = -1;
+  if (fromHead < 0) { const char *e = getenv("ACVR_AIM_FROM"); fromHead = !(e && std::string(e) == "hand"); }
+  return fromHead == 1;
+}
+
 // Where the right controller's pointing ray meets the game picture: u, v from its top left (may be outside 0..1)
 static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
 {
@@ -311,7 +327,9 @@ static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
   if (!c.aimValid[1] || !ACVR_GetAimScreen(c, s)) return false;
   const float *q = c.aimRot[1];
   const float d[3] = { -2.0f * (q[0] * q[2] + q[3] * q[1]), -2.0f * (q[1] * q[2] - q[3] * q[0]), -(1.0f - 2.0f * (q[0] * q[0] + q[1] * q[1])) };
+  float head[3];
   const float *o = c.aimPosValid[1] ? c.aimPos[1] : c.gripPos[1];
+  if (!g_acvrStereo.vr && ACVR_AimFromHead() && ACVR_AimHead(head)) o = head;
   const float dn = d[0] * s.normal[0] + d[1] * s.normal[1] + d[2] * s.normal[2];
   if (!(dn < -1e-4f)) return false;                       // pointing away from the screen
   const float t = ((s.centre[0] - o[0]) * s.normal[0] + (s.centre[1] - o[1]) * s.normal[1] + (s.centre[2] - o[2]) * s.normal[2]) / dn;
@@ -365,6 +383,24 @@ static void ACVR_FakeHead(float pos[3], float &yaw)
   }
 }
 
+// Where the head is now (between the eyes), in the controllers' space: the headset's, or the made-up head of an
+// unattended check (head.x/y/z, after a recentre at the origin)
+static bool ACVR_AimHead(float head[3])
+{
+  ACVREyeView v[2];
+  if (ACVR_XR_GetViews(v))
+  {
+    for (int k = 0; k < 3; k++) head[k] = 0.5f * (v[0].pos[k] + v[1].pos[k]);
+    return true;
+  }
+  ACVR_FakeRead();
+  if (s_acvrFake.empty()) return false;
+  float yaw = 0.0f;
+  head[0] = head[1] = head[2] = 0.0f;
+  ACVR_FakeHead(head, yaw);
+  return true;
+}
+
 static bool ACVR_FakeControllers(ACVRControllers &c)
 {
   ACVR_FakeRead();
@@ -413,8 +449,9 @@ static bool ACVR_FakeControllers(ACVRControllers &c)
     if (ACVR_GetAimScreen(c, s))
     {
       const float su = s.g0[0] + aimU * (s.g1[0] - s.g0[0]), sv = s.g0[1] + aimV * (s.g1[1] - s.g0[1]);
-      float d[3];
-      for (int k = 0; k < 3; k++) d[k] = s.centre[k] + (su - 0.5f) * s.w * s.xaxis[k] - hand[k];
+      float d[3], from[3] = { hand[0], hand[1], hand[2] };
+      if (!g_acvrStereo.vr && ACVR_AimFromHead()) ACVR_AimHead(from);      // the ray starts at the head there
+      for (int k = 0; k < 3; k++) d[k] = s.centre[k] + (su - 0.5f) * s.w * s.xaxis[k] - from[k];
       d[1] += (0.5f - sv) * s.h;
       const float len = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
       if (len > 1e-4f)
