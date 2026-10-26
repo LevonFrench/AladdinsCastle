@@ -45,11 +45,12 @@ The proofs are offline: identical-input runs compared with and without the input
 - **Library:** 143 games and 279 views across 12 systems. Each game lists the views it has, such as *Real 3D*, *Open frame*, *Inside the game*, *Theatre screen*, *With the gun*, *Pointer*, *Motion controls* and *On the monitor*. Opt-in views (roll steer, tilt steer, body motion) are never the default.
 - **Systems started through launchers** (`play/<system>/launch-<system>.ps1 <key> -View <view>` with a `games.json` beside it): arcade guns and motion (MAME), Dreamcast and Atomiswave, Wii, GameCube. PS1, N64, Saturn and PS2 use their own launchers; Model 2, Model 3 and Time Crisis VR are started by the Hub directly.
 - **SteamVR panel:**
-  - A Steam-like grid of system tabs, scrolled a row at a time, with a game page.
-  - A large on-panel **Back** button.
+  - A Steam-like grid of system tabs, with a game page. Pinball and a table's page also scroll as one surface on the panel (their hero scrolls away with the list).
+  - Stick scrolling glides: the speed follows the push, up to a cap of 5 rows a second, eases in and out, coasts on a little when let go and always comes to rest on a row. Not yet felt in the headset.
+  - Large on-panel **Back** and **Home** buttons, bottom left on every page. Back goes up exactly one level (menu, game page, filter, page, set-up step); B does the same where SteamVR delivers it. Home goes to the library's top from anywhere. Going to a page already on the path goes up to it, so Back never goes in circles.
   - Double-press guards on Play.
   - The Hub keeps its own SteamVR manifest pointing at itself with absolute paths. SteamVR cannot follow `..` in a manifest path, which kept the Hub unregistered until 2026-10-21.
-- **Input log:** `user/logs/overlay-input.log` in the live Hub folder records pointer events, the B action's state, every B press and what the page did with it, and any UI stall over 250 ms.
+- **Input log:** `user/logs/overlay-input.log` in the live Hub folder records pointer events, the B action's state, every B press and what the page did with it, and any UI stall over 250 ms. Scroll lines carry SteamVR's raw stick deltas and the wheel angle sent to the page, so the next sitting shows the real packet sizes.
 - **Tests:** the integration tests used to copy the test program under emulator names and start the copies. Windows Defender flagged one as a trojan (a false positive) and deleted the test program mid-run. A small stand-in game (`hub/tests/StandIn.cpp`) now plays every synthetic game instead (PR #123).
 - **Not done:** easier system switching, and one layout shared by desktop and VR. Both need the owner's design choice.
 
