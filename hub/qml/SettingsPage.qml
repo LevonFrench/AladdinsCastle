@@ -56,6 +56,19 @@ ScrollView{
      }}
    }
   }
+  // One file to send when something goes wrong: the Hub's logs and the last game's log, with names, folders and keys taken out.
+  Rectangle{objectName:"problemReport";width:parent.width;radius:Theme.get("radius.card");color:Theme.get("color.surface.card");height:reportColumn.implicitHeight+(page.vrOverlayMode?40:32)
+   Column{id:reportColumn;x:page.vrOverlayMode?20:16;y:page.vrOverlayMode?20:16;width:parent.width-2*x;spacing:10
+    Text{text:"Problem report";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?20:17}
+    Text{width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?16:14
+     text:"Saves one ZIP file of the Hub's logs and the last game's log. Your folder names, account name, emails and keys are taken out, and no game files or saves go in. You can open it and look before you send it."}
+    Flow{width:parent.width;spacing:10
+     PillButton{objectName:"reportSave";text:"Save a problem report";neon:true;accent:Theme.get("color.brand.orange");vrOverlayMode:page.vrOverlayMode;onClicked:uiController.saveReport()}
+     PillButton{objectName:"reportShow";text:"Open the reports folder";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.showReport()}}
+    Text{objectName:"reportStatus";width:parent.width;visible:text.length>0;wrapMode:Text.WrapAnywhere;text:uiController.reportStatus;color:Theme.get("color.text.body");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?16:14}
+   }
+  }
+  UnrecognisedList{width:parent.width;vrOverlayMode:page.vrOverlayMode}
   // Pictures already on this PC: read where they are, never copied, and always before downloads.
   Rectangle{objectName:"artFolders";width:parent.width;radius:Theme.get("radius.card");color:Theme.get("color.surface.card");height:artFolderColumn.implicitHeight+(page.vrOverlayMode?40:32)
    Column{id:artFolderColumn;x:page.vrOverlayMode?20:16;y:page.vrOverlayMode?20:16;width:parent.width-2*x;spacing:8

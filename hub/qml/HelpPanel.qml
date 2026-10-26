@@ -18,6 +18,7 @@ Popup{
   PillButton{objectName:"helpGunRoom";text:"Gun room";visible:!panel.vrOverlayMode&&panel.showAll;width:parent.width;onClicked:{panel.close();panel.gunRoomRequested()}}
   PillButton{objectName:"helpSuggest";visible:!panel.vrOverlayMode&&panel.showAll;vrOverlayMode:panel.vrOverlayMode;text:"Suggest a game";width:parent.width;onClicked:uiController.openLink("https://github.com/LevonFrench/AladdinsCastle/issues/new")}
   PillButton{objectName:"helpLogs";visible:!panel.vrOverlayMode;vrOverlayMode:panel.vrOverlayMode;text:"Logs and report a problem";width:parent.width;onClicked:{panel.close();uiController.openLocation("log")}}
+  PillButton{objectName:"helpReport";vrOverlayMode:panel.vrOverlayMode;text:"Save a problem report";width:parent.width;onClicked:{panel.close();uiController.saveReport()}}
   PillButton{objectName:"helpStopEverything";vrOverlayMode:panel.vrOverlayMode;text:"Stop everything";width:parent.width;onClicked:{panel.close();uiController.stopEverything()}}
   PillButton{objectName:"helpClose";vrOverlayMode:panel.vrOverlayMode;text:"Close";width:parent.width;onClicked:panel.close()}
  }

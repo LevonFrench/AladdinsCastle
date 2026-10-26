@@ -442,6 +442,20 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         connect(watcher,&QFutureWatcher<QVariantList>::finished,this,[this,watcher]{const auto reports=watcher->result();watcher->deleteLater();ui_->setToolUpdates(reports);});
         watcher->setFuture(QtConcurrent::run([manifests]{QVariantList out;for(const auto &report:ac::update::checkAll(manifests,"windows-x64",githubGet))out<<ac::update::toMap(report);return out;}));
     });
+    // Set-up folder help: a few files are read to tell what a folder holds, so it runs on a worker; a newer request ends the old one.
+    connect(ui_,&UiController::setupFolderWorkRequested,this,[this](const QString &id,const QString &folder,const QStringList &known,const QStringList &roots,bool suggest){
+        if(folderCancel_)folderCancel_->store(true);
+        const auto cancel=std::make_shared<std::atomic_bool>(false);folderCancel_=cancel;
+        if(suggest){
+            auto *watcher=new QFutureWatcher<QVariantList>(this);
+            connect(watcher,&QFutureWatcher<QVariantList>::finished,this,[this,watcher,id,cancel]{const auto found=watcher->result();watcher->deleteLater();if(!cancel->load())ui_->setSetupSuggestions(id,found);});
+            watcher->setFuture(QtConcurrent::run([id,folder,known,roots,cancel]{return setup::suggestFolders(id,folder,known,roots,*cancel);}));
+        }else{
+            auto *watcher=new QFutureWatcher<QVariantMap>(this);
+            connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,id,cancel]{const auto found=watcher->result();watcher->deleteLater();if(!cancel->load())ui_->setSetupFolderCheck(id,found);});
+            watcher->setFuture(QtConcurrent::run([id,folder,cancel]{return setup::folderCheck(id,folder,*cancel);}));
+        }
+    });
     // The problem report: the Hub's logs and the last launch's, made plain of names and keys, in one ZIP.
     connect(ui_,&UiController::reportRequested,this,[this]{
         try{

@@ -86,8 +86,8 @@ class UiController : public QObject {
  // The problem report: a ZIP of the Hub's logs and the last launch's, saved in the Hub's folder.
  Q_PROPERTY(QString reportStatus READ reportStatus NOTIFY reportChanged)
  Q_PROPERTY(QString reportPath READ reportPath NOTIFY reportChanged)
- // Set by the finders (files the Hub could not identify: [{name, reason, size}], with unrecognisedCount for the whole number
- // when the list is capped) through the map given to setLibrary().
+ // The finders' list of files the Hub could not identify, from the library result (library.unrecognised): up to 500 rows of
+ // {file, name, folder, size, kind, code, reason}, and the whole number in unrecognisedCount when the list is capped.
  Q_PROPERTY(QVariantList unrecognisedFiles READ unrecognisedFiles NOTIFY libraryChanged)
  Q_PROPERTY(int unrecognisedCount READ unrecognisedCount NOTIFY libraryChanged)
  // Set by the update checks: emulator id -> {available, latest, current, text}.
@@ -276,8 +276,21 @@ class UiController : public QObject {
  Q_INVOKABLE void saveReport();
  Q_INVOKABLE void showReport(){emit locationRequested("reports");}
  void setReport(const QString &path,const QString &error,int files=0);
- QVariantList unrecognisedFiles()const{return m_library.value("unrecognised").toList();}
- int unrecognisedCount()const{const auto list=unrecognisedFiles();return qMax(static_cast<int>(list.size()),m_library.value("unrecognisedCount").toInt());}
+ QVariantList unrecognisedFiles()const{return m_library.value("unrecognised").toMap().value("files").toList();}
+ int unrecognisedCount()const{return qMax(static_cast<int>(unrecognisedFiles().size()),m_library.value("unrecognised").toMap().value("total").toInt());}
+ // Set-up folder help. Both read a few files, so HubServices runs them off the interface thread and answers with the setters.
+ // setupSuggestions: system id -> [{folder, files, checked, matched, detail}], best first. setupFolderChecks: system id ->
+ // {folder, files, checked, matched, detail}. setupFolderBusy is the system being looked at, or empty.
+ Q_PROPERTY(QVariantMap setupSuggestions READ setupSuggestions NOTIFY setupFolderChanged)
+ Q_PROPERTY(QVariantMap setupFolderChecks READ setupFolderChecks NOTIFY setupFolderChanged)
+ Q_PROPERTY(QString setupFolderBusy READ setupFolderBusy NOTIFY setupFolderChanged)
+ QVariantMap setupSuggestions()const{return m_setupSuggestions;}
+ QVariantMap setupFolderChecks()const{return m_setupFolderChecks;}
+ QString setupFolderBusy()const{return m_setupFolderBusy;}
+ Q_INVOKABLE void suggestSetupFolders(const QString &id);
+ Q_INVOKABLE void checkSetupFolder(const QString &id);
+ void setSetupSuggestions(const QString &id,const QVariantList &folders);
+ void setSetupFolderCheck(const QString &id,const QVariantMap &check);
  // The one place an install error becomes plain words: given its code, the provider returns the sentence or nothing
  // (then the engine's own text stays). The install engine's lane gives the table; until then nothing changes.
  void setPlainErrors(std::function<QString(const QString &)> provider){m_plainErrors=std::move(provider);}
@@ -379,6 +392,10 @@ class UiController : public QObject {
  void emulatorUpdatesChanged();
  void emulatorUpdateRequested(const QString &id);
  void toolUpdatesChanged();
+ void setupFolderChanged();
+ // suggest: the folders that probably hold this system's games (known: every chosen folder, roots: the library's folders);
+ // otherwise: what the given folder holds.
+ void setupFolderWorkRequested(const QString &id,const QString &folder,const QStringList &known,const QStringList &roots,bool suggest);
  void toolUpdatesCheckRequested();
  void toolUpdatesChecked(const QVariantList &reports);
  // The Hub shows this page ("Settings", "Setup"); the root page answers.
@@ -429,6 +446,8 @@ class UiController : public QObject {
  std::function<QString(const QString &)> m_plainErrors;
  QVariantMap m_emulatorUpdates;
  QVariantList m_toolUpdates;bool m_toolUpdatesChecking=false;
+ QVariantMap m_setupSuggestions,m_setupFolderChecks;QString m_setupFolderBusy;
+ QStringList setupKnownFolders()const;
  QString m_pinballPlan;
  bool m_pinballScanning=false;
  ControlsViewModel m_pinballControls;

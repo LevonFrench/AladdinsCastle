@@ -247,11 +247,11 @@ QString UiController::plainError(const QString &code,const QString &fallback)con
 }
 void UiController::setEmulatorUpdate(const QString &id,bool available,const QString &latest,const QString &current){
  if(id.isEmpty())return;
- if(!available){if(m_emulatorUpdates.remove(id))emit emulatorUpdatesChanged();return;}
+ if(!available){if(m_emulatorUpdates.remove(id)){emit emulatorUpdatesChanged();emit setupChanged();}return;}
  const auto text=latest.isEmpty()?QString("A newer version is available."):"Version "+latest+" is available"+(current.isEmpty()?QString("."):" (you have "+current+").");
  const QVariantMap entry{{"available",true},{"latest",latest},{"current",current},{"text",text}};
  if(m_emulatorUpdates.contains(id)&&m_emulatorUpdates.value(id).toMap()==entry)return;
- m_emulatorUpdates[id]=entry;emit emulatorUpdatesChanged();
+ m_emulatorUpdates[id]=entry;emit emulatorUpdatesChanged();emit setupChanged();
 }
 void UiController::overlayFallback(const QString &reason){showError("Overlay unavailable",reason);}
 void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
@@ -413,11 +413,37 @@ QVariantList UiController::setupSystems()const{
   row["program"]=m_settings->get(row.value("programKey").toString(),QString()).toString();
   // A system follows its kind unless the user ticked or cleared it itself.
   row["chosen"]=kinds.value(row.value("kind").toString()).toBool()&&saved.value(id,true).toBool();
+  // From the finders and the update check, when they have been asked: a plain flag and the folders worth trying.
+  row["updateAvailable"]=m_emulatorUpdates.contains(id);row["suggestions"]=m_setupSuggestions.value(id).toList();
   row["guess"]=row.value("folder").toString().isEmpty()&&!row.value("folderKey").toString().isEmpty()?setup::guessFolder(id,known):QString();
   rows<<row;
  }
  return rows;
 }
+QStringList UiController::setupKnownFolders()const{
+ QStringList known;
+ for(const auto &value:setup::systems()){const auto key=value.toMap().value("folderKey").toString();if(!key.isEmpty())known<<m_settings->get(key,QString()).toString();}
+ return known;
+}
+void UiController::suggestSetupFolders(const QString &id){
+ for(const auto &value:setup::systems()){
+  const auto row=value.toMap();if(row.value("id").toString()!=id)continue;
+  const auto key=row.value("folderKey").toString();if(key.isEmpty())return;
+  m_setupFolderBusy=id;emit setupFolderChanged();
+  emit setupFolderWorkRequested(id,m_settings->get(key,QString()).toString(),setupKnownFolders(),m_settings->get("libraryRoots").toStringList(),true);return;
+ }
+}
+void UiController::checkSetupFolder(const QString &id){
+ for(const auto &value:setup::systems()){
+  const auto row=value.toMap();if(row.value("id").toString()!=id)continue;
+  const auto key=row.value("folderKey").toString();const auto folder=key.isEmpty()?QString():m_settings->get(key,QString()).toString();
+  if(folder.isEmpty())return;
+  m_setupFolderBusy=id;emit setupFolderChanged();
+  emit setupFolderWorkRequested(id,folder,{},{},false);return;
+ }
+}
+void UiController::setSetupSuggestions(const QString &id,const QVariantList &folders){m_setupSuggestions[id]=folders;if(m_setupFolderBusy==id)m_setupFolderBusy.clear();emit setupFolderChanged();emit setupChanged();}
+void UiController::setSetupFolderCheck(const QString &id,const QVariantMap &check){m_setupFolderChecks[id]=check;if(m_setupFolderBusy==id)m_setupFolderBusy.clear();emit setupFolderChanged();emit setupChanged();}
 QStringList UiController::chosenSetupSystems()const{
  const auto kinds=setupKinds();const auto saved=m_settings->get("setupSystems",QVariantMap{}).toMap();QStringList ids;
  for(const auto &value:setup::systems()){const auto row=value.toMap();const auto id=row.value("id").toString();
