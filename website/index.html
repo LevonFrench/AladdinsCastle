@@ -10,7 +10,7 @@
 <link rel="preload" href="fonts/PressStart2P-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/CinzelDecorative-Black.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/SpaceGrotesk-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261025b">
+<link rel="stylesheet" href="style.css?v=20261026a">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
@@ -18,8 +18,8 @@
 } }
 </script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" crossorigin>
-<link rel="modulepreload" href="arcade.js?v=20261025b">
-<script src="music.js?v=20261025b" defer></script>
+<link rel="modulepreload" href="arcade.js?v=20261026a">
+<script src="music.js?v=20261026a" defer></script>
 </head>
 <body>
 <a class="skip" href="#walk">Skip to the content</a>
@@ -123,7 +123,7 @@
       <header class="panel section-head reveal">
         <p class="eyebrow">Gun models</p>
         <h2>The right gun in your hand.</h2>
-        <p>Every gun, controller and control on this page is the project's own model, the same file the Hub's setups draw in the headset. Nine of the twelve built guns and controllers are new designs from 21 October, reworked after a four-specialist studio review. The new shapes have no headset verdict yet.</p>
+        <p>Every gun, controller and control on this page is the project's own model, the same file the Hub's setups draw in the headset. Twelve of the fifteen built guns and controllers are new designs: nine from 21 October, reworked after a four-specialist studio review, and three special guns (an energy gun, a heavy revolver and a cutter) that are built and wired in but not yet given to a game. The grip hands now put the index finger on every pistol's trigger. None of the new shapes or the new hand pose has a headset verdict yet.</p>
       </header>
       <div class="panel bench reveal" id="bench">
         <div class="bench-view"><canvas aria-label="3D view of the selected model; drag to turn it"></canvas></div>
@@ -180,12 +180,12 @@
         <p>Each board has its own emulator and its own way into VR. E3 means the developer played it in the headset and accepted it; E2 means it works in a hidden offline proof, with controls and pictures checked.</p>
       </header>
       <div class="grid">
-        <article class="panel sys reveal"><h3>Sega Model 3</h3><span class="route">Supermodel, patched · 11 games, 54 views</span><p>Open frame, Inside the game (head-tracked) and a two-handed wheel. Sega Rally 2 DX inside with the wheel is accepted.</p><span class="state ok">E3 Sega Rally 2 DX · rest E2</span></article>
+        <article class="panel sys reveal"><h3>Sega Model 3</h3><span class="route">Supermodel, patched · 11 games, 54 views</span><p>Open frame, Inside the game (head-tracked) and a two-handed wheel. Sega Rally 2 DX inside with the wheel is accepted. Star Wars Trilogy's aim was off in the headset and has not been rechecked.</p><span class="state ok">E3 Sega Rally 2 DX · rest E2</span></article>
         <article class="panel sys reveal"><h3>Arcade guns and motion</h3><span class="route">MAME, patched · 26 games, 34 views</span><p>Big screen, open frame where the game draws it, and opt-in body motion for motion cabinets. Time Crisis on the big screen is accepted.</p><span class="state ok">E3 Time Crisis big screen · rest E2</span></article>
         <article class="panel sys reveal"><h3>Sega Model 2</h3><span class="route">MAME 0.289, patched · 14 games, 25 views</span><p>Real 3D and open frame, with the game's own sound since 21 October. Aim error in The House of the Dead cut from 7.3% to 0.3% of the screen.</p><span class="state wip">E2 · Sky Target firing unproven</span></article>
         <article class="panel sys reveal"><h3>Namco System 22</h3><span class="route">Time Crisis VR · 1 game, 5 views</span><p>Time Crisis in open frame or inside the game.</p><span class="state wip">E2 · offline proof</span></article>
         <article class="panel sys reveal"><h3>Atomiswave</h3><span class="route">Flycast, patched · 5 games, 10 views</span><p>Real 3D, with the world around the frame part of it. Title and menu screens still show stray art around the frame.</p><span class="state wip">E2 · offline proof</span></article>
-        <article class="panel sys reveal"><h3>Visual Pinball X</h3><span class="route">Your own VPX · 597 tables found</span><p>Desk or headset, with 561 tables ready to start. The Hub rescans by itself when your tables change.</p><span class="route">Plays on the desk or in the headset</span></article>
+        <article class="panel sys reveal"><h3>Visual Pinball X</h3><span class="route">Your own VPX · the tables in your folders</span><p>Desk or headset. The Hub scans your tables folder, subfolders included, and rescans when tables or ROMs change. At the last headset check most VR tables were missing from the Hub page; the fixes since are not rechecked.</p><span class="state wip">Scan fixes not rechecked in the headset</span></article>
       </div>
     </div>
   </section>
@@ -202,11 +202,10 @@
       <div class="grid">
         <article class="panel sys reveal"><h3>Nintendo 64</h3><span class="route">acvr-ps1 with mupen64plus · 22 games, 47 views</span><p>Real 3D with the HUD on a panel. Mario Kart 64 in 3D is accepted.</p><span class="state ok">E3 Mario Kart 64 · rest E2</span></article>
         <article class="panel sys reveal"><h3>PlayStation</h3><span class="route">acvr-ps1: SwanStation and Beetle · 22 games, 37 views</span><p>Big screen with the gun. Graphics raised on 21 October: 5x resolution and 4x anti-aliasing on SwanStation games.</p><span class="state wip">E2 · offline proof</span></article>
-        <article class="panel sys reveal"><h3>PlayStation 2</h3><span class="route">PCSX2 VR · 12 games, 27 views</span><p>A screen in the room, or inside the game with real depth. Time Crisis 3 calibration and its inside view are fixed.</p><span class="state wip">E2 · offline proof</span></article>
-        <article class="panel sys reveal"><h3>Nintendo Wii</h3><span class="route">DolphinXR · 20 games, 28 views</span><p>Real 3D with the pointer or motion controls, pointer aim within 1.3%. Menus and HUDs now sit on a screen in the room in five games; eight others still show them on your face.</p><span class="state wip">E2 · offline proof</span></article>
+        <article class="panel sys reveal"><h3>PlayStation 2</h3><span class="route">PCSX2 VR · 12 games, 27 views</span><p>A screen in the room, or inside the game with real depth. Time Crisis 3 calibration and its inside view are fixed. Wipeout Pulse broke in the headset: games without a gun get no controller input yet.</p><span class="state wip">E2 · non-gun games need controls</span></article>
+        <article class="panel sys reveal"><h3>Nintendo Wii</h3><span class="route">DolphinXR · 20 games, 28 views</span><p>Real 3D or a screen in the room, with the pointer or motion controls. All 20 games load a saved starting point, which proves a state loads, not that a game plays; no game has a complete pass yet. Mario Kart Wii was wrong in its one headset run.</p><span class="state wip">E2 · offline only</span></article>
         <article class="panel sys reveal"><h3>Dreamcast</h3><span class="route">Flycast, patched · 5 games, 7 views</span><p>Real 3D and open frame. Confidential Mission was rebuilt after headset issues; Death Crimson OX and 2 and Virtua Cop 2 are still early.</p><span class="state wip">E2 · three games E1</span></article>
-        <article class="panel sys reveal"><h3>Sega Saturn</h3><span class="route">acvr-ps1 with Beetle Saturn · 5 games, 5 views</span><p>On the big screen, with the revolver in your hand.</p><span class="state wip">E2 · offline proof</span></article>
-        <article class="panel sys reveal"><h3>Nintendo GameCube</h3><span class="route">DolphinXR · F-Zero GX, 2 views</span><p>Real 3D with the HUD on a panel. It did not start in the headset on 22 October; fixes are in and not yet seen there.</p><span class="state wip">E2 · offline proof</span></article>
+        <article class="panel sys reveal"><h3>Saturn and GameCube</h3><span class="route">Beetle Saturn · 5 games · DolphinXR · F-Zero GX</span><p>Saturn on the big screen with its gun. F-Zero GX in real 3D with the HUD on a panel did not get past its title screen in the headset; the fix has not been seen since.</p><span class="state wip">E2 · F-Zero GX fix unseen</span></article>
         <article class="panel sys reveal"><h3>Nintendo 3DS</h3><span class="route">acvr-ps1 with the Azahar core · 2 games, 4 views</span><p>The 3DS draws a picture for each eye, and the Hub shows its top screen in stereo on a big screen. Star Fox 64 3D and Mario Kart 7 start from the Hub. The bottom screen can be a touch panel, off by default. Never tried in a headset.</p><span class="state wip">E2 · offline proof</span></article>
       </div>
     </div>
@@ -262,8 +261,20 @@
         </article>
         <article class="panel reveal">
           <h3>Still open</h3>
-          <ul class="ticks"><li>Headset verdicts for most games and for the new gun shapes</li><li>Metroid Prime Trilogy drops frames; some Wii games keep their HUD on your face</li><li>Universal stick-click controls (Start, Select or Coin, recentre, quit): changed, not yet checked in the headset</li><li>Nintendo 3DS games and the new Set-up, update check and problem report: built and tested offline, never used in the headset or on a clean PC</li><li>Easier system switching in the Hub</li></ul>
+          <ul class="ticks"><li>Headset verdicts for most games, the new gun shapes and the new hand pose</li><li>Wii: a complete game pass, steady frame pacing in the headset, and Metroid Prime Trilogy without clipping</li><li>Controls for PS2 games that use no gun</li><li>Universal stick-click controls (Start, Select or Coin, recentre, quit): changed, not yet checked in the headset</li><li>Nintendo 3DS games and the new Set-up, update check and problem report: built and tested offline, never used in the headset or on a clean PC</li><li>Easier system switching in the Hub, and one layout for desk and headset</li><li>A first tester release (0.01): not published yet</li></ul>
         </article>
+      </div>
+      <div class="panel log reveal">
+        <h3>From the workshop</h3>
+        <ol class="log-list">
+          <li><time datetime="2026-10-25">25 Oct</time><span><b>Nintendo 3DS</b> on the bench: in offline tests the game draws both eyes for Star Fox 64 3D, Kid Icarus: Uprising and Mario Kart 7. It is not in the Hub yet and has never been in a headset.</span></li>
+          <li><time datetime="2026-10-25">25 Oct</time><span><b>One set of stick clicks</b> for every game: Start, Select or Coin, recentre and quit are the same everywhere.</span></li>
+          <li><time datetime="2026-10-25">25 Oct</time><span><b>Disc matching</b> identifies discs from shared public data, with exact IDs for more formats. A recognised disc is not yet a playable one.</span></li>
+          <li><time datetime="2026-10-24">24 Oct</time><span><b>Grip hands</b> put the index finger on every pistol's trigger, checked by a geometry test and renders.</span></li>
+          <li><time datetime="2026-10-23">23 Oct</time><span><b>Honest importing:</b> a game with a missing file says so, and the library search can be stopped.</span></li>
+          <li><time datetime="2026-10-23">23 Oct</time><span><b>Three special guns</b> wired in: an energy gun, a heavy revolver and a cutter. They are on the model bench above.</span></li>
+        </ol>
+        <p class="fine">Offline work only. None of these has been checked in the headset yet.</p>
       </div>
       <div class="panel reveal">
         <p class="actions">
@@ -279,7 +290,7 @@
 
 <noscript><p class="noscript">The walk-through needs JavaScript and WebGL. Everything above is still here to read.</p></noscript>
 <script src="page.js?v=20261023d" defer></script>
-<script type="module" src="arcade.js?v=20261025b"></script>
-<script type="module" src="bench.js?v=20261025b"></script>
+<script type="module" src="arcade.js?v=20261026a"></script>
+<script type="module" src="bench.js?v=20261026a"></script>
 </body>
 </html>

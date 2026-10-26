@@ -1,5 +1,5 @@
 {
- "catalog_games": 443,
+ "catalog_games": 445,
  "models": [
   {
    "id": "arc-pistol-slide",
@@ -56,7 +56,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0171,
+      -0.0318,
       0.0127
      ],
      "rotation_xyzw": [
@@ -70,7 +70,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0171,
+      -0.0318,
       0.0127
      ],
      "rotation_xyzw": [
@@ -139,7 +139,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0225,
+      -0.0375,
       0.0193
      ],
      "rotation_xyzw": [
@@ -153,7 +153,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0225,
+      -0.0375,
       0.0193
      ],
      "rotation_xyzw": [
@@ -204,7 +204,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0216,
+      -0.0375,
       0.0151
      ],
      "rotation_xyzw": [
@@ -218,7 +218,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0216,
+      -0.0375,
       0.0151
      ],
      "rotation_xyzw": [
@@ -323,7 +323,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0136,
+      -0.0331,
       -0.0186
      ],
      "rotation_xyzw": [
@@ -337,7 +337,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0136,
+      -0.0331,
       -0.0186
      ],
      "rotation_xyzw": [
@@ -496,7 +496,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0261,
+      -0.0412,
       0.0105
      ],
      "rotation_xyzw": [
@@ -510,7 +510,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0261,
+      -0.0412,
       0.0105
      ],
      "rotation_xyzw": [
@@ -597,7 +597,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0191,
+      -0.0333,
       0.0159
      ],
      "rotation_xyzw": [
@@ -611,7 +611,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0191,
+      -0.0333,
       0.0159
      ],
      "rotation_xyzw": [
@@ -680,7 +680,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.017,
+      -0.0319,
       0.019
      ],
      "rotation_xyzw": [
@@ -694,7 +694,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.017,
+      -0.0319,
       0.019
      ],
      "rotation_xyzw": [
@@ -871,7 +871,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0163,
+      -0.0308,
       0.0197
      ],
      "rotation_xyzw": [
@@ -885,7 +885,7 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0163,
+      -0.0308,
       0.0197
      ],
      "rotation_xyzw": [
@@ -1345,6 +1345,309 @@
    },
    "licence": "CC0-1.0",
    "file": "models/mnt-mg-heavy.glb"
+  },
+  {
+   "id": "game-energy-gun",
+   "kind": "gun",
+   "name": "Guarded energy gun",
+   "family": "special",
+   "hold": "one-hand",
+   "shape": "Angular protected emitter, underslung guard, power cell and conventional dark grip",
+   "length_mm": 295,
+   "tint": {
+    "body": "#a0a5aa",
+    "accent": "#c5484f"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "reload_control": {
+     "node": "button_reload",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "selector",
+     "lod_nodes": [
+      "button_reload",
+      "button_reload_lod1"
+     ]
+    },
+    "recoil": {
+     "node": "slide_recoil",
+     "kind": "slide",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      0.015
+     ],
+     "drive": "recoil",
+     "lod_nodes": [
+      "slide_recoil",
+      "slide_recoil_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.0308,
+      0.02
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.0308,
+      0.02
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/game-energy-gun.glb"
+  },
+  {
+   "id": "game-revolver-heavy",
+   "kind": "gun",
+   "name": "Heavy revolver",
+   "family": "special",
+   "hold": "one-hand",
+   "shape": "Round barrel aligned with the upper chamber, short broad six-chamber drum outside a narrow frame, tapered underlug and dark grip",
+   "length_mm": 285,
+   "tint": {
+    "body": "#a0a5aa",
+    "accent": "#c5484f"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "reload_control": {
+     "node": "button_reload",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "selector",
+     "lod_nodes": [
+      "button_reload",
+      "button_reload_lod1"
+     ]
+    },
+    "cylinder": {
+     "node": "cylinder_spin",
+     "kind": "rotate",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      1.0471975512
+     ],
+     "drive": "recoil",
+     "lod_nodes": [
+      "cylinder_spin",
+      "cylinder_spin_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.041,
+      0.0261
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.041,
+      0.0261
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/game-revolver-heavy.glb"
+  },
+  {
+   "id": "game-tool-cutter",
+   "kind": "gun",
+   "name": "Industrial tool gun",
+   "family": "special",
+   "hold": "one-hand",
+   "shape": "Open cutter jaws around a recessed three-port block, grip-base battery, service panels and practical pistol grip",
+   "length_mm": 285,
+   "tint": {
+    "body": "#a0a5aa",
+    "accent": "#c5484f"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "reload_control": {
+     "node": "button_reload",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "selector",
+     "lod_nodes": [
+      "button_reload",
+      "button_reload_lod1"
+     ]
+    },
+    "recoil": {
+     "node": "slide_recoil",
+     "kind": "slide",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      0.015
+     ],
+     "drive": "recoil",
+     "lod_nodes": [
+      "slide_recoil",
+      "slide_recoil_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.0286,
+      0.0111
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.0286,
+      0.0111
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/game-tool-cutter.glb"
   },
   {
    "id": "wheel-three-spoke",
