@@ -610,11 +610,16 @@ ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r
 | left trigger, right stick left | L | bank left (twice: barrel roll) |
 | right B, right stick right | R | bank right (twice: barrel roll) |
 | left stick click (U1) | Start | pause |
-| right stick click (U2) | Select | not used by the game (the right stick still banks) |
+| right stick click (U2) | Select | pauses, the same as Start (the right stick still banks) |
 
-The game asks in its tutorial whether to turn on gyro aiming; the host sends no
-motion, so answer no. Its "tap B to realign the gyro controls" prompt can stay
-on screen for a tester who answered yes.
+The game asks in its tutorial whether to turn on gyro aiming ("Would you like to
+turn on the gyro controls?"). The host sends no motion, so answer **No**: the
+Yes and No buttons are on the bottom screen, which the theatre does not show,
+and Yes is chosen by default. Push the left stick (the Circle Pad) left, then
+pull the right trigger (A). Offline, that answer made the "tap B to realign the
+gyro controls" prompt go away for the rest of the course (13,000 frames
+checked); the right stick and a plain A (the default, Yes) keep it on screen for
+good. The tutorial asks again each time the training course starts.
 
 ### Mario Kart 7
 
