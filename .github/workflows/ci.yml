@@ -330,3 +330,51 @@ jobs:
           name: ${{ env.AC_PRODUCT_ARTIFACT }}
           path: out/${{ env.AC_PRODUCT_DIR }}.zip
           if-no-files-found: error
+      - name: Keep Qt's offscreen window plugin for the fresh-install check (test only; never packaged)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out/test-plugins | Out-Null
+          Copy-Item -LiteralPath (Join-Path $env:QT_ROOT_DIR 'plugins/platforms/qoffscreen.dll') -Destination out/test-plugins/qoffscreen.dll
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: runner.os == 'Windows'
+        with:
+          name: fresh-install-test-plugin
+          path: out/test-plugins/qoffscreen.dll
+          if-no-files-found: error
+
+  # A new user's first hour, without this PC: unpack the Hub package that the hub job built into an empty folder, start
+  # it with no game folders, read the first-run Set-up page, run Set-up against folders of fake files, then delete the
+  # folder and look for anything left behind. Runs on a bare runner: no Qt, no Visual Studio shell, a throwaway profile.
+  fresh-install:
+    needs: hub
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Read package identity
+        shell: python
+        run: |
+          import json, os, pathlib
+          folder = json.loads(pathlib.Path('data/product.json').read_text(encoding='utf-8'))['user_data_folder']
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              stream.write(f'AC_PRODUCT_DIR={folder}\nAC_PRODUCT_ARTIFACT={folder}-Windows-x64\n')
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ env.AC_PRODUCT_ARTIFACT }}
+          path: package
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: fresh-install-test-plugin
+          path: plugin
+      - name: Install into an empty folder, set up with fake files, uninstall (Windows PowerShell 5.1)
+        shell: powershell
+        timeout-minutes: 20
+        run: ./hub/packaging/tests/Test-FreshInstall.ps1 -PackageZip "$env:GITHUB_WORKSPACE/package/$env:AC_PRODUCT_DIR.zip" -TestPluginDir "$env:GITHUB_WORKSPACE/plugin" -WorkDir "$env:RUNNER_TEMP/fresh" -ArtifactDir "$env:GITHUB_WORKSPACE/fresh-install-evidence"
+      - name: Keep the pictures, receipts and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fresh-install-evidence
+          path: fresh-install-evidence
+          if-no-files-found: warn

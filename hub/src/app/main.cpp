@@ -272,6 +272,13 @@ int main(int argc,char **argv){
     });
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
+    // Diagnostic: read the game library (the folders in the libraryRoots setting) first, then the ticked systems' folders, as the
+    // Game library's and Set-up's buttons do, one after the other. The fresh-install check uses it on fake files.
+    if(qEnvironmentVariableIsSet("AC_UI_LIBRARY_SCAN")){
+        auto chained=std::make_shared<bool>(false);
+        QObject::connect(&ui,&ac::UiController::libraryChanged,&ui,[&ui,chained]{if(*chained||ui.libraryScanning())return;*chained=true;ui.scanSetup();});
+        QTimer::singleShot(300,&ui,[&ui]{ui.scanLibrary();});
+    }
     ac::Json diagnosticFinished=ac::Json::array();
     if(!capture.isEmpty()){
         QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&diagnosticFinished](const QString &id,int code,const QString &error,const QString &){
