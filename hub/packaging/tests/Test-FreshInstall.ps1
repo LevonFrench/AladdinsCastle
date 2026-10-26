@@ -130,6 +130,7 @@ function Invoke-Hub([string]$Name,[hashtable]$Extra) {
     try {
         $process = Start-Process -FilePath (Join-Path $package $hubExe) -ArgumentList @('--quit-after-ms', ([string]($HubTimeoutSeconds * 1000 - 10000))) `
             -WorkingDirectory $WorkDir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -WindowStyle Hidden
+        $null = $process.Handle   # Windows PowerShell 5.1 loses the exit code of a -PassThru process unless its handle is read while it runs
         if (-not $process.WaitForExit($HubTimeoutSeconds * 1000)) { Stop-HubTree $process; return [pscustomobject]@{ Name = $Name; TimedOut = $true; ExitCode = -1; Picture = $picture; Out = $out; Err = $err } }
         return [pscustomobject]@{ Name = $Name; TimedOut = $false; ExitCode = $process.ExitCode; Picture = $picture; Out = $out; Err = $err }
     } finally {

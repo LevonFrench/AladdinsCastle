@@ -107,6 +107,9 @@ int main(int argc,char **argv){
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
     QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
     const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+    // Qt writes compiled QML to the user's AppData by default. This Hub is portable: keep that cache in its own user/cache folder, so deleting
+    // the folder leaves nothing behind. Must be set before the first QML file is loaded.
+    if(!qEnvironmentVariableIsSet("QML_DISK_CACHE_PATH"))qputenv("QML_DISK_CACHE_PATH",QDir(portableRoot).filePath("user/cache/qmlcache").toLocal8Bit());
     // Keep SteamVR's entry for the Hub pointing at this program, so SteamVR registers it next time it starts.
     {QString manifestError;ac::refreshOverlayManifest(QDir(app.applicationDirPath()).filePath(QString("resources/")+ac::product::short_id+".vrmanifest"),&manifestError);}
     // One Hub per folder: a second start asks the first to come to the front, and quits. A Hub that SteamVR
@@ -311,6 +314,14 @@ int main(int argc,char **argv){
         QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&services](const QString &,int,const QString &,const QString &){
             QTimer::singleShot(0,&services,[&services]{services.requestHubExit();});
         });
+    }
+    else if(!capture.isEmpty()&&qEnvironmentVariableIsSet("AC_UI_LIBRARY_SCAN")){
+        // The fresh-install check on a slow runner: the picture is taken a second after the Set-up read has finished, so the page shows its
+        // result, not "Reading". A read that never finishes is pictured after a minute.
+        auto taken=std::make_shared<bool>(false);
+        const auto take=[&app,taken,writeCapture]{if(*taken)return;*taken=true;QTimer::singleShot(1000,&app,writeCapture);};
+        QObject::connect(&ui,&ac::UiController::setupChanged,&app,[&ui,take]{if(!ui.setupScanning()&&!ui.setupReport().value("systems").toList().isEmpty())take();});
+        QTimer::singleShot(60000,&app,take);
     }
     else if(!capture.isEmpty())QTimer::singleShot(6000,&app,writeCapture);
     if(overlayInitialized&&options.showDashboard){
