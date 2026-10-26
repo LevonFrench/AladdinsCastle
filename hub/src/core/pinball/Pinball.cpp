@@ -175,7 +175,7 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
 QVariantMap launchGuidance() {
- return {{"launchAllowed",true},{"help","Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables. There is no hold-to-quit in a table: to leave, press the left Menu button (the SteamVR dashboard), open the Hub panel and choose Exit game, or press Esc."}};
+ return {{"launchAllowed",true},{"help","Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables. Holding both stick clicks for 3 seconds quits a table only in the patched AladdinsCastle build of Visual Pinball. In the standard Visual Pinball, to leave, press the left Menu button (the SteamVR dashboard), open the Hub panel and choose Exit game, or press Esc."}};
 }
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr) {
  return launchPlan(table,executable,ownedRoot,vr?QString("headset"):QString());
