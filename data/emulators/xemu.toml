@@ -16,6 +16,8 @@ tag = "v0.8.136"
 asset = "xemu-win-x86_64-release.zip"
 version = "v0.8.136"
 archive = "zip"
+sha256 = "b25a6c24a2c2c36a0843a153cd9ee59ca6833ef87bdcd855ba0824930e4ddd1d"
+bytes = 9358209
 note = "Portable zip (verified asset name, published 2026-06-08)."
 
 [install.windows-arm64]
@@ -25,6 +27,8 @@ tag = "v0.8.136"
 asset = "xemu-win-aarch64-release.zip"
 version = "v0.8.136"
 archive = "zip"
+sha256 = "4ad9d8f059848b86d2218805c2d133ba79ecafb28e3ab45a13c8381e8bb57688"
+bytes = 8475014
 note = "Windows ARM64 zip (verified asset name)."
 
 [install.linux-x64]
@@ -34,6 +38,8 @@ tag = "v0.8.136"
 asset = "xemu-0.8.136-x86_64.AppImage"
 version = "v0.8.136"
 archive = "none"
+sha256 = "ac77363a599109194ba2af3caa695348d199f515cf1d0fde091beb629e0c3103"
+bytes = 16402936
 note = "x86-64 AppImage (verified asset name)."
 
 [install.linux-arm64]
@@ -43,6 +49,8 @@ tag = "v0.8.136"
 asset = "xemu-0.8.136-aarch64.AppImage"
 version = "v0.8.136"
 archive = "none"
+sha256 = "8d2598bab0680ddd36c2d15ecccb70523e29adb852cd75e35bc5943dc0eb4816"
+bytes = 15542792
 note = "Linux ARM64 AppImage (verified asset name). Relevant to Steam Frame if the build runs there; not run in this pass."
 
 [portable]

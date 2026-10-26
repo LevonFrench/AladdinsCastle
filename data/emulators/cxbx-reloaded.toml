@@ -17,6 +17,8 @@ tag = "CI-585c49a"
 asset = "CxbxReloaded-Release.zip"
 version = "CI-585c49a"
 archive = "zip"
+sha256 = "010d1e85bee9f82f05ae57ca483e7ae61fecba06c1637bf6b5a74ca09b03bf43"
+bytes = 4579292
 note = "Pre-release CI build published 2026-04-19 (verified). The asset name has no architecture, so the platform is unverified. Official download page per README: cxbx-reloaded.co.uk/download."
 
 [portable]

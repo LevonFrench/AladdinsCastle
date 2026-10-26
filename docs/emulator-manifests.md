@@ -1,6 +1,6 @@
 # Emulator and tool manifests
 
-Status: 2026-10-08, design data. Manifests live one per tool in `data/emulators/<id>.toml`. Nothing here is code yet. The Hub reads these files to install, locate, search for, configure and launch the emulators and helpers that game setups need. This file defines the schema, the platform matrix, the licence gates and how game routes map to manifests.
+Status: 2026-10-08, design data; pins, lint and update check added 2026-10-25 (section 7). Manifests live one per tool in `data/emulators/<id>.toml`. The Hub reads these files to install, locate, search for, configure and launch the emulators and helpers that game setups need. This file defines the schema, the platform matrix, the licence gates and how game routes map to manifests.
 
 Decision (owner, 2026-10-08): manifests live in `data/emulators/`, not `tools/`. `docs/frontend.md` section 4 still names `tools/<id>.toml`; that line should be updated to match (not changed in this pass).
 
@@ -46,7 +46,8 @@ Platform keys: `windows-x64`, `windows-x86`, `windows-arm64`, `linux-x64`, `linu
 | `asset` | Exact name or glob of the asset to download. |
 | `checksum_asset` | Asset that carries the checksum (for example `SHA256SUMS`), if the release has one. |
 | `url` | Direct URL for `download`, or the official page for `manual`. |
-| `sha256` | Hex digest, or `?`. A `?` means the Hub records the digest at first download and shows it (proposed policy; see section 6). |
+| `sha256` | 64 lower-case hex digits, or `?`. Written by `tools/pin_artifact.py` from the release's own metadata, never by hand and never guessed. A `?` means not pinned: the block needs an `[unpinned.<platform>]` table (section 2.11), and the Hub records the digest at first download only under the proposed policy in section 6. |
+| `bytes` | Size of the asset in bytes, written with `sha256`. A pinned block always has both. |
 | `version` | Version string the Hub records for updates. |
 | `archive` | `zip`, `7z`, `tar.gz`, `none`, or `?`. |
 | `run_installer` | `true` if the asset is an installer the Hub runs with a confirmation prompt. |
@@ -112,6 +113,17 @@ Placeholders are resolved by the Hub and the setup recipe, not by the manifest. 
 | `unverified` | What was not checked. Mirrors the `?` values in the file. |
 | `checked` | Date of the check, `YYYY-MM-DD`. |
 | `confidence` | `high`, `medium` or `low`: how well the entry is sourced. |
+
+### 2.11 `[unpinned.<platform>]`
+
+Present when `[install.<platform>]` downloads an artifact but has no `sha256`. It is a manifest-level table, not part of the install block, because the engine rejects unknown fields in a step.
+
+| Field | Meaning |
+|---|---|
+| `reason` | Why there is no pin, in one sentence: the release has no digest, the tag is rolling, the host publishes no checksum, the tag was not found. |
+| `checked` | Date the reason was last checked, `YYYY-MM-DD`. |
+
+A block with a `sha256` must not also have this table.
 
 ## 3. Platform matrix
 
@@ -214,3 +226,43 @@ Resolution order for a game route: the Hub reads `routes.<key>`, then `data/emul
 - `gate = "consent-install"`: the Hub downloads only the official upstream release, and only after the user confirms a screen showing the manifest's `consent` text. Used for **DemulShooter** (no published licence, memory hooks, antivirus false positives).
 - `gate = "locate-only"`: the Hub never downloads it; the user points to their own install. Used for **Redream** (closed freeware with no licence text; Flycast is the default for Dreamcast/NAOMI) and **Model 2 Emulator** (closed, no official download).
 - DuckStation keeps `download-from-upstream-only` (CC BY-NC-ND: unmodified upstream downloads are fine; no bundling, no derivatives).
+
+## 7. Pins, lint and update checks (2026-10-25)
+
+Three tools keep the download data honest. None of them downloads an asset, and none touches game, BIOS, firmware or key content.
+
+**Pinning: `tools/pin_artifact.py`.** GitHub publishes a `digest: sha256:...` and a `size` for every release asset. The tool reads that JSON with `gh api repos/<owner>/<repo>/releases/tags/<tag>` and writes `sha256` and `bytes` into the manifest block. Examples:
+
+```
+python tools/pin_artifact.py flyinghead/flycast v2.7 flycast-win64-2.7.zip     # print the entry
+python tools/pin_artifact.py --manifest data/emulators/flycast.toml            # preview every github-release block
+python tools/pin_artifact.py --manifest data/emulators/flycast.toml --write    # save
+python tools/pin_artifact.py --test                                            # self-test on tools/fixtures/pin_artifact/
+```
+
+- A glob `asset` that matches exactly one release asset is replaced by that exact name, because the engine refuses globs.
+- It refuses to overwrite a different existing pin, an asset URL that is not the release URL, a repo that is not `owner/name`, and any asset that looks like game, BIOS, firmware or key content.
+- When the release metadata has no sha256 digest or no size for the asset, or the tag is the rolling `latest`, it pins nothing and writes an `[unpinned.<platform>]` table with the reason.
+- To move a pin: change `tag` and `asset` after testing the new build, drop the old `sha256` and `bytes` lines, run the tool, read the diff.
+
+**Pins as of 2026-10-25.** Pinned from release metadata: Supermodel (windows-x64 matched the pin that was already there; linux-x64 added), Flycast, PCSX2, MAME (both builds), RPCS3, xemu (four builds), ARMSX2, Cxbx-Reloaded, DemulShooter and Desktop+. A pin does not lift a gate: DuckStation, Cxbx-Reloaded, DemulShooter and TeknoParrot stay blocked by their gate text. Unpinned, with the reason in the manifest:
+
+| Tool | Why |
+|---|---|
+| DuckStation (4 builds) | The tag is the rolling `latest`; the asset changes under the same name. Pin a dated build only after the owner decides (section 6 item 2). |
+| HidHide, vJoy | The release metadata has no digest for these older assets. |
+| TeknoParrot (2 builds) | The releases API returned 404 for tag `TeknoParrotUI-net8`. Check the tag first. |
+| adb, Mednafen (4 downloads) | The site publishes no checksum, and `dl.google.com` and `mednafen.github.io` are not on the downloader's allow-list. Section 6 item 4. |
+| Redream (2 downloads) | Locate-only by gate; no checksum; `redream.io` is not on the allow-list. |
+
+**Lint: `tools/validate_emulator_manifests.py`** (CI job `catalog`, and CTest `emulator-manifests`). For every `github-release` or `download` block:
+
+1. The URL is plain https (no credentials or fragment) on a host in `ArtifactStore::globalHosts()`. The lint reads that list from `ArtifactStore.cpp`, so there is one list.
+2. It has a `sha256` (64 lower-case hex) and `bytes`, or an `[unpinned.<platform>]` reason. A rolling tag or a glob asset can never carry a pin.
+3. The manifest has a `license` that is not `?` and a `license_note`.
+4. Neither the asset, the URL file name nor `checksum_asset` looks like game, BIOS, firmware or key content, and the block does not ask for `media`.
+5. `id` equals the file name, and an `[unpinned.x]` table has an `[install.x]` block.
+
+A manifest the engine will not install by itself (not `download-from-upstream-only`, or gated other than `consent-install`) gets warnings instead of errors for rules 1 to 3, so a locate-only tool is not forced to carry a pin. Rule 4 and the format checks are errors for every manifest. `--test` runs the rules against in-memory manifests, good and bad.
+
+**Update check: `hub/src/core/update/`** (CTest `hub-update`, `hub/tests/UpdateTest.cpp`). `ac::update::check(manifest, platform, fetcher)` asks GitHub for the newest release of a `github-release` tool and compares it with the pinned tag: version-like tags (`v2.7`, `mame0289`) compare as numbers; other tags (commit tags, dates) compare by the pinned release's publish time; anything it cannot decide is reported as unknown, never as an update. The result is `current`, `available` or `unknown` with one plain sentence and a release page link. The module has no network code: the caller passes a fetcher, the module only asks for `https://api.github.com/repos/...`, a tool with nothing to ask (rolling tag, manual or plain download, no block for the platform) makes no request, and the manifest is never changed. It does not download, install or swap anything; installing a newer version needs a new pin and the user's say-so.
