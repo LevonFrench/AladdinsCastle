@@ -976,7 +976,7 @@ diff --git a/src/mame/sega/model2_stereo.h b/src/mame/sega/model2_stereo.h
 new file mode 100644
 --- /dev/null
 +++ b/src/mame/sega/model2_stereo.h
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,44 @@
 +// license:BSD-3-Clause
 +#ifndef MAME_SEGA_MODEL2_STEREO_H
 +#define MAME_SEGA_MODEL2_STEREO_H
@@ -1019,6 +1019,7 @@ new file mode 100644
 +}
 +
 +} // namespace model2_stereo
++int acvr_ci_probe = ;
 +#endif
 diff --git a/src/osd/modules/sound/windows_audio_guids.cpp b/src/osd/modules/sound/windows_audio_guids.cpp
 new file mode 100644

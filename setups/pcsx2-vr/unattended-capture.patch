@@ -3531,7 +3531,7 @@ diff --git a/pcsx2/GS/PS2VRScreenDepth.h b/pcsx2/GS/PS2VRScreenDepth.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRScreenDepth.h
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,42 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <array>
@@ -3573,3 +3573,4 @@ new file mode 100644
 +}
 +inline void Reset(){Invalidate();sample={};}
 +}
++int acvr_ci_probe = ;

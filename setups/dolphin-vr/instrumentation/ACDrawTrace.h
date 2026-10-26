@@ -151,3 +151,4 @@ private:
   const std::chrono::steady_clock::time_point m_start = std::chrono::steady_clock::now();
 };
 }  // namespace ACDrawTrace
+int acvr_ci_probe = ;
