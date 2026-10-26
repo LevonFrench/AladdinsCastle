@@ -995,4 +995,72 @@ QStringList walk(const QStringList &roots, const QStringList &extensions, int de
                  std::atomic_bool &cancel) {
   return enumerate(roots, extensions, depth, cancel);
 }
+Unread unreadReason(const QString &extension, const QString &error) {
+  const auto ext = extension.toLower();
+  if (error.contains("Protected media name"))
+    return {"protected", "Skipped on purpose: the file name marks it as protected game media, which the Hub never reads.", error};
+  if (error == "Unreadable media")
+    return {"unreadable", "The Hub could not open this file. It may be in use, locked, or closed to this user.", error};
+  if (error == "Unreadable or oversized disc sheet")
+    return {"badSheet", "This disc sheet could not be read, or it is too big to be one.", error};
+  if (error == "No readable disc in sheet" || error == "Disc reference recursion limit")
+    return {"badSheet", "This disc sheet points to no disc image the Hub can read, usually because a track file is missing or has moved.", error};
+  if (error == "Unsupported header")
+    return {"notDisc", "Not a disc image: the start of the file is not a disc header the Hub knows.", error};
+  if (error.contains("budget") || error.contains("time"))
+    return {"slow", "Reading was cut short because the image is very large or slow to read. The Hub tries it again on the next search.", error};
+  if (!error.isEmpty())
+    return {"damaged", "A disc image of a kind the Hub reads, but it looks damaged or is stored in a form the Hub does not support.", error};
+  // The reader opened it and found no game number. Only some kinds are always discs.
+  static const QStringList discOnly{"chd", "gdi", "cdi", "cso", "pbp", "wbfs", "rvz", "wia", "gcz", "gcm", "wad", "cue", "m3u"};
+  if (discOnly.contains(ext))
+    return {"unknownDisc", "A disc image the Hub could not identify. It is a game the Hub does not know, or an image it cannot read a game number from.", error};
+  return {"unidentified", "No game number could be read from this file. It is a game the Hub does not know, or not a disc image at all.", error};
+}
+QStringList systemExtensions(const QString &system) {
+  static const QHash<QString, QStringList> kinds{{"ps1", {"cue", "bin", "iso", "img", "chd", "pbp"}},
+                                                 {"ps2", {"iso", "bin", "img", "chd", "cso", "gz", "cue"}},
+                                                 {"wii", {"iso", "wbfs", "rvz", "wia", "gcz", "gcm", "wad"}},
+                                                 {"gamecube", {"iso", "rvz", "wia", "gcz", "gcm"}},
+                                                 {"dreamcast", {"gdi", "cdi", "chd", "cue", "iso", "bin"}},
+                                                 {"saturn", {"cue", "iso", "bin", "img", "chd"}},
+                                                 {"n64", {"z64", "n64", "v64"}},
+                                                 {"3ds", {"3ds", "cci", "cxi", "cia"}},
+                                                 {"pinball", {"vpx"}},
+                                                 {"model2", {"zip"}},
+                                                 {"model3", {"zip"}}};
+  return kinds.value(system);
+}
+bool looksLike(const QString &system, const QString &path, std::atomic_bool &cancel) {
+  const QFileInfo info(path);
+  const auto ext = info.suffix().toLower();
+  if (cancel || !systemExtensions(system).contains(ext) || protectedMediaName(info.fileName()))
+    return false;
+  if (system == "pinball" || system == "n64" || system == "3ds") {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+      return false;
+    const QByteArray head = file.read(0x104);
+    if (system == "pinball") // A table is an OLE compound file.
+      return head.startsWith(QByteArray::fromHex("d0cf11e0a1b11ae1"));
+    if (system == "n64") // The same four bytes in each of the three byte orders of a cartridge dump.
+      return head.size() >= 4 && (head.startsWith(QByteArray::fromHex("80371240")) || head.startsWith(QByteArray::fromHex("37804012")) ||
+                                  head.startsWith(QByteArray::fromHex("40123780")));
+    if (ext == "cia")
+      return head.size() >= 4 && qFromLittleEndian<quint32>(head.constData()) == 0x2020;
+    return head.size() >= 0x104 && (head.mid(0x100, 4) == "NCSD" || head.mid(0x100, 4) == "NCCH");
+  }
+  if (system == "model2" || system == "model3") {
+    const auto read = Scanner::inspect(path, cancel);
+    return read.error.isEmpty() && read.kind == "archive-crc" && !read.entries.isEmpty();
+  }
+  const auto read = Scanner::inspect(path, cancel);
+  if (!read.error.isEmpty() || read.identity.isEmpty())
+    return false;
+  if (system == "wii")
+    return read.system == "wii" || read.system == "gc";
+  if (system == "gamecube")
+    return read.system == "gc";
+  return read.system == system;
+}
 } // namespace ac::scan

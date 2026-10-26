@@ -82,5 +82,19 @@ public:
 QStringList walk(const QStringList &roots, const QStringList &extensions, int depth,
                  std::atomic_bool &cancel);
 bool protectedMediaName(const QString &name);
+// Why a file the Hub opened gave no game, in plain words. code: protected, unreadable, badSheet, notDisc, damaged, slow,
+// unidentified (a kind of file that is not always a disc) or unknownDisc (a kind that only ever holds discs). error is the
+// reader's own text ("" when it read the file and found no game number); detail repeats it for the log. Works from the
+// extension and the reader's saved text alone, so it never opens the file.
+struct Unread {
+  QString code, reason, detail;
+};
+Unread unreadReason(const QString &extension, const QString &error);
+// The file kinds a system's games come in, lower case, for choosing which files in a folder to check.
+QStringList systemExtensions(const QString &system);
+// Whether the file's own bytes say it belongs to the system ("ps1", "ps2", "wii", "gamecube", "dreamcast", "saturn",
+// "n64", "3ds", "pinball"): a disc's header, a cartridge's or table's magic. The name never decides; only the extension
+// is used to skip kinds that cannot match. Reads a few kilobytes (a disc image through the normal bounded reader).
+bool looksLike(const QString &system, const QString &path, std::atomic_bool &cancel);
 } // namespace ac::scan
 Q_DECLARE_METATYPE(ac::scan::ScanResult)
