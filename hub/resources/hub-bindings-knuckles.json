@@ -4,15 +4,6 @@
     "/actions/hub": {
       "sources": [
         {
-          "path": "/user/hand/left/input/b",
-          "mode": "button",
-          "inputs": {
-            "click": {
-              "output": "/actions/hub/in/close_game"
-            }
-          }
-        },
-        {
           "path": "/user/hand/right/input/b",
           "mode": "button",
           "inputs": {
@@ -24,5 +15,5 @@
       ]
     }
   },
-  "description": "AladdinsCastle Hub: hold the left upper face button to close the game; the right B button goes back one page in the panel"
+  "description": "AladdinsCastle Hub: the right B button goes back one page in the panel; no other button, and no menu or system button, is bound"
 }
