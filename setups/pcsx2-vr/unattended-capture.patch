@@ -527,7 +527,7 @@ index 03879ca..3aed53b 100644
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
 diff --git a/pcsx2-qt/QtHost.cpp b/pcsx2-qt/QtHost.cpp
-index 5c28f91..7604c17 100644
+index 5c28f91..3c7dd16 100644
 --- a/pcsx2-qt/QtHost.cpp
 +++ b/pcsx2-qt/QtHost.cpp
 @@ -29,6 +29,8 @@
@@ -569,7 +569,7 @@ index 5c28f91..7604c17 100644
 + }
 + if (const char* target = std::getenv("PCSX2_LIVE_DUMP_FRAME"); target && frame == std::strtoul(target, nullptr, 10))
 +  if (const char* path = std::getenv("PCSX2_LIVE_DUMP_PATH")) GSQueueSnapshot(path, 3);
-+ if(const int upscale=PS2VRInside::ConsumeUpscale();upscale==3 || upscale==4) {
++ if(const int upscale=PS2VRInside::ConsumeUpscale();upscale>=1 && upscale<=4) {
 +  Host::RunOnCPUThread([upscale]() {
 +   if(!PS2VRInside::Enabled() || !VMManager::HasValidVM())return;
 +   Console.WriteLn("INSIDE resolution policy: %dx GS sampling; eye swapchains keep headset recommendation.",upscale);
@@ -884,7 +884,7 @@ index 2481edd..3cdd102 100644
  	
  	void Recycle(GSTexture* t);
 diff --git a/pcsx2/GS/Renderers/Common/GSRenderer.cpp b/pcsx2/GS/Renderers/Common/GSRenderer.cpp
-index b5c7cc6..bc7a1d1 100644
+index b5c7cc6..6f1c439 100644
 --- a/pcsx2/GS/Renderers/Common/GSRenderer.cpp
 +++ b/pcsx2/GS/Renderers/Common/GSRenderer.cpp
 @@ -1,3 +1,6 @@
@@ -969,10 +969,14 @@ index b5c7cc6..bc7a1d1 100644
  	if (!tex[0] && !tex[1])
  	{
  		// Clear out the MAD buffer as some remnants of the previously shown frame came be left over, causing a flash for one frame.
-@@ -233,6 +288,28 @@ bool GSRenderer::Merge(int field)
+@@ -233,6 +288,32 @@ bool GSRenderer::Merge(int field)
  		tex[0] = nullptr;
  	}
  
++ // Remember which render target each eye scans out, to publish the pose that
++ // drew that picture (the game may show a buffer finished frames earlier).
++ if(PS2VRInside::Enabled() && PS2StereoLiveEnabled())
++  PS2VRInside::NoteDisplayed(PS2StereoSecondary() ? 1 : 0,tex[1] ? tex[1] : tex[0]);
 + // Reconstruct in the original GAME PICTURE camera, not in the allocation
 + // rectangle. Scanout can crop/offset/stretch the GS render target.
 + if(PS2VRInside::Enabled() && !PS2StereoSecondary()) {
@@ -998,7 +1002,7 @@ index b5c7cc6..bc7a1d1 100644
  	const u32 c = (m_regs->BGCOLOR.U32[0] & 0x00FFFFFFu) | (m_regs->PMODE.ALP << 24);
  	g_gs_device->Merge(tex, src_gs_read, dst, fs, m_regs->PMODE, m_regs->EXTBUF, c);
  
-@@ -632,6 +709,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+@@ -632,6 +713,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
  	}
  
  	const bool blank_frame = !Merge(field);
@@ -1009,7 +1013,7 @@ index b5c7cc6..bc7a1d1 100644
  
  	m_last_draw_n = s_n;
  	m_last_transfer_n = s_transfer_n;
-@@ -665,7 +746,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+@@ -665,7 +750,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
  			draw_rect = CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
  				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
  				GetVideoMode() == GSVideoMode::SDTV_480P);
@@ -1018,7 +1022,7 @@ index b5c7cc6..bc7a1d1 100644
  
  			if (GSConfig.CASMode != GSCASMode::Disabled)
  			{
-@@ -995,7 +1076,7 @@ void GSRenderer::PresentCurrentFrame()
+@@ -995,7 +1080,7 @@ void GSRenderer::PresentCurrentFrame()
  			const GSVector4 draw_rect(CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
  				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
  				GetVideoMode() == GSVideoMode::SDTV_480P));
@@ -1027,7 +1031,7 @@ index b5c7cc6..bc7a1d1 100644
  
  			const u64 current_time = Common::Timer::GetCurrentValue();
  			const float shader_time = static_cast<float>(Common::Timer::ConvertValueToSeconds(current_time - m_shader_time_start));
-@@ -1010,11 +1091,12 @@ void GSRenderer::PresentCurrentFrame()
+@@ -1010,11 +1095,12 @@ void GSRenderer::PresentCurrentFrame()
  
  void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float* display_x, float* display_y)
  {
@@ -1041,7 +1045,7 @@ index b5c7cc6..bc7a1d1 100644
  	{
  		*display_x = -1.0f;
  		*display_y = -1.0f;
-@@ -1251,3 +1333,11 @@ void DumpGSPrivRegs(const GSPrivRegSet& r, const std::string& filename)
+@@ -1251,3 +1337,11 @@ void DumpGSPrivRegs(const GSPrivRegSet& r, const std::string& filename)
  
  	std::fprintf(fp.get(), "EXTWRITE: { EN: %u }\n", r.EXTWRITE.WRITE);
  }
@@ -1124,7 +1128,7 @@ index 81110bb..39dd2d9 100644
  
  void GSTextureCache::ReadbackAll()
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..28cb97a 100644
+index 2174fa3..334675e 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 @@ -5,6 +5,9 @@
@@ -1146,7 +1150,7 @@ index 2174fa3..28cb97a 100644
  #include <fstream>
  #include <sstream>
  
-@@ -35,6 +40,64 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+@@ -35,6 +40,69 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
  static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
  static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
  
@@ -1184,24 +1188,29 @@ index 2174fa3..28cb97a 100644
 +	float s_stereo_draw_mode = 0;
 + float s_inside_draw_mode=0;
 + float s_inside_width=0,s_inside_height=0;
++ // One latched packet per GS draw, fetched once in RenderHW and reused by every
++ // pipeline setup of that draw (and by the target pose record).
++ PS2VRInside::Packet s_draw_packet;
++ bool s_draw_packet_valid=false;
 + void UploadInside()
 + {
 +  static const bool enabled=PS2VRInside::Enabled();
 +  if (!enabled) { glUniform4f(38,0,0,1,0); return; }
-+  const auto packet=PS2VRInside::Get();
++  const auto& packet=s_draw_packet;
++  const auto& settings=PS2VRInside::Config();
 +  const int eye=s_stereo.eye<0 ? 1 : 0;
 +  const auto& e=packet.eyes[eye];
-+  const float cw=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_WIDTH",640);
-+  const float ch=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
-+  const float fy=PS2VRInside::Env("PCSX2_INSIDE_FY",s_stereo.focal*ch/(cw*0.75f));
-+  const bool zero=std::getenv("PCSX2_INSIDE_FAKE_YAW_DEG") && PS2VRInside::Env("PCSX2_INSIDE_FAKE_YAW_DEG",0)==0;
-+  const float mode=PS2VRInside::Enabled() && PS2VRInside::Valid(packet) && !zero &&
++  const float cw=settings.canvas_w;
++  const float ch=settings.canvas_h;
++  const float fy=settings.fy!=0 ? settings.fy : s_stereo.focal*ch/(cw*0.75f);
++  const bool zero=settings.fake_zero;
++  const float mode=s_draw_packet_valid && !zero &&
 +   std::isfinite(s_stereo.units) && std::isfinite(s_stereo.focal) && s_stereo.units>0 && s_stereo.focal>0 && fy>0 && cw>0 && ch>0 && s_inside_width>0 && s_inside_height>0 ? s_inside_draw_mode : 0;
 +  glUniformMatrix4fv(32,1,GL_FALSE,e.view_from_recenter.data());
 +  glUniform4fv(36,1,e.tangents.data());
 +  glUniform4f(37,cw,ch,s_stereo.focal,fy);
 +  glUniform4f(38,s_inside_width,s_inside_height,s_stereo.units,mode);
-+  glUniform4f(39,PS2VRInside::Env("PCSX2_INSIDE_HUD_DISTANCE_M",s_stereo.convergence),0.01f,0,0);
++  glUniform4f(39,settings.hud_distance!=0 ? settings.hud_distance : s_stereo.convergence,0.01f,0,0);
 +  glUniform4fv(40,1,PS2VRInside::raster.data());
 + }
 +}
@@ -1211,7 +1220,7 @@ index 2174fa3..28cb97a 100644
  namespace ReplaceGL
  {
  	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
-@@ -215,7 +278,10 @@ namespace Emulate_DSA
+@@ -215,7 +283,10 @@ namespace Emulate_DSA
  	}
  } // namespace Emulate_DSA
  
@@ -1223,7 +1232,7 @@ index 2174fa3..28cb97a 100644
  
  GSDeviceOGL::~GSDeviceOGL()
  {
-@@ -1835,6 +1901,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+@@ -1835,6 +1906,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
  		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
  		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
  		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
@@ -1231,7 +1240,7 @@ index 2174fa3..28cb97a 100644
  
  	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
  	src += m_shader_tfx_vgs;
-@@ -2995,6 +3062,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -2995,6 +3067,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	if (it != m_programs.end())
  	{
  		it->second.Bind();
@@ -1245,7 +1254,7 @@ index 2174fa3..28cb97a 100644
  		return;
  	}
  
-@@ -3005,6 +3079,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -3005,6 +3084,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	m_shader_cache.GetProgram(&prog, vs, ps);
  	it = m_programs.emplace(psel, std::move(prog)).first;
  	it->second.Bind();
@@ -1259,7 +1268,7 @@ index 2174fa3..28cb97a 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3117,183 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3122,190 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
@@ -1319,7 +1328,10 @@ index 2174fa3..28cb97a 100644
 + {
 + s_inside_width=native_width;
 + s_inside_height=config.cb_vs.vertex_scale.y>0 ? 2.0f/(16.0f*config.cb_vs.vertex_scale.y) : 0;
-+ const float inside_target=PS2VRInside::Env("PCSX2_INSIDE_TARGET_WIDTH",640);
++ const auto& settings=PS2VRInside::Config();
++ s_draw_packet=PS2VRInside::Get();
++ s_draw_packet_valid=PS2VRInside::Valid(s_draw_packet);
++ const float inside_target=settings.target_w;
 + const bool main_camera=std::abs(native_width-inside_target)<1;
 + // Full coverage constant-depth draws include clears and backgrounds. Keep
 + // them fullscreen; this conservative heuristic can also leave large HUD pinned.
@@ -1330,14 +1342,14 @@ index 2174fa3..28cb97a 100644
 +  const float y=(config.verts[i].XYZ.Y-0.05f)*config.cb_vs.vertex_scale.y-config.cb_vs.vertex_offset.y;
 +  minx=std::min(minx,x); miny=std::min(miny,y); maxx=std::max(maxx,x); maxy=std::max(maxy,y);
 + }
-+ const float cw=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_WIDTH",640);
-+ const float ch=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
++ const float cw=settings.canvas_w;
++ const float ch=settings.canvas_h;
 + const bool full_coverage=native_width>0 && s_inside_height>0 &&
 +  minx<=-0.95f && miny<=-0.95f && maxx>=1.95f*cw/native_width-1.0f && maxy>=1.95f*ch/s_inside_height-1.0f;
 + // Opt-in per profile: post effects that resample the rendered frame stay in
 + // picture space (see screen_effect below). Implies the scanout-aware policy.
-+ const bool effects_policy=PS2VRInside::Env("PCSX2_INSIDE_SCREEN_EFFECTS",0)!=0;
-+ const bool scanout_policy=effects_policy || PS2VRInside::Env("PCSX2_INSIDE_FEEDBACK_PASSTHROUGH",0)!=0;
++ const bool effects_policy=settings.screen_effects;
++ const bool scanout_policy=effects_policy || settings.feedback_passthrough;
 + const bool legacy_full_canvas=full_coverage && (config.vs.tme || zhi==zlo);
 + // A large varying-depth batch is still world geometry, even when its bounds
 + // cover the viewport. Never turn it into an unprojected screen copy.
@@ -1388,8 +1400,13 @@ index 2174fa3..28cb97a 100644
 +
 + // Retain only the same main-camera perspective triangles, once per pair.
 + // Their positions are in the game's ORIGINAL recentered camera, in metres.
-+ if(s_inside_draw_mode==1 && s_stereo.eye>0 && StereoEnv("PCSX2_VR_GUN",0)!=0 && s_stereo.units>0 && s_stereo.focal>0 && config.indices) {
-+  const float fy=PS2VRInside::Env("PCSX2_INSIDE_FY",s_stereo.focal*ch/(cw*.75f));
++ // Record which pose drew this eye target; the published pair carries the
++ // pose of the picture actually scanned out, not merely the newest latch.
++ if(s_inside_draw_mode!=0 && s_draw_packet_valid && !settings.fake_zero)
++  PS2VRInside::NoteDraw(s_stereo.eye<0 ? 1 : 0,config.rt,s_draw_packet.sequence);
++ static const bool vr_gun=StereoEnv("PCSX2_VR_GUN",0)!=0;
++ if(s_inside_draw_mode==1 && s_stereo.eye>0 && vr_gun && s_stereo.units>0 && s_stereo.focal>0 && config.indices) {
++  const float fy=settings.fy!=0 ? settings.fy : s_stereo.focal*ch/(cw*.75f);
 +  auto vertex=[&](u16 index,PS2VRAim::V& point) {
 +   if(index>=config.nverts)return false;
 +   const auto& v=config.verts[index];
@@ -1411,8 +1428,7 @@ index 2174fa3..28cb97a 100644
 + // HUD is a composited panel: ignore world occlusion, but keep original HUD
 + // draw order. Near reversed depth protects it from later world geometry.
 + // Exactly-zero fake pose remains the legacy, byte-exact path.
-+ const bool zero_inside=std::getenv("PCSX2_INSIDE_FAKE_YAW_DEG") && PS2VRInside::Env("PCSX2_INSIDE_FAKE_YAW_DEG",0)==0;
-+ const bool overlay_hud=PS2VRInside::Enabled() && !zero_inside && PS2VRInside::Valid(PS2VRInside::Get()) && s_inside_draw_mode==2;
++ const bool overlay_hud=PS2VRInside::Enabled() && !PS2VRInside::Config().fake_zero && s_draw_packet_valid && s_inside_draw_mode==2;
 + const auto saved_depth=config.depth;
 + const auto saved_alpha_depth=config.alpha_second_pass.depth;
 + ScopedGuard restore_hud_depth([&](){config.depth=saved_depth;config.alpha_second_pass.depth=saved_alpha_depth;});
@@ -1756,7 +1772,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,747 @@
+@@ -0,0 +1,888 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -1825,6 +1841,28 @@ new file mode 100644
 + // Guarded by the publication mutex: the exact eye transforms which rendered
 + // the published pair, rather than the newer poses used for the next pair.
 + static PS2VRInside::Packet published_inside;
++ // Pose/picture agreement, logged in the live log. "stale" counts pairs whose
++ // newest latched pose was NOT the pose that drew the scanned-out picture
++ // (before this fix that newest pose was published anyway).
++ struct PoseStats
++ {
++  unsigned long pairs=0,repeats=0,stale=0,eyes_differ=0,mixed=0,unknown=0,max_age=0;
++  double age=0;
++  void Add(const PS2VRInside::Packet& latched,const PS2VRInside::TargetPose& left,const PS2VRInside::TargetPose& right)
++  {
++   pairs++;
++   if(!left.last) { unknown++; return; }
++   if(!left.draws) repeats++;
++   if(left.draws && left.first!=left.last) mixed++;
++   if(right.last && right.last!=left.last) eyes_differ++;
++   if(latched.sequence!=left.last) stale++;
++   const unsigned long a=latched.sequence>left.last ? static_cast<unsigned long>(latched.sequence-left.last) : 0;
++   age+=a; max_age=std::max(max_age,a);
++  }
++ };
++ static PoseStats pose_interval, pose_total;
++ static std::chrono::steady_clock::time_point stats_time{};
++ static unsigned long stats_serial=0;
 + static float Env(const char* name, float fallback)
 + {
 +  const char* value = std::getenv(name);
@@ -1870,7 +1908,13 @@ new file mode 100644
 +  const unsigned attachment_errors=DrainGL("after","blit attachment setup / framebuffer status");
 +  if (!complete || attachment_errors) return false;
 +  // Source row zero is the GS picture top; GL OpenXR quads use bottom-left.
-+  glBlitFramebuffer(0,height,width,0,0,0,used.x,used.y,GL_COLOR_BUFFER_BIT,GL_NEAREST);
++  // A 1:1 copy stays exact (nearest). INSIDE stretches the GS eye into the
++  // headset grid by non-integer factors (1920x1536 -> 2592x2688): nearest
++  // made uneven pixel rows/columns that crawl differently in each eye as the
++  // head turns. Linear filtering removes that. PCSX2_VR_NEAREST_BLIT=1 restores it.
++  static const bool nearest=Env("PCSX2_VR_NEAREST_BLIT",0)!=0;
++  const bool scaled=used.x!=static_cast<int>(width) || used.y!=static_cast<int>(height);
++  glBlitFramebuffer(0,height,width,0,0,0,used.x,used.y,GL_COLOR_BUFFER_BIT,scaled && !nearest ? GL_LINEAR : GL_NEAREST);
 +  return DrainGL("after","glBlitFramebuffer")==0;
 + }
 +#ifdef _WIN32
@@ -1911,6 +1955,72 @@ new file mode 100644
 + static void SaveOverlayProof();
 + static void SaveScreenProof();
 +#endif
++ static void ServiceProof();
++ // OFFLINE ONLY (PCSX2_OPENXR=0): stands in for the headset presenter. It
++ // generates a swinging head pose at the headset rate, publishes it exactly
++ // like the OpenXR path, and does the same per-frame GPU work (fence wait,
++ // both eye blits into recommended-size targets, glFinish). Logs which pair
++ // and which pose each simulated display frame showed.
++ static void SyntheticPresenter(float amplitude_deg)
++ {
++  LiveLog("OFFLINE synthetic head and presenter: generated poses, NOT tracked; no loader/runtime calls");
++  const float hz=std::clamp(Env("PCSX2_INSIDE_TEST_HZ",90),30.f,240.f);
++  const float period=std::max(.1f,Env("PCSX2_INSIDE_TEST_HEAD_PERIOD_S",2));
++  const float tx=Env("PCSX2_INSIDE_TEST_TAN_X",1.0f), ty=Env("PCSX2_INSIDE_TEST_TAN_Y",1.037f);
++  GLuint targets[2]{}, fbos[2]{};
++  glCreateTextures(GL_TEXTURE_2D,2,targets); glGenFramebuffers(2,fbos);
++  for(int eye=0;eye<2;eye++)glTextureStorage2D(targets[eye],1,GL_SRGB8_ALPHA8,chain_extent[eye].x,chain_extent[eye].y);
++  glDisable(GL_FRAMEBUFFER_SRGB); glDisable(GL_SCISSOR_TEST);
++  using clock=std::chrono::steady_clock;
++  const auto start=clock::now(); const auto step=std::chrono::nanoseconds(static_cast<long long>(1e9/hz));
++  auto next=start; std::uint64_t sequence=0; unsigned long last_serial=0;
++  struct Window { unsigned long frames=0,fresh=0,again=0,late=0,max_age=0; double age=0,work=0,max_work=0; } window, total;
++  auto report=[&](const char* what,const Window& w) {
++   if(!live_log || !w.frames)return;
++   std::fprintf(live_log,"%s: frames=%lu new_pairs=%lu repeated_pairs=%lu late_frames=%lu pose_age_ms_avg=%.2f pose_age_ms_max=%.2f present_ms_avg=%.3f present_ms_max=%.3f hz=%.0f\n",
++    what,w.frames,w.fresh,w.again,w.late,w.age/w.frames*1000.0/hz,w.max_age*1000.0/hz,w.work/w.frames,w.max_work,hz); std::fflush(live_log);
++  };
++  auto fold=[](Window& into,const Window& from) {
++   into.frames+=from.frames;into.fresh+=from.fresh;into.again+=from.again;into.late+=from.late;into.age+=from.age;
++   into.max_age=std::max(into.max_age,from.max_age);into.work+=from.work;into.max_work=std::max(into.max_work,from.max_work);
++  };
++  while(!stop)
++  {
++   const double seconds=std::chrono::duration<double>(clock::now()-start).count();
++   const float yaw=amplitude_deg*0.017453292519943295f*static_cast<float>(std::sin(6.283185307179586*seconds/period));
++   PS2VRInside::Publish(PS2VRInside::Synthetic(yaw,{-tx,tx,-ty,ty},++sequence,static_cast<std::int64_t>((seconds+1.0/hz)*1e9)));
++   const auto work_start=clock::now();
++   unsigned long shown=0; std::uint64_t shown_pose=0;
++   {
++    std::lock_guard guard(mutex);
++    if(serial) {
++     shown=serial; shown_pose=published_inside.sequence;
++     if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
++     for(int eye=0;eye<2;eye++)BlitEye(eye,targets[eye],fbos[0],fbos[1],UsedExtent(eye));
++     if(consumer_fence)glDeleteSync(consumer_fence);
++     consumer_fence=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);glFlush();
++    }
++   }
++   glFinish();
++   const double ms=std::chrono::duration<double,std::milli>(clock::now()-work_start).count();
++   if(shown) {
++    window.frames++; window.work+=ms; window.max_work=std::max(window.max_work,ms);
++    if(shown!=last_serial)window.fresh++; else window.again++;
++    last_serial=shown;
++    const unsigned long a=shown_pose && sequence>shown_pose ? static_cast<unsigned long>(sequence-shown_pose) : 0;
++    window.age+=a; window.max_age=std::max(window.max_age,a);
++   }
++   if(proof_pending)ServiceProof();
++   next+=step;
++   const auto now=clock::now();
++   if(now>next+step) { window.late++; next=now; }
++   else std::this_thread::sleep_until(next);
++   if(window.frames>=static_cast<unsigned long>(hz*5)) { report("Synthetic presenter 5s",window); fold(total,window); window={}; }
++  }
++  fold(total,window);
++  report("Synthetic presenter total",total);
++  glDeleteFramebuffers(2,fbos); glDeleteTextures(2,targets);
++ }
 + static void SaveSharedProof()
 + {
 +  if (!context->MakeCurrent()) { LiveLog("Proof shared context MakeCurrent failed"); return; }
@@ -1946,11 +2056,28 @@ new file mode 100644
 +#ifdef _WIN32
 +  if (std::getenv("PCSX2_VR_LAYER_PROOF")) SaveOverlayProof();
 +#endif
++  if(PS2VRInside::Enabled() && Env("PCSX2_OPENXR",0)==0 && Env("PCSX2_INSIDE_TEST_HEAD_YAW_DEG",0)!=0) {
++   SyntheticPresenter(Env("PCSX2_INSIDE_TEST_HEAD_YAW_DEG",0));
++   context->DoneCurrent(); return;
++  }
 +  while (!stop)
 +  {
++   {
++    std::unique_lock lock(mutex);
++    ready.wait(lock, []() { return stop || proof_pending; });
++    if (stop) break;
++   }
++   ServiceProof();
++  }
++  context->DoneCurrent();
++ }
++ // Presenter thread, shared context current: save the requested proof
++ // pictures, then clear proof_pending, all under the publication lock.
++ static void ServiceProof()
++ {
++  {
 +   std::unique_lock lock(mutex);
-+   ready.wait(lock, []() { return stop || proof_pending; });
-+   if (stop) break;
++   if (!proof_pending) return;
 +   if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
 +   DrainGL("after","shared fence wait");
 +   const char* path=std::getenv("PCSX2_LIVE_SAVE_PATH");
@@ -1999,7 +2126,6 @@ new file mode 100644
 +#endif
 +   proof_pending=false; ready.notify_all();
 +  }
-+  context->DoneCurrent();
 + }
 +
 +#ifdef _WIN32
@@ -2391,7 +2517,8 @@ new file mode 100644
 + enabled=true; other=false; stop=false; serial=0; ticks=0; proof_pending=false;
 + PS2VRInside::ResetResolution();
 + chain_extent[0]=chain_extent[1]={CHAIN_WIDTH,CHAIN_HEIGHT};
-+ PS2VRInside::Reset(); PS2VRAim::ResetScene(); published_inside={};
++ PS2VRInside::Reset(); PS2VRInside::ResetTargets(); PS2VRAim::ResetScene(); published_inside={};
++ pose_interval=pose_total={}; stats_time=std::chrono::steady_clock::now(); stats_serial=0;
 + drained_errors=frames_with_layers=0; swapchain_pair_created=false; using_window_dc=false; GSDeviceOGL::SetStereoEye(1);
 + g_gs_device->ResetStereoInterlacePhase();
 + live_log=std::fopen("pcsx2-live-stereo.log","w");
@@ -2435,6 +2562,8 @@ new file mode 100644
 + enabled=false; other=false;
 + PS2VRScreenDepth::Reset();
 + PS2VRGun::Publish({});
++ if(live_log && pose_total.pairs) { const auto& s=pose_total; std::fprintf(live_log,"Pose totals: pairs=%lu stale=%lu repeats=%lu eyes_differ=%lu mixed=%lu unknown=%lu stale_age_avg=%.2f max=%lu\n",
++  s.pairs,s.stale,s.repeats,s.eyes_differ,s.mixed,s.unknown,s.age/std::max(1ul,s.pairs-s.unknown),s.max_age); std::fflush(live_log); }
 + LiveLog("Live stereo closed"); if (live_log) { std::fclose(live_log); live_log=nullptr; }
 +}
 +void PS2StereoScanout()
@@ -2469,7 +2598,35 @@ new file mode 100644
 + if(PS2VRInside::Enabled())PS2VRInside::EnsureUpscale(GSConfig.UpscaleMultiplier);
 + if(PS2VRInside::Enabled() && PS2VRInside::MonitorSpeed(GSConfig.UpscaleMultiplier,PerformanceMetrics::GetSpeed()))LiveLog("INSIDE upscale fallback: sustained speed below99.5%; requesting3x, fixed eye chains unchanged");
 + native_width=static_cast<float>(w)/GSConfig.UpscaleMultiplier;
-+ published_inside=PS2VRInside::Get();
++ const PS2VRInside::Packet latched=PS2VRInside::Get();
++ published_inside=latched;
++ if(PS2VRInside::Enabled())
++ {
++  // The game can scan out a buffer it finished one or more GS frames ago, or
++  // show the same picture again. Submitting the newest pose with an older
++  // picture made the compositor place it wrongly while the head moved.
++  const auto left=PS2VRInside::TakeDisplayed(0), right=PS2VRInside::TakeDisplayed(1);
++  PS2VRInside::Packet drawn;
++  if(!PS2VRInside::Config().legacy_pose && left.last && PS2VRInside::Find(left.last,drawn)) published_inside=drawn;
++  pose_interval.Add(latched,left,right); pose_total.Add(latched,left,right);
++ }
++ {
++  static const float every_s=Env("PCSX2_LIVE_STATS_SECONDS",10);
++  const auto now=std::chrono::steady_clock::now();
++  const double elapsed=std::chrono::duration<double>(now-stats_time).count();
++  if(live_log && every_s>0 && elapsed>=every_s) {
++   const auto& s=pose_interval;
++   std::fprintf(live_log,"Stats %.1fs: pairs_per_s=%.2f speed=%.2f%% vps=%.2f game_fps=%.2f gs_thread_ms=%.3f gs_thread_use=%.1f%% ee_thread_use=%.1f%% frame_ms_avg=%.2f frame_ms_max=%.2f upscale=%.1fx eye=%ux%u",
++    elapsed,(serial+1-stats_serial)/elapsed,PerformanceMetrics::GetSpeed(),PerformanceMetrics::GetAvgVPS(),PerformanceMetrics::GetInternalFPS(),
++    PerformanceMetrics::GetGSThreadAverageTime(),PerformanceMetrics::GetGSThreadUsage(),static_cast<float>(PerformanceMetrics::GetCPUThreadUsage()),
++    PerformanceMetrics::GetAverageFrameTime(),PerformanceMetrics::GetMaximumFrameTime(),GSConfig.UpscaleMultiplier,w,h);
++   if(PS2VRInside::Enabled() && s.pairs)
++    std::fprintf(live_log," | pose pairs=%lu stale=%lu repeats=%lu eyes_differ=%lu mixed=%lu unknown=%lu stale_age_avg=%.2f max=%lu publish=%s",
++     s.pairs,s.stale,s.repeats,s.eyes_differ,s.mixed,s.unknown,s.age/std::max(1ul,s.pairs-s.unknown),s.max_age,PS2VRInside::Config().legacy_pose?"newest(legacy)":"drawn");
++   std::fprintf(live_log,"\n"); std::fflush(live_log);
++   pose_interval={}; stats_time=now; stats_serial=serial+1;
++  }
++ }
 + if(PS2VRInside::Enabled() && PS2VRGun::Enabled())PS2VRAim::PublishScene();
 + if (fence) glDeleteSync(fence);
 + fence=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0); glFlush(); serial++;
@@ -3176,7 +3333,7 @@ diff --git a/pcsx2/GS/PS2VRInside.h b/pcsx2/GS/PS2VRInside.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRInside.h
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,181 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <array>
@@ -3187,6 +3344,7 @@ new file mode 100644
 +#include <cstdint>
 +#include <cstdlib>
 +#include <mutex>
++#include <unordered_map>
 +namespace PS2VRInside
 +{
 +struct Eye
@@ -3217,7 +3375,23 @@ new file mode 100644
 + char* end=nullptr; const float number=std::strtof(value,&end);
 + return end!=value && *end=='\0' && std::isfinite(number) ? number : fallback;
 +}
-+inline bool Enabled() { return Env("PCSX2_INSIDE",0)!=0; }
++// Launchers set every INSIDE variable before start; read hot ones once per
++// process. getenv per GS draw was a measurable GS-thread cost in two eyes.
++inline bool Enabled() { static const bool enabled=Env("PCSX2_INSIDE",0)!=0; return enabled; }
++struct Settings
++{
++ float canvas_w=Env("PCSX2_INSIDE_CANVAS_WIDTH",640), canvas_h=Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
++ float target_w=Env("PCSX2_INSIDE_TARGET_WIDTH",640);
++ float fy=Env("PCSX2_INSIDE_FY",0); // 0: derive from focal and canvas
++ float hud_distance=Env("PCSX2_INSIDE_HUD_DISTANCE_M",0); // 0: screen convergence
++ bool screen_effects=Env("PCSX2_INSIDE_SCREEN_EFFECTS",0)!=0;
++ bool feedback_passthrough=Env("PCSX2_INSIDE_FEEDBACK_PASSTHROUGH",0)!=0;
++ bool fake_zero=std::getenv("PCSX2_INSIDE_FAKE_YAW_DEG") && Env("PCSX2_INSIDE_FAKE_YAW_DEG",0)==0;
++ // Publish the pose that drew the scanned-out picture (default). 1 restores
++ // the old behaviour: the newest latched pose, for before/after proofs.
++ bool legacy_pose=Env("PCSX2_INSIDE_LEGACY_POSE",0)!=0;
++};
++inline const Settings& Config() { static const Settings settings; return settings; }
 +inline bool Valid(const Packet& packet)
 +{
 + if (!packet.valid) return false;
@@ -3240,10 +3414,13 @@ new file mode 100644
 +inline std::atomic<int> requested_upscale{0};
 +inline int selected_upscale=0, slow_samples=0;
 +inline std::chrono::steady_clock::time_point resolution_changed{}, speed_sample{};
++// The per-profile cap now also limits below 3x: a cap of 1 or 2 used to be
++// ignored (3x was always chosen and then re-applied every two seconds).
 +inline int ChooseUpscale(const std::array<EyeSize,2>& sizes,float canvas_w,float canvas_h,int cap=4) {
-+ if(!(canvas_w>0 && canvas_h>0))return 3;
-+ for(const auto& size:sizes)if(size.width>canvas_w*3 || size.height>canvas_h*3)return cap>=4?4:3;
-+ return 3;
++ cap=std::clamp(cap,1,4);
++ if(!(canvas_w>0 && canvas_h>0))return std::min(3,cap);
++ for(const auto& size:sizes)if(size.width>canvas_w*3 || size.height>canvas_h*3)return cap;
++ return std::min(3,cap);
 +}
 +inline void ResetResolution() {
 + std::lock_guard guard(resolution_mutex);recommended_sizes={};selected_upscale=slow_samples=0;requested_upscale=0;
@@ -3268,9 +3445,10 @@ new file mode 100644
 +inline void EnsureUpscale(float current) {
 + static auto last=std::chrono::steady_clock::time_point{};
 + const auto now=std::chrono::steady_clock::now();
-+ if(now-last<std::chrono::seconds(2))return;last=now;
++ if(now-last<std::chrono::seconds(2))return;
++ last=now;
 + std::lock_guard guard(resolution_mutex);
-+ if((selected_upscale==3 || selected_upscale==4) && current!=selected_upscale)requested_upscale=selected_upscale;
++ if(selected_upscale>=1 && selected_upscale<=4 && current!=selected_upscale)requested_upscale=selected_upscale;
 +}
 +inline int ConsumeUpscale() { return requested_upscale.exchange(0); }
 +inline Packet Fake()
@@ -3291,10 +3469,51 @@ new file mode 100644
 + }
 + p.sequence=1; p.valid=true; return p;
 +}
-+inline void Reset() { std::lock_guard guard(packet_mutex); pending_packet=latched_packet=Fake(); }
++// Recently latched packets by sequence, so a picture drawn one or more GS
++// frames before its scanout is published with the pose that really drew it.
++inline std::array<Packet,64> history{};
++// Offline only: a generated head pose (yaw about the vertical axis, parallel
++// eyes) with headset-like tangents. Same layout as Fake(), never tracked.
++inline Packet Synthetic(float yaw,std::array<float,4> tangents,std::uint64_t sequence,std::int64_t time)
++{
++ Packet p; const float c=std::cos(yaw),s=std::sin(yaw);
++ for (int i=0;i<2;i++)
++ {
++  auto& e=p.eyes[i]; const float x=(i?0.5f:-0.5f)*Env("PCSX2_STEREO_SEPARATION_M",0.063f);
++  e.pose={c*x,0,-s*x,0,std::sin(yaw*0.5f),0,std::cos(yaw*0.5f)};
++  e.tangents=tangents;
++  e.view_from_recenter={c,0,s,0, 0,1,0,0, -s,0,c,0, -x,0,0,1};
++ }
++ p.sequence=sequence; p.predicted_display_time=time; p.valid=true; return p;
++}
++inline void Reset() { std::lock_guard guard(packet_mutex); pending_packet=latched_packet=Fake(); history={}; }
 +inline void Publish(const Packet& p) { std::lock_guard guard(packet_mutex); pending_packet=p; pending_packet.valid=Valid(p); }
-+inline Packet Latch() { std::lock_guard guard(packet_mutex); latched_packet=pending_packet; return latched_packet; }
++inline Packet Latch() { std::lock_guard guard(packet_mutex); latched_packet=pending_packet; history[latched_packet.sequence%history.size()]=latched_packet; return latched_packet; }
 +inline Packet Get() { std::lock_guard guard(packet_mutex); return latched_packet; }
++inline bool Find(std::uint64_t sequence,Packet& out) {
++ std::lock_guard guard(packet_mutex); const Packet& p=history[sequence%history.size()];
++ if(!sequence || p.sequence!=sequence || !p.valid)return false;
++ out=p; return true;
++}
++// GS thread only. Which latched pose sequence drew each eye's render
++// targets since that target was last scanned out. Keys are texture objects
++// (render targets are drawn and scanned out through the same texture).
++struct TargetPose { std::uint64_t first=0,last=0; std::uint32_t draws=0; };
++inline std::unordered_map<const void*,TargetPose> target_pose[2];
++inline const void* displayed[2]{};
++inline void NoteDraw(int eye,const void* target,std::uint64_t sequence) {
++ if(!target || !sequence)return;
++ auto& t=target_pose[eye&1][target];
++ if(!t.draws)t.first=sequence;
++ t.last=sequence; t.draws++;
++}
++inline void NoteDisplayed(int eye,const void* target) { displayed[eye&1]=target; }
++// Read and restart the scanned-out target's draw window for one eye.
++inline TargetPose TakeDisplayed(int eye) {
++ const auto it=target_pose[eye&1].find(displayed[eye&1]); if(it==target_pose[eye&1].end())return {};
++ TargetPose result=it->second; it->second.draws=0; it->second.first=0; return result;
++}
++inline void ResetTargets() { target_pose[0].clear(); target_pose[1].clear(); displayed[0]=displayed[1]=nullptr; }
 +}
 diff --git a/pcsx2/Input/PS2VRGun.h b/pcsx2/Input/PS2VRGun.h
 new file mode 100644

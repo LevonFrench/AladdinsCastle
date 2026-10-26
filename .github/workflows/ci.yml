@@ -67,6 +67,7 @@ jobs:
         run: |
           python setups/retro-ps1-vr/test_host_profiles.py
           python setups/pcsx2-vr/stick_chord_test.py
+          python setups/pcsx2-vr/inside_pose_test.py
           python setups/flycast-hotd2-vr/tools/test_chord_copies.py
           python -B setups/dolphin-vr/hold-ring/test_hold_ring.py
       - name: Universal controls, stick-click resolvers (standalone C++17, CPU only)
