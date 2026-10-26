@@ -17,6 +17,10 @@ version = "1.32.1"
 archive = "zip"
 note = "Official site, latest 1.32.1 released 2024-04-05. The page marks the win64 build as Recommended. The site publishes no checksum that was read, so the Hub records sha256 at first download."
 
+[unpinned.windows-x64]
+reason = "mednafen.github.io is not on the Hub download allow-list and the site publishes no checksum that was read; owner decision, see docs/emulator-manifests.md section 6 item 4"
+checked = "2026-10-25"
+
 [install.windows-x86]
 do = "download"
 url = "https://mednafen.github.io/releases/files/mednafen-1.32.1-win32.zip"
@@ -24,6 +28,10 @@ sha256 = "?"
 version = "1.32.1"
 archive = "zip"
 note = "32-bit Windows build (verified file name)."
+
+[unpinned.windows-x86]
+reason = "mednafen.github.io is not on the Hub download allow-list and the site publishes no checksum that was read; owner decision, see docs/emulator-manifests.md section 6 item 4"
+checked = "2026-10-25"
 
 [portable]
 marker = "env:MEDNAFEN_HOME"

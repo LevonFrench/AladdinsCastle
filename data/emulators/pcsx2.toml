@@ -16,15 +16,19 @@ tag = "v2.8.2"
 asset = "pcsx2-v2.8.2-windows-x64-Qt.7z"
 version = "v2.8.2"
 archive = "7z"
+sha256 = "7dfc829ca1994cc1045ac49f05e39b6cf968b72e6a374c40e05c2a2b4ac200b4"
+bytes = 25670075
 note = "Portable Qt build. Verified asset name pcsx2-v2.8.2-windows-x64-Qt.7z (published 2026-09-04). Do not use the installer .exe. Pin policy: pin v2.8.2 and move only after testing."
 
 [install.linux-x64]
 do = "github-release"
 repo = "PCSX2/pcsx2"
 tag = "v2.8.2"
-asset = "pcsx2-*-linux-appimage-x64-Qt.AppImage"
+asset = "pcsx2-v2.8.2-linux-appimage-x64-Qt.AppImage"
 version = "v2.8.2"
 archive = "none"
+sha256 = "0c46bb6a88aa2782b10853a7b07cf3387ba99cbef2b966372cd2315b8571abea"
+bytes = 60119544
 note = "AppImage (verified asset name). The Flatpak is not used. This is x86-64, not ARM64. The ARM64 PS2 route is armsx2.toml."
 
 [portable]

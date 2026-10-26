@@ -1,0 +1,56 @@
+{
+  "tag_name": "v1.0",
+  "name": "Example Emulator 1.0",
+  "published_at": "2026-01-02T03:04:05Z",
+  "draft": false,
+  "prerelease": false,
+  "assets": [
+    {
+      "name": "emu-win64-1.0.zip",
+      "size": 1234567,
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-win64-1.0.zip",
+      "content_type": "application/octet-stream",
+      "digest": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1"
+    },
+    {
+      "name": "emu-win32-1.0.zip",
+      "size": 2345678,
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-win32-1.0.zip",
+      "content_type": "application/octet-stream",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    {
+      "name": "emu-x86_64-1.0.AppImage",
+      "size": 7654321,
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-x86_64-1.0.AppImage",
+      "content_type": "application/octet-stream",
+      "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+      "name": "emu-old.zip",
+      "size": 3000,
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-old.zip",
+      "content_type": "application/octet-stream"
+    },
+    {
+      "name": "emu-md5.zip",
+      "size": 3000,
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-md5.zip",
+      "content_type": "application/octet-stream",
+      "digest": "md5:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    {
+      "name": "emu-short.zip",
+      "size": 3000,
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-short.zip",
+      "content_type": "application/octet-stream",
+      "digest": "sha256:abc123"
+    },
+    {
+      "name": "emu-nosize.zip",
+      "browser_download_url": "https://github.com/example/emulator/releases/download/v1.0/emu-nosize.zip",
+      "content_type": "application/octet-stream",
+      "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ]
+}

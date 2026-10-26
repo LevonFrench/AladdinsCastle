@@ -16,6 +16,8 @@ tag = "v2.7"
 asset = "flycast-win64-2.7.zip"
 version = "v2.7"
 archive = "zip"
+sha256 = "7edf489ba6b3053703a18ce8233767eb71a2d89e4bda0421b312c2167a739161"
+bytes = 9885102
 note = "Portable zip (verified asset name, published 2026-08-19)."
 
 [install.linux-x64]
@@ -25,6 +27,8 @@ tag = "v2.7"
 asset = "flycast-x86_64-2.7.AppImage"
 version = "v2.7"
 archive = "none"
+sha256 = "5b9f8a636a6acb8446bc78fe96650d8cb8233ac9f8ce69665dab3f39a1cbaae1"
+bytes = 20396536
 note = "x86-64 AppImage only (verified). No ARM64 Linux build is published, so Flycast is not an ARM64 route."
 
 [portable]
