@@ -69,6 +69,8 @@ namespace
   // Theatre input is the universal stick-click layer (U1-U4), resolved by one shared StickChord.
   XrAction s_leftClick=XR_NULL_HANDLE,s_rightClick=XR_NULL_HANDLE;
   acvr::StickChord s_chord;
+  bool s_chordLogged=false;
+  std::atomic<bool> s_recentreRequested{false}; // U3 from the Model 2 path, consumed by the frame loop next to the Home key
   unsigned s_theatreW[2]{},s_theatreH[2]{};
   std::atomic<bool> s_wantViews{false};
   struct Fov {float tanL=0,tanR=0,tanB=0,tanT=0;} s_fov;
@@ -135,7 +137,7 @@ namespace
   unsigned    s_chainW = 0, s_chainH = 0;
   int64_t     s_format = 0;
   XrActionSet s_actions = XR_NULL_HANDLE;
-  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE;
+  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE;
   XrSpace s_aimSpace = XR_NULL_HANDLE;
   XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
   bool s_acquired[2]{},s_imageReady[2]{};
@@ -196,15 +198,14 @@ namespace
         !action("start", "Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_start) ||
         !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin) ||
         !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic) ||
-        !action("clean_quit", "Hold Y for clean quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left)) return false;
+        !action("left_click","Start (left stick click)",XR_ACTION_TYPE_BOOLEAN_INPUT,s_leftClick,s_left) ||
+        !action("right_click","Coin (right stick click)",XR_ACTION_TYPE_BOOLEAN_INPUT,s_rightClick)) return false;
     if(s_theatre && (!action("grip_pose","Right grip",XR_ACTION_TYPE_POSE_INPUT,s_grip) ||
         !action("second_button","Second game button",XR_ACTION_TYPE_FLOAT_INPUT,s_secondary) ||
         !action("left_grip_pose","Left grip",XR_ACTION_TYPE_POSE_INPUT,s_leftGrip,s_left) ||
         !action("left_trigger","Left trigger",XR_ACTION_TYPE_FLOAT_INPUT,s_leftTrigger,s_left) ||
         !action("left_stick","Left thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_leftStick,s_left) ||
-        !action("right_stick","Right thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_rightStick) ||
-        !action("left_click","Start (left stick click)",XR_ACTION_TYPE_BOOLEAN_INPUT,s_leftClick,s_left) ||
-        !action("right_click","Coin (right stick click)",XR_ACTION_TYPE_BOOLEAN_INPUT,s_rightClick))) return false;
+        !action("right_stick","Right thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_rightStick))) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
     if(s_theatre){
       // Gun theatre: pointer, trigger, grips, sticks and the stick clicks. Start and Coin are
@@ -227,22 +228,21 @@ namespace
         Check(p_xrSuggestInteractionProfileBindings(s_instance,&suggested),profile);
       }
     } else {
+    // Model 2: Start and Coin are the stick clicks (U1, U2), resolved by StickChord; A and B stay as extra
+    // Start and Coin. The menu and system buttons and left Y are never suggested.
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
-                           "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
-    const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
-    XrActionSuggestedBinding bindings[6]{};
-    for (unsigned i=0; i<5; ++i) {
+                           "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic",
+                           "/user/hand/left/input/thumbstick/click", "/user/hand/right/input/thumbstick/click" };
+    const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic, s_leftClick, s_rightClick };
+    XrActionSuggestedBinding bindings[7]{};
+    for (unsigned i=0; i<7; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
     }
-    unsigned profileIndex=0;
-    const char *quitPaths[]={"/user/hand/left/input/y/click","/user/hand/left/input/b/click"};
     for (const char *profile : profiles) {
       XrInteractionProfileSuggestedBinding suggested = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
       if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
-      bindings[5].action=s_quit;
-      if(!Check(p_xrStringToPath(s_instance,quitPaths[profileIndex++],&bindings[5].binding),"clean quit button path")) return false;
-      suggested.countSuggestedBindings = 6; suggested.suggestedBindings = bindings;
+      suggested.countSuggestedBindings = 7; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
     }
     }
@@ -274,7 +274,8 @@ namespace
   void ReadController(XrTime time, float width, float height)
   {
     ControllerInput input;
-    XrActiveActionSet active{ s_actions, XR_NULL_PATH }; // both hands, including left-hand quit
+    bool chordRead=false;
+    XrActiveActionSet active{ s_actions, XR_NULL_PATH }; // both hands, including the left stick click
     XrActionsSyncInfo sync = { XR_TYPE_ACTIONS_SYNC_INFO };
     sync.countActiveActionSets = 1; sync.activeActionSets = &active;
     if (p_xrSyncActions(s_session, &sync) == XR_SUCCESS) {
@@ -289,9 +290,19 @@ namespace
       input.active = (aimOK && aim.isActive) || (startOK && start.isActive) || (coinOK && coin.isActive);
       input.start=startOK && start.isActive && start.currentState;
       input.coin=coinOK && coin.isActive && coin.currentState;
-      XrActionStateBoolean quit={XR_TYPE_ACTION_STATE_BOOLEAN};
-      get.action=s_quit; get.subactionPath=s_left;
-      input.quitHeld=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session,&get,&quit)) && quit.isActive && quit.currentState;
+      // U1-U4: raw stick clicks in, resolved Start/Coin, recentre request and quit hold out.
+      auto click=[&](XrAction action,XrPath hand){
+        XrActionStateGetInfo one={XR_TYPE_ACTION_STATE_GET_INFO}; one.action=action; one.subactionPath=hand;
+        XrActionStateBoolean value={XR_TYPE_ACTION_STATE_BOOLEAN};
+        return XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session,&one,&value)) && value.isActive && value.currentState;
+      };
+      const auto stick=s_chord.step(GetTickCount64(),click(s_leftClick,s_left),click(s_rightClick,s_right));
+      input.start=input.start||stick.start; input.coin=input.coin||stick.select;
+      input.quitHeld=stick.chord; // the viewer's CleanQuit counts the 3 s
+      if(stick.chord&&!s_chordLogged) { s_chordLogged=true; Log("both stick clicks down; quit in 3 seconds if held"); }
+      if(!stick.chord) s_chordLogged=false;
+      if(stick.recenter) { s_recentreRequested=true; Log("both stick clicks released: recentring the screen"); }
+      chordRead=true;
       XrSpaceLocation pose = { XR_TYPE_SPACE_LOCATION };
       const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
       if (width>0 && height>0 && s_poseSet && aimOK && aim.isActive && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_space, time, &pose)) && (pose.locationFlags & need)==need) {
@@ -302,6 +313,7 @@ namespace
         input.trigger=triggerOK && trigger.isActive && trigger.currentState>=.55f;
       }
     }
+    if(!chordRead) { s_chord.step(GetTickCount64(),false,false); s_chordLogged=false; } // focus loss or a failed sync releases every click
     DispatchHaptics(input.active);
     s_input.publish(GetTickCount64(),input);
   }
@@ -493,7 +505,7 @@ namespace
     if(s_gripSpace)p_xrDestroySpace(s_gripSpace);s_gripSpace=XR_NULL_HANDLE;
     if(s_leftGripSpace)p_xrDestroySpace(s_leftGripSpace);s_leftGripSpace=XR_NULL_HANDLE;
     s_grip=s_secondary=s_leftGrip=s_leftTrigger=s_leftStick=s_rightStick=s_leftClick=s_rightClick=XR_NULL_HANDLE;
-    s_chord.reset();
+    s_chord.reset(); s_recentreRequested=false; s_chordLogged=false;
     if(s_aimSpace) p_xrDestroySpace(s_aimSpace);
     if(s_viewSpace) p_xrDestroySpace(s_viewSpace);
     if(s_space) p_xrDestroySpace(s_space);
@@ -502,7 +514,7 @@ namespace
     if(s_instance && p_xrDestroyInstance) p_xrDestroyInstance(s_instance);
     s_aimSpace=s_viewSpace=s_space=XR_NULL_HANDLE;
     s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_instance=XR_NULL_HANDLE;
-    s_aim=s_trigger=s_start=s_coin=s_haptic=s_quit=XR_NULL_HANDLE;
+    s_aim=s_trigger=s_start=s_coin=s_haptic=XR_NULL_HANDLE;
     s_system=XR_NULL_SYSTEM_ID; s_right=s_left=XR_NULL_PATH; s_format=0;
     s_quadPose={}; s_poseSet=false;
     glDeleteFramebuffers(1,&s_readFbo); glDeleteFramebuffers(1,&s_drawFbo);
@@ -650,9 +662,10 @@ namespace
         float tl, tr, tb, tt;
         { std::lock_guard<std::mutex> guard(s_mutex); tl = s_fov.tanL; tr = s_fov.tanR; tb = s_fov.tanB; tt = s_fov.tanT; }
         if (!(tr - tl > 0.05f) || !(tt - tb > 0.05f)) { tl = -0.6f; tr = 0.6f; tb = -0.45f; tt = 0.45f; }
-        // Home recentres the screen in front of the player (the key state is kept by the emulator's own event pump)
+        // Both stick clicks (U3), or Home, recentre the screen in front of the player (the key state is kept by the emulator's own event pump)
         const Uint8 *keys = Host_GetKeyboardState(nullptr);
-        if (!s_poseSet || (keys && keys[Host_SCANCODE_HOME]))
+        const bool recentre = s_recentreRequested.exchange(false);
+        if (!s_poseSet || recentre || (keys && keys[Host_SCANCODE_HOME]))
           s_poseSet = PlaceScreen(fs.predictedDisplayTime);
         width  = s_distance * (tr - tl) * s_sizeScale;
         height = s_distance * (tt - tb) * s_sizeScale;

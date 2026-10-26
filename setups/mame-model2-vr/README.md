@@ -315,6 +315,8 @@ viewer refuses the new transport.
 
 The viewer follows the shared stick-click layer. The same logic is in `presenter/legacy/ACVRChord.h`
 (a copy of `setups/supermodel-vr/patch/ACVRChord.h`; `setups/flycast-hotd2-vr/tools/test_chord_copies.py` checks the copies).
+The shared candidate (`presenter/`, which links `libacvr/publish-presenter`) runs libacvr's `src/stick_chord.hpp` in
+`Presenter.cpp` `ReadController` instead (same 150 ms window, 1 s recentre, 3 s quit), and `presenter/presenter_test.cpp` pins its bindings.
 
 | Gesture | Does |
 |---|---|
