@@ -90,14 +90,10 @@ jobs:
               raise SystemExit(f'{archive.name} has SHA-256 {got}, the pin says {pin["sha256"]} (the rolling release was replaced?)')
           if archive.stat().st_size != pin['size_bytes']:
               raise SystemExit('dependency pack size differs from the pin')
-          subprocess.run(['7z', 'x', '-y', '-bso0', '-bsp0', str(archive), '-oupstream/deps'], check=True)
+          subprocess.run(['7z', 'x', '-y', '-bso0', '-bsp0', str(archive), '-oupstream'], check=True)
+          if not pathlib.Path('upstream/deps/include/zstd.h').exists():
+              raise SystemExit('dependency pack did not unpack to upstream/deps')
           print('Dependency pack ready in upstream/deps')
-
-      - name: Show the dependency pack layout
-        shell: pwsh
-        run: |
-          Get-ChildItem upstream/deps | Select-Object -First 30 | ForEach-Object { Write-Host $_.Name }
-          Get-ChildItem upstream/deps -Recurse -Filter zstd.h | ForEach-Object { Write-Host "zstd.h: $($_.FullName)" }
 
       # The patch includes the OpenXR headers from 3rdparty/openxr/include/openxr, which upstream does not have. They come from
       # the reference source the pin names, at its commit, each checked against the pinned blob hash.
