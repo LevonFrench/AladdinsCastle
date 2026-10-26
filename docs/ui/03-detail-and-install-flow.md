@@ -452,7 +452,7 @@ When installed, the primary button becomes `Start in VR ▶`, the state pill bec
 | 16 | Uninstall | Only when installed (section 2.12). |
 | 17 | Quip | Optional, last. |
 
-**Controls table, gun setups** (generated, example for Time Crisis): fire = either trigger; take cover = release the grip (hold to shoot) (grip mode); insert credits = A (right hand); laser = B (right hand); pause = left stick click; recenter and set standing height = X (left hand). These come from the README and [controls.md](../controls.md) section 1.2. The generator reads the same data, so the README and the page cannot disagree.
+**Controls table, gun setups** (generated, example for Time Crisis): fire = either trigger; take cover = release the grip (hold to shoot) (grip mode); start or pause = left stick click; insert credits or select = right stick click; recentre = both stick clicks; quit and save = hold both for 3 seconds (universal layer, controls.md section 2.5); laser = B (right hand). These come from the README and [controls.md](../controls.md) section 1.2. The generator reads the same data, so the README and the page cannot disagree.
 
 **Controls table, racing setups** (example for Rave Racer, from `setup/controls.toml`): steering wheel with range 270 degrees, two-position shifter (low, high), accelerator and brake from the triggers with a dead zone of 0.04, view-change button. Rows come from the `[[element]]` list.
 

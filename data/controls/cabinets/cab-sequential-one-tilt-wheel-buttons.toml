@@ -82,7 +82,7 @@ label_node = "label_shifter"
 id = "start"
 label = "Start"
 type = "button"
-source = "right_primary"
+source = "left_thumbstick_click"
 node = ""
 output = { button = "Start1" }
 binding = { mode = "press" }
@@ -91,7 +91,7 @@ binding = { mode = "press" }
 id = "coin"
 label = "Insert credit"
 type = "button"
-source = "right_secondary"
+source = "right_thumbstick_click"
 node = ""
 output = { button = "Coin1" }
 binding = { mode = "press" }
@@ -100,7 +100,7 @@ binding = { mode = "press" }
 id = "view"
 label = "Change view"
 type = "button"
-source = "right_thumbstick_click"
+source = "right_primary"
 node = "button_view"
 output = { button = "ViewChange" }
 model = "panel-view-one"

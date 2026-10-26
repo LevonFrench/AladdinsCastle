@@ -6,11 +6,14 @@
 #include <vector>
 
 namespace acvr {
-enum class RuntimeAction : uint32_t { Laser=0, Recenter, Pause, HandSwitch, Join };
+// Quit is raised only by the universal stick-click chord (U4); TOML cannot bind it.
+enum class RuntimeAction : uint32_t { Laser=0, Recenter, Pause, HandSwitch, Join, Quit };
 constexpr uint32_t action_bit(RuntimeAction action) { return 1u<<uint32_t(action); }
 struct ControllerButtons {
     float trigger=0,grip=0;
-    bool primary=false,secondary=false,stick_click=false,menu_chord=false;
+    // stick_click is the RESOLVED universal level (stick_chord.hpp): left is
+    // Start (U1), right is Select/Coin (U2), and neither while a chord is forming.
+    bool primary=false,secondary=false,stick_click=false;
 };
 struct MappedControls {
     std::array<bool,2> trigger{},trigger_press{},reload{},offscreen_reload{};
@@ -35,7 +38,7 @@ public:
     const std::vector<std::string> &node_references() const { return nodes; }
 private:
     enum class Kind { Fire, Reload, Axis, Button, Runtime };
-    enum class Control { Trigger, Grip, Primary, Secondary, StickClick, MenuChord, Offscreen };
+    enum class Control { Trigger, Grip, Primary, Secondary, StickClick, Offscreen };
     struct Binding {
         std::string id;
         Kind kind=Kind::Fire;Control control=Control::Trigger;

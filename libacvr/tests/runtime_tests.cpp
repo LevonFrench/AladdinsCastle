@@ -30,7 +30,7 @@ struct Receipt {
     bool check_calibration_pause_reentry=false,check_calibration_close_reentry=false;
     acvr_runtime *calibration_runtime=nullptr;
     bool pause_support=false;
-    unsigned pause_actions=0;
+    unsigned pause_actions=0,recenters=0,quits=0;
     bool omit_legacy_triggers=false;
     std::vector<std::string> unavailable;
     bool requires_depth=false;
@@ -164,7 +164,7 @@ acvr_tracking tracking() {
     t.right.grip_flags=t.right.aim_flags=t.left.grip_flags=t.left.aim_flags=3;
     t.right.hand=ACVR_HAND_RIGHT; t.left.hand=ACVR_HAND_LEFT; return t;
 }
-struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; bool left_trigger=false,reload=false,primary=false; bool cal_secondary=false;float cal_x=0,cal_y=0; };
+struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; bool left_trigger=false,reload=false,primary=false; bool cal_secondary=false;float cal_x=0,cal_y=0; bool lclick=false,rclick=false; };
 struct Recorded final:acvr::Host {
     acvr_pose anchor=pose();
     Receipt &r; std::vector<Sample> samples; size_t index=0; acvr_eye eyes[2];
@@ -198,6 +198,7 @@ struct Recorded final:acvr::Host {
         d.reload[0]=s.reload;
         d.controllers[0].trigger=s.trigger?1.f:0.f;d.controllers[1].trigger=s.left_trigger?1.f:0.f;
         for(auto &controller:d.controllers) {controller.grip=s.pedal;controller.secondary=s.coin;controller.primary=s.primary;}
+        d.controllers[ACVR_HAND_LEFT].stick_click=s.lclick;d.controllers[ACVR_HAND_RIGHT].stick_click=s.rclick; // raw; the runtime resolves U1-U4
         if(!s.tracked) d.tracking.right.aim_flags=d.tracking.right.grip_flags=d.tracking.left.grip_flags=0;
         if(r.model_support) {d.tracking.left.grip.position_m[0]=1;d.tracking.left.aim.position_m[0]=9;d.trigger[1]=s.left_trigger;}
         if(!r.tracking_samples.empty()) {
@@ -238,6 +239,8 @@ struct Recorded final:acvr::Host {
     bool supports_calibration_samples() const noexcept override {return r.calibration_support;}
     uint32_t supported_runtime_actions() const noexcept override {return r.pause_support?acvr::action_bit(acvr::RuntimeAction::Pause):0;}
     acvr_result runtime_action(acvr::RuntimeAction action) override {
+        if(action==acvr::RuntimeAction::Recenter) {++r.recenters;return ACVR_OK;}
+        if(action==acvr::RuntimeAction::Quit) {++r.quits;return ACVR_OK;}
         if(action!=acvr::RuntimeAction::Pause||!r.pause_support) return ACVR_UNSUPPORTED;
         ++r.pause_actions;return ACVR_OK;
     }
@@ -876,9 +879,42 @@ void runtime_output_routes() {
     std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
 }
 #endif
+void universal_stick_layer() {
+    const auto run=[](Receipt &r,const std::vector<Sample> &s,size_t ticks) {
+        auto p=create(r,s);
+        for(size_t i=0;i<ticks;++i) check(acvr_runtime_tick(p)==ACVR_OK);
+        return p;
+    };
+    const auto held=[](const Receipt &r) {
+        bool any=false;for(const auto &b:r.buttons) any=any||(b.state&ACVR_INPUT_HELD);return any;
+    };
+    {   // U2: the right click alone is Coin once the 150 ms chord window has passed, and not before.
+        Receipt r;std::vector<Sample> s;
+        for(int i=0;i<=14;++i) {Sample x{int64_t(i)*20000000};x.rclick=i<=10;s.push_back(x);}
+        auto p=run(r,s,s.size());
+        check(!(r.buttons.front().state&ACVR_INPUT_HELD)&&held(r)&&!(r.buttons.back().state&ACVR_INPUT_HELD));
+        check(r.recenters==0&&r.quits==0);
+        check(acvr_runtime_tick(p)==ACVR_STOPPED);check(acvr_runtime_destroy(p)==ACVR_OK);
+    }
+    {   // U3: both clicks released inside a second: one recentre, no Coin.
+        Receipt r;std::vector<Sample> s;
+        for(int i=0;i<=30;++i) {Sample x{int64_t(i)*20000000};x.lclick=x.rclick=i>=1&&i<=20;s.push_back(x);}
+        auto p=run(r,s,s.size());
+        check(!held(r)&&r.recenters==1&&r.quits==0);
+        check(acvr_runtime_tick(p)==ACVR_STOPPED);check(acvr_runtime_destroy(p)==ACVR_OK);
+    }
+    {   // U4: both held 3 s: one quit request, the next tick stops, destroy still flushes.
+        Receipt r;std::vector<Sample> s;
+        for(int i=0;i<=40;++i) {Sample x{int64_t(i)*100000000};x.lclick=x.rclick=true;s.push_back(x);}
+        auto p=run(r,s,31);
+        check(r.quits==1&&r.recenters==0&&!held(r));
+        check(acvr_runtime_tick(p)==ACVR_STOPPED);check(acvr_runtime_destroy(p)==ACVR_OK);
+        check(r.closed==1);
+    }
+}
 int main() {
 #define RUN(test) do { try { test(); } catch(...) { std::cerr << #test << ": "; throw; } } while(false)
-    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(unfocused_initial_picture); RUN(failures_and_ownership); RUN(both_eyes_validate_before_drawing); RUN(display_preparation_and_target_binding); RUN(backend_table_prefix_compatibility); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
+    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(unfocused_initial_picture); RUN(failures_and_ownership); RUN(universal_stick_layer); RUN(both_eyes_validate_before_drawing); RUN(display_preparation_and_target_binding); RUN(backend_table_prefix_compatibility); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
 #ifdef ACVR_OPENXR_GL
         public_preflight_never_opens_xr();
 #endif

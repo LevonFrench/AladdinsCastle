@@ -17,6 +17,7 @@
 #include "core/saturn/Saturn.h"
 #include "core/scripted/Scripted.h"
 #include "core/system22/System22.h"
+#include "core/launch/UniversalControls.h"
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
 #include <QJsonArray>
@@ -525,20 +526,19 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
                 if(!QDir().mkpath(QFileInfo(ps1StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
                 if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old stop request could not be cleared");
                 request.runtimeInputs.environment.insert("AC_HUB_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
-                if(!monitor)hint+=" Exit game here, or hold left Y for 3 seconds, quits and saves.";
             }
         }else if(id.startsWith("dreamcast-")){
             // The emulator keeps its settings beside itself, so its own folder is the working folder.
             const auto plan=dreamcast::launchPlan(file,view,settings_->get("dreamcastExecutable",QString()).toString());
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
-            hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+            hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor. Right A also starts; right B or left Y is the gun's B (skip, back, pump). The left stick click also lets player 2 join where the game offers it; the right stick click is a coin on NAOMI and Atomiswave games only.":"The mouse is the gun.";
         }else if(id.startsWith("wii-")){
             // The authored DolphinXR route: the build's own User folder, OpenXR on, the disc where it is.
             const auto plan=wii::launchPlan(file,settings_->get("wiiExecutable",QString()).toString());
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:wii::games())if("wii-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · In the headset";
-            hint="Aim with your controller. Both thumbsticks pressed together, or Shift+R, recentre the view. Exit game here closes Dolphin.";
+            hint="Aim with your right controller. Remote 2 is a quick press of left Y; Home is left Y held for half a second.";
         }else if(id.startsWith("model2-")){
             // Two programs: the emulator first, then the viewer given the emulator's process id.
             const auto game=id.mid(7);
@@ -555,7 +555,6 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
             for(const auto &value:model2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · "+model2::viewLabel(view);
             for(const auto &value:model2::views(game))if(value.toMap().value("id")==view)hint=value.toMap().value("controls").toString();
-            hint+=" Home = put the screen in front of you again. Exit game here, or hold Y for 3 seconds, quits and saves.";
             // A stop file of the Hub's own for this launch, cleared first; the viewer watches for it.
             model2StopFile_=install::scopedPath("user/runtime/model2-"+game+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
             if(!QDir().mkpath(QFileInfo(model2StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
@@ -572,7 +571,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             const auto plan=ps2::launchPlan(game,settings_->get("ps2Launcher",QString()).toString(),settings_->get("ps2Python",QString()).toString(),settings_->get("ps2StopFile",QString()).toString(),view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:ps2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · "+ps2::viewLabel(view);
-            hint="Gamepad: Start, A = Cross, B = Circle. Home recentres the screen. Use Exit game here to quit: the game is asked to close and the Hub waits for it.";
+            hint="Gamepad: A = Cross, B = Circle. Exit game here also asks the game to close, and the Hub waits for it.";
         }else if(id.startsWith("ps1-")){
             // The launcher refuses without SteamVR; say so here instead of starting it to fail.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -588,7 +587,6 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old PS1 stop request could not be cleared");
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
             for(const auto &value:ps1::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · "+ps1::viewLabel(game,view);hint=value.toMap().value("controls").toString();}
-            hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
         }else if(id.startsWith("n64-")){
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
                 throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
@@ -603,7 +601,6 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old N64 stop request could not be cleared");
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
             for(const auto &value:n64::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · "+n64::viewLabel(game,view);hint=value.toMap().value("controls").toString();}
-            hint+=" Home = put the screen in front of you again. Exit game here quits and saves.";
         }else if(id.startsWith("saturn-")){
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
                 throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
@@ -618,7 +615,6 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old Saturn stop request could not be cleared");
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
             for(const auto &value:saturn::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · Theatre screen";hint=value.toMap().value("controls").toString();}
-            hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
         }else if(!libretro::profileName(id).isEmpty()){
             // Straight through acvr-ps1 and the game's profile; the program, core and dump come from settings.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -638,7 +634,6 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old 3DS stop request could not be cleared");
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
             for(const auto &value:libretro::games())if(value.toMap().value("id")==id){title=value.toMap().value("title").toString()+" · "+libretro::viewLabel(view);hint=value.toMap().value("controls").toString();}
-            hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
         }else if(id=="system22-timecris"){
             const auto plan=system22::launchPlan(settings_->get("system22Executable",QString()).toString(),view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
@@ -650,6 +645,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             title="Time Crisis · "+system22::viewLabel(view);
             for(const auto &value:system22::views(settings_->get("system22Executable",QString()).toString()))if(value.toMap().value("id")==view)hint=value.toMap().value("controls").toString();
         }else throw install::Error("E_ID","Unknown game");
+        if(!monitor)hint=universal::withHint(hint); // U1-U4 and the way back to the Hub, the same wording for every game
 #ifdef Q_OS_WIN
         ui_->launchOtherQueued(id,view,title,hint,closeNote);
 #else
@@ -762,14 +758,14 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
                 return;
             }
             const auto pads=*probed;
-            // In the headset a single Y tap must not exit (holding Y in the Hub closes the table), so the copy is always made there.
+            // In the headset the universal layer replaces VPX's own controller bindings (a Y tap no longer exits), so the copy is always made there.
             if(!pads.isEmpty()||view=="headset"){
                 const auto own=pinball::userSettingsFile(executable);
                 const QByteArray mine=own.isEmpty()||QFileInfo(own).size()>4*1024*1024?QByteArray():install::readBytes(own);
                 appSettings=install::scopedPath("user/pinball/VPinballX.ini",root_);
                 if(!QDir().mkpath(QFileInfo(appSettings).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's Pinball settings folder");
                 auto settings=pinball::gamepadSettings(mine,pads);
-                if(view=="headset")settings=pinball::exitOnChord(settings);
+                if(view=="headset")settings=pinball::headsetControls(settings);
                 install::atomicWrite(appSettings,settings);
                 if(!pads.isEmpty())gamepad=pads.first().toMap().value("name").toString();
             }
@@ -911,7 +907,7 @@ bool HubServices::askPs1ToQuit(){
     const auto playing=ui_->nowPlaying().value("gameId").toString();
     if(!(playing.startsWith("ps1-")||playing.startsWith("n64-")||playing.startsWith("saturn-")||!libretro::profileName(playing).isEmpty()||(playing.startsWith("mamegun-")&&!ps1StopFile_.isEmpty()))||!launcher_.busy())return false;
     QFile request(ps1StopFile_);
-    if(ps1StopFile_.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS1","The stop request could not be written. Hold left Y for 3 seconds in the headset to quit the game.");return true;}
+    if(ps1StopFile_.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS1","The stop request could not be written. Hold both stick clicks for 3 seconds in the headset to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
 }
 bool HubServices::mayStartSteamVr() const{

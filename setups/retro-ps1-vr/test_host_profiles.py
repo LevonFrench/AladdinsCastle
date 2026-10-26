@@ -8,7 +8,10 @@ The reader itself is checked by host/HostConfigTest.cpp (it needs g++).
 """
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import tomllib
 import unittest
 
@@ -159,9 +162,9 @@ class Profiles(unittest.TestCase):
         self.assertEqual(data["settings"]["ACVR_PS1_SBS"], 1)
         self.assertEqual(data["settings"]["ACVR_PS1_LETTERBOX"], "auto")
         self.assertEqual(",".join("%s=%s" % kv for kv in data["pad"]["map"].items()),
-                         "rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start")
+                         "rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r")
         # README.md quotes the same map.
-        self.assertIn("ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start", read(os.path.join(HERE, "README.md")))
+        self.assertIn("ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r", read(os.path.join(HERE, "README.md")))
 
     def test_catalog_entry_routes_to_theatre(self):
         for game in ("3ds-star-fox-64-3d", "3ds-mario-kart-7"):
@@ -174,8 +177,9 @@ class Profiles(unittest.TestCase):
         self.assertEqual(data["controls"], "pad", "pad mode: the left stick is the Circle Pad; wheel mode is the roll-steering one")
         self.assertEqual(data["core_options"]["citra_factor_3d"], 40)
         pad = data["pad"]["map"]
-        # A accelerate (right trigger), B brake (left grip), R hop and drift (right grip), L item, X look behind, Start on the left stick click.
-        self.assertEqual(pad, {"rtrig": "a", "lgrip": "b", "rgrip": "r", "ltrig": "l", "ra": "l", "rb": "x", "lclick": "start"})
+        # M6: A accelerate (right trigger), B brake (left trigger), R hop and drift (right grip), L item (left grip, right A), X look behind.
+        # Start and Select are the universal stick clicks, so no map entry.
+        self.assertEqual(pad, {"rtrig": "a", "ltrig": "b", "rgrip": "r", "lgrip": "l", "ra": "l", "rb": "x"})
         # Roll steering is opt-in only: no profile turns it on, and the 3DS never asks for it.
         for layer in [data] + list(data.get("views", {}).values()):
             for name in ("ACVR_N64_ROLL_STEER", "ACVR_PAD_ROLL_STEER", "ACVR_PAD_WHEEL_DEG"):
@@ -205,10 +209,10 @@ class Profiles(unittest.TestCase):
             x, y, w, h = s[key]
             self.assertTrue(0 <= x and 0 <= y and w > 0 and h > 0 and x + w <= 1.0001 and y + h <= 1.0001, key)
         pad = data["pad"]["map"]
-        # The right trigger is the stylus, so it is not also a button; start is on the left stick click; roll steering is off.
+        # The right trigger is the stylus, so it is not also a button; Start is the universal left stick click; roll steering is off.
         self.assertEqual(s["ACVR_PS1_3DS_STYLUS"], "rtrig")
         self.assertNotIn("rtrig", pad)
-        self.assertEqual(pad["lclick"], "start")
+        self.assertNotIn("lclick", pad)
         for layer in [data] + list(data.get("views", {}).values()):
             for name in ("ACVR_N64_ROLL_STEER", "ACVR_PAD_ROLL_STEER", "ACVR_PAD_WHEEL_DEG"):
                 self.assertNotIn(name, layer.get("settings", {}))
@@ -221,6 +225,42 @@ class Profiles(unittest.TestCase):
         pad_h = read(os.path.join(HOST, "PadControls.h"))
         known = re.search(r"known\[\] = \{([^}]*)\}", pad_h).group(1)
         self.assertIn('"rtrig"', known)
+
+
+class UniversalControls(unittest.TestCase):
+    """Universal controls contract v1 (U1-U4, no menu buttons): the host reads no menu button and no map names the stick clicks."""
+
+    def test_no_profile_or_default_map_names_the_stick_clicks_or_menu_buttons(self):
+        for f in profile_files():
+            data = tomllib.loads(read(os.path.join(PROFILES, f)))
+            for layer in [data] + list(data.get("views", {}).values()):
+                pad = layer.get("pad", {}).get("map", {})
+                settings = layer.get("settings", {}).get("ACVR_PAD_MAP", "")
+                names = set(pad) | {kv.split("=")[0] for kv in (settings.split(",") if isinstance(settings, str) else [])}
+                self.assertFalse(names & {"lclick", "rclick", "lmenu", "rmenu"}, f)
+        pad_h = read(os.path.join(HOST, "PadControls.h"))
+        default_map = pad_h[pad_h.index("static std::string DefaultMap"):pad_h.index("// Environment: ACVR_PAD_MAP")]
+        for name in ("lclick", "rclick", "lmenu", "rmenu"):
+            self.assertNotIn(name + "=", default_map)
+
+    def test_the_host_binds_no_menu_button(self):
+        xr = read(os.path.join(HOST, "TheatreXR.cpp"))
+        self.assertNotIn("menu/click", xr)
+        self.assertNotIn("/system/", xr)
+        self.assertNotIn("padStart", xr + read(os.path.join(HOST, "PadControls.h")) + read(os.path.join(HOST, "Ps1Host.cpp")))
+        # Left Y no longer quits, and both grips no longer recentre.
+        self.assertNotIn("quitHeld", xr + read(os.path.join(HOST, "Ps1Host.cpp")))
+        self.assertNotIn("gripRecentre", xr + read(os.path.join(HOST, "TheatreXR.h")) + read(os.path.join(HOST, "Ps1Host.cpp")))
+
+    def test_the_chord_resolver_passes_its_own_checks(self):
+        gpp = shutil.which("g++")
+        if not gpp:
+            self.skipTest("no g++ on this machine; CI compiles and runs host/StickChordTest.cpp")
+        with tempfile.TemporaryDirectory() as tmp:
+            exe = os.path.join(tmp, "StickChordTest.exe" if os.name == "nt" else "StickChordTest")
+            subprocess.run([gpp, "-std=c++17", "-I", HOST, os.path.join(HOST, "StickChordTest.cpp"), "-o", exe], check=True, timeout=120)
+            out = subprocess.run([exe], capture_output=True, text=True, timeout=30)
+            self.assertEqual(out.returncode, 0, out.stdout)
 
 
 if __name__ == "__main__":

@@ -22,10 +22,10 @@ ACVR_PS1_SBS       = 1
 ACVR_PS1_LETTERBOX = "auto"     # the host reads the black rows off the core's frame (0.25 at 1200x720)
 
 # RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names; the left stick is the Circle Pad.
-# lclick = start: the left menu button belongs to the SteamVR dashboard under ALVR. No rclick alias: the right stick banks here.
-# The map holds both grips (boost and brake), so the both-grips recentre gesture turns itself off.
+# Start (left stick click) and Select (right stick click) are the universal layer, not map entries; the right stick still banks (it is not clicked to bank).
+# Both stick clicks recentre, both held 3 s quit and save, so holding both grips (boost and brake) moves nothing.
 [pad]
-map = { rtrig = "a", ra = "y", rgrip = "x", lgrip = "b", ltrig = "l", rb = "r", rleft = "l", rright = "r", lclick = "start" }
+map = { rtrig = "a", ra = "y", rgrip = "x", lgrip = "b", ltrig = "l", rb = "r", rleft = "l", rright = "r" }
 
 [views.theatre]
 label    = "Theatre screen"

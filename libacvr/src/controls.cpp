@@ -70,9 +70,10 @@ bool ControlMapper::prepare(std::string input,const std::vector<acvr_control_des
             const auto mode=text(*binding,"mode");require(mode=="hold"||mode=="press"||mode=="toggle","invalid binding mode");b.toggle=mode=="toggle";b.press=mode=="press";
             if(b.kind==Kind::Axis&&b.press) supported=false; // axis pulse queue is not implemented
             const auto control=text(*binding,"control");
-            const std::vector<std::string> names{"trigger","grip","primary","secondary","thumbstick_click","menu_chord","offscreen_trigger"};
+            const std::vector<std::string> names{"trigger","grip","primary","secondary","thumbstick_click","offscreen_trigger"};
             const auto c=std::find(names.begin(),names.end(),control);
-            if(c==names.end()) {require(control=="pump"||control=="slide"||control=="flick_up","unknown binding control");supported=false;}
+            // The menu buttons are off limits (contract v1): a stale `menu`/`menu_chord` row stays unmapped, never bound.
+            if(c==names.end()) {require(control=="pump"||control=="slide"||control=="flick_up"||control=="menu"||control=="menu_chord","unknown binding control");supported=false;}
             else b.control=Control(c-names.begin());
             if(binding->contains("threshold")) {const auto n=(*binding)["threshold"].value<double>();require(n&&std::isfinite(*n)&&*n>=0&&*n<=1,"invalid control threshold");b.threshold=float(*n);}
             if(binding->contains("invert")) {const auto n=(*binding)["invert"].value<bool>();require(n.has_value(),"invalid control invert");b.invert=*n;}
@@ -129,7 +130,7 @@ acvr_result ControlMapper::sample(const ControllerButtons (&hands)[2],const bool
                 case Control::Trigger:case Control::Offscreen:held=s.trigger>=b.threshold;break;
                 case Control::Grip:held=s.grip>=b.threshold;break;
                 case Control::Primary:held=s.primary;break;case Control::Secondary:held=s.secondary;break;
-                case Control::StickClick:held=s.stick_click;break;case Control::MenuChord:held=s.menu_chord;break;
+                case Control::StickClick:held=s.stick_click;break;
             }
             down=down||held;
         }

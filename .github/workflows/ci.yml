@@ -44,6 +44,36 @@ jobs:
       - name: Wii motion binding checks (fail on a missing section or an empty profile folder)
         timeout-minutes: 2
         run: python setups/dolphin-vr/motion-controls/check_bindings.py
+      - name: Universal controls, Wii and GameCube expressions (synthetic CPU only)
+        working-directory: setups/dolphin-vr/motion-controls
+        timeout-minutes: 2
+        run: python -B -m unittest -v test_universal_controls
+      - name: Universal controls, Python checks (control data, cards, pinball, System 22, cabinets)
+        timeout-minutes: 5
+        run: |
+          python -B -m unittest -v test_pinball_controls test_system22_controls test_wii_profile_audit test_wii_controls test_cabinet_motion
+          python -I ../hub/tests/universal_controls_text.py
+        working-directory: tools
+      - name: Universal controls, host profile and binding checks (retro host, PCSX2 patch, Flycast copies)
+        timeout-minutes: 5
+        run: |
+          python setups/retro-ps1-vr/test_host_profiles.py
+          python setups/pcsx2-vr/stick_chord_test.py
+          python setups/flycast-hotd2-vr/tools/test_chord_copies.py
+      - name: Universal controls, stick-click resolvers (standalone C++17, CPU only)
+        timeout-minutes: 5
+        run: |
+          if ! command -v g++ >/dev/null 2>&1; then
+            echo "::error::Existing g++ required for the stick-click resolver checks."
+            exit 1
+          fi
+          mkdir -p .local/chord-ci
+          g++ -std=c++17 -Wall -Wextra -Werror -I setups/retro-ps1-vr/host setups/retro-ps1-vr/host/StickChordTest.cpp -o .local/chord-ci/retro-chord
+          .local/chord-ci/retro-chord
+          g++ -std=c++17 -Wall -Wextra -Werror -I setups/mame-model2-vr/presenter/legacy setups/mame-model2-vr/chord_resolver_test.cpp -o .local/chord-ci/model2-chord
+          .local/chord-ci/model2-chord
+          g++ -std=c++17 -Wall -Wextra -Werror -I setups/supermodel-vr/patch setups/supermodel-vr/tools/chord_resolver_test.cpp -o .local/chord-ci/model3-chord
+          .local/chord-ci/model3-chord
       - name: Offline Wii scorecard tooling (synthetic CPU only)
         working-directory: setups/dolphin-vr/scorecard
         timeout-minutes: 2

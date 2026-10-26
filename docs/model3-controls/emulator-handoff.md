@@ -16,7 +16,7 @@ Each element supplies its logical VR `source`, `extractor`, calibration/range, d
 | MagicalLever1/2, MagicalPedal1/2 | Lever255 up/0 down, centre128; pedals are switches at trigger threshold0.55 |
 | AnalogJoyX/Y, AnalogJoyTrigger, AnalogJoyEvent | X0 left/255 right; Y0 up/255 down, centre128; trigger and Event are independent held switches |
 | JoyUp/Down/Left/Right | Four digital switches; diagonals allowed; opposing directions cancel; stick threshold0.55/release0.35 |
-| Punch, Kick, Guard, Escape; Beat, Charge, Jump, Shift; ShortPass, LongPass, Shoot | Per-game separate held switches; Start1 is always a separate right-stick click |
+| Punch, Kick, Guard, Escape; Beat, Charge, Jump, Shift; ShortPass, LongPass, Shoot | Per-game separate held switches; Start1 is always the separate left-stick click (U1) and Coin1 the right-stick click (U2); the host waits up to 150 ms for the other click before sending either (docs/controls.md 2.5) |
 
 Place one original GLB per `model_instance`, not one copy per named button/axis. Shared parts use one root position per player. Cabinet assets are in `assets/controls/`, with motion tables in `data/controls/models/`; reused guns keep `assets/guns/` and `data/guns/`. Metres,+Y up,−Z forward; draw one LOD. Resolve the selected node and its LOD alias, and use its current transform for labels and moving pieces. Angle ranges are radians; slides metres. Native port drives normalize0..1. `gate_x/z` are the snapped knob coordinates; sequential `shift` is0 back/down,0.5 centre,1 forward/up. Wheel regrab preserves the current angle; release springs at the configured rate. `tools/cabinet_motion.py` contains tested wheel, gate and pedal maths.
 

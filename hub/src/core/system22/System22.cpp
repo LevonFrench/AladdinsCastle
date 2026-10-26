@@ -3,10 +3,13 @@
 #include "core/install/Install.h"
 #include <QDir>
 #include <QFileInfo>
+#include "core/launch/UniversalControls.h"
 namespace ac::system22 {
 namespace {
 struct View {const char *id,*label,*help,*controls,*env;};
-const char *const headsetControls="A = credits, either trigger = start and fire, hold a grip to leave cover, X = recentre. Close its window on the PC to quit.";
+const char *const headsetControls="Either trigger fires; point off the screen and pull it to reload. Hold either grip to leave cover. Laser: B or Y on the gun hand. "
+ "Pause and options: A or X on the hand that does not hold the gun (press again to resume). "
+ "While paused: that same A or X resumes, off-hand B or Y changes cover mode, gun-hand B or Y changes the gun hand, gun-hand A or X resets the gun angle.";
 const QList<View> &table(){
  static const QList<View> list{
   {"vr","In the headset","The whole game around you, with a tracked gun.",headsetControls,""},
@@ -28,7 +31,7 @@ QVariantList views(const QString &executable){
  for(const auto &view:table()){
   const QString id=QString::fromLatin1(view.id);
   if(id=="own-gun"&&!QFileInfo(ownGunExecutable(executable)).isFile())continue;
-  list<<QVariantMap{{"id",id},{"label",QString::fromUtf8(view.label)},{"help",QString::fromUtf8(view.help)},{"controls",QString::fromUtf8(view.controls)},{"monitor",id=="monitor"}};
+  list<<QVariantMap{{"id",id},{"label",QString::fromUtf8(view.label)},{"help",QString::fromUtf8(view.help)},{"controls",id=="monitor"?QString::fromUtf8(view.controls):universal::with(QString::fromUtf8(view.controls))},{"monitor",id=="monitor"}};
  }
  return list;
 }

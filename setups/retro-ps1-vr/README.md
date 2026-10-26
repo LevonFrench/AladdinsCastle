@@ -19,18 +19,25 @@ It brings no emulator, BIOS or game. You point it at your own:
 |---|---|
 | Right controller pointed at the screen | Gun aim |
 | Right trigger | Trigger. Pulled while pointing off the screen: reload |
-| Right A | GunCon A (Justifier: its start button; arcade: Start) |
-| Right B | GunCon B (arcade: Coin) |
-| Right grip | GunCon A as well: the pedal. In Time Crisis hold it to step out and shoot, let go to take cover and reload |
-| Hold left Y for 3 s (Index: left B) | Quit, saving the memory card |
+| Right A | GunCon A (Justifier: its start button; arcade: Start as well) |
+| Right B | GunCon B (arcade: Coin as well) |
+| Either grip | GunCon A as well: the pedal. In Time Crisis hold it to step out and shoot, let go to take cover and reload |
 | Left stick | Pad d-pad (a standard pad on the other port, for menus and pad-only modes) |
-| Left trigger, left X (Index: left A), left grip | Pad Cross, Circle, Square |
-| Left stick click (also the left menu button, which SteamVR keeps for its dashboard under ALVR) | Pad Start |
-| Home key, or both grips held for about 1 s, when the game uses no grip (see below) | Put the screen in front of you again |
+| Left trigger, left X (Index: left A) | Pad Cross, Circle |
+| Left Y (Index: left B) | Free (pad Triangle in the face layout; L3 where a game needs it) |
+| **Left stick click, alone** (U1) | **Start**. Arcade: Start. Waits 150 ms for the other click, then is held as long as the click is |
+| **Right stick click, alone** (U2) | **Select**. Arcade: Coin. N64 has no Select: it is sent and ignored |
+| **Both stick clicks together** (U3) | **Recentre**: the screen goes in front of you again at the current height (the Home key does it on the PC). Sends no Start or Select |
+| **Both stick clicks held 3 s** (U4) | **Quit and save** the memory card or save RAM, then exit to the Hub. A ring of dots fills in the middle of the screen from the first second |
+
+The stick clicks are the same in every mode and game this program runs (gun, face layout, pad, wheel, aim, 3DS), resolved once in
+`host/StickChord.h` (checked by `host/StickChordTest.cpp`, no graphics or runtime needed). No menu button is read or bound: under
+ALVR the left Menu button opens the SteamVR dashboard, which is how you get back to the Hub panel, and the headset keeps the
+right system button. Left Y no longer quits or selects, and holding both grips no longer recentres.
 
 Each trigger pull gives a short vibration and a small visual kick of the gun.
 Escape on the PC also quits cleanly. A launcher or the Hub can quit it by
-creating the file named in `ACVR_PS1_STOP_FILE`.
+creating the file named in `ACVR_PS1_STOP_FILE` (same save and exit as the two-click hold).
 
 SteamVR's **Exit game** closes it too, saving the memory card. The game pauses,
 picture and sound, whenever the headset is not showing it: the SteamVR
@@ -71,16 +78,9 @@ picture is smaller than the headset pixels it uses mipmaps instead.
 | `ACVR_PS1_GUN_MODEL`, `ACVR_PS1_GUN_META` | none | the gun's `.glb` (`assets/guns`) and `.toml` (`data/guns`) |
 
 The screen is placed level, straight ahead of where you look when the first
-picture arrives; Home places it again, and so does holding both grips for about
-a second (in the headset, where there is no Home key; let go and hold again to
-repeat). The both-grips gesture is on only when the game does not use a grip:
-always in gun mode, and in the pad modes only when the active `ACVR_PAD_MAP`
-(or the aim-hold control) names neither `rgrip` nor `lgrip`. The face-button
-layout (`ACVR_PS1_FACE_BUTTONS=1`) puts the gun's buttons on the grips, so it
-turns the gesture off too. The default pad, wheel and aim maps all use a grip,
-so there the screen is placed at the start and by the Home key on the PC; a
-map such as Star Fox 64 3D's, which holds boost and brake together, never moves
-the screen. (`theatre::Config::gripRecentre`, set from `pad::Config::usesGrip`.)
+picture arrives; Home places it again, and so does clicking both sticks together
+(U3: the second click within 150 ms of the first, both let go within a second).
+It works in every game, grips or not, so the old both-grips gesture is gone.
 
 ## Saves
 
@@ -199,7 +199,7 @@ not been tried yet.
 
 The same program runs arcade light-gun sets through the MAME libretro core
 (`mame_libretro.dll`) with `--gun lightgun --option mame_lightgun_mode=lightgun`.
-Right B inserts a coin and right A is Start. MAME keeps its NVRAM and
+The right stick click inserts a coin (Select) and the left stick click is Start; right B and right A stay as the gun hand's aliases. MAME keeps its NVRAM and
 settings under the saves folder. Point Blank 2 (`ptblank2`, System 12) was
 played this way in a hidden run with MAME 0.285: coin, course chosen by
 shooting, targets knocked down. Point Blank (`ptblank`) needs files the
@@ -215,7 +215,7 @@ treats both the same). The BIOS folder holds your own `mpr-17933.bin`
 crosshair (`beetle_saturn_virtuagun_crosshair`); in the headset it is off.
 Pulling the trigger while pointing off the screen is the Stunner's
 off-screen shot, which these games use to reload. Right A is the gun's
-Start button.
+Start button; the stick clicks are Start and Select as everywhere (the Saturn gun games have no Select use).
 
 Each game has its own gun calibration screen (Options, Gun Adjust or
 Calibrate Gun), and before calibration both Virtua Cops register a shot
@@ -390,9 +390,9 @@ and R, the right analog stick is the C buttons.
 `ACVR_PAD_MAP` maps VR controls to RetroPad buttons, for example
 `rtrig=b,ltrig=rs-down,rgrip=r,lgrip=l2` (F-Zero X: right trigger accelerates,
 left trigger brakes on C-down, the grips lean). VR names: `rtrig ltrig rgrip
-lgrip ra rb lx ly lmenu rclick lclick rup rdown rleft rright`
-(`lclick`, the left stick click, is Start in every default map; `lmenu` and,
-where the right stick is unused, `rclick` are aliases); RetroPad names:
+lgrip ra rb lx ly rup rdown rleft rright`
+(no stick click or menu name: `lclick`, `rclick`, `lmenu` and `rmenu` are refused, because Start, Select, recentre and quit are the
+universal stick clicks, added to every pad after the map); RetroPad names:
 `b y select start up down left right a x l r l2 r2 l3 r3` and `rs-up rs-down
 rs-left rs-right` (the right stick pushed fully). `ACVR_PAD_AIM` is the aim
 trim `x scale, x shift, y scale, y shift` from the screen point to the stick,
@@ -405,13 +405,18 @@ Default maps (`PadControls.h`, `DefaultMap`; `ACVR_PAD_MAP` replaces the whole m
 
 | Mode | Map |
 |---|---|
-| `pad` | `ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lclick=start,lmenu=start` (no `rclick`: the right stick is the C buttons) |
-| `wheel` | `rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l,lclick=start,lmenu=start,rclick=start` |
-| `aim` | `rtrig=l2,ra=b,rb=y,lgrip=l2,lx=l,lclick=start,lmenu=start,rclick=start,ltrig=r` |
+| `pad` | `ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b` |
+| `wheel` | `rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l` |
+| `aim` | `rtrig=l2,ra=b,rb=y,lgrip=l2,lx=l,ltrig=r` |
 
-The left stick click is Start, so L is no longer there: in `wheel` and `aim`
-L is on left X (Index: left A), where it only duplicated Z (`wheel`) or A
-(`aim`). In `pad` L stays on the left grip.
+In `wheel` and `aim` L is on left X (Index: left A), where it only duplicated Z
+(`wheel`) or A (`aim`). In `pad` L stays on the left grip.
+
+**Native L3 / R3.** The stick clicks belong to the universal layer, so a game that
+reads L3 or R3 gets them through the map on the free buttons: proposed default
+`ly=l3,lx=r3` (left Y, left X), written on that game's card. None of the games this
+program runs today needs them: N64 and the 3DS have no stick clicks, the PS1 face
+layout is a digital pad, and the PS1 and Saturn gun games read only the gun.
 
 Offline scripts drive a virtual VR controller through the same mapping:
 `roll DEG`, `point U V`, `rtrig V`, `ltrig V`, `rgrip V`, `lgrip V`,
@@ -592,7 +597,7 @@ Azahar's RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names, the
 left stick is the Circle Pad:
 
 ```
-ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start
+ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r
 ```
 
 | VR control | 3DS | Star Fox 64 3D |
@@ -604,7 +609,8 @@ ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=s
 | left grip | B | brake |
 | left trigger, right stick left | L | bank left (twice: barrel roll) |
 | right B, right stick right | R | bank right (twice: barrel roll) |
-| left stick click | Start | pause (no right stick click alias: the right stick banks here) |
+| left stick click (U1) | Start | pause |
+| right stick click (U2) | Select | not used by the game (the right stick still banks) |
 
 The game asks in its tutorial whether to turn on gyro aiming; the host sends no
 motion, so answer no. Its "tap B to realign the gyro controls" prompt can stay
@@ -622,18 +628,19 @@ from its manual as remembered, not checked against a copy of the game) put on
 comfortable VR controls:
 
 ```
-ACVR_PAD_MAP=rtrig=a,lgrip=b,rgrip=r,ltrig=l,ra=l,rb=x,lclick=start
+ACVR_PAD_MAP=rtrig=a,ltrig=b,rgrip=r,lgrip=l,ra=l,rb=x
 ```
 
 | VR control | 3DS | Mario Kart 7 |
 |---|---|---|
 | left stick | Circle Pad | steer |
 | right trigger | A | accelerate |
-| left grip | B | brake, reverse |
+| left trigger | B | brake, reverse (M6: the left trigger brakes) |
 | right grip | R | hop, hold to drift |
-| left trigger, right A | L | use an item (either hand) |
+| left grip, right A | L | use an item (either hand) |
 | right B | X | look behind |
-| left stick click | Start | pause (the left menu button is dead under ALVR) |
+| left stick click (U1) | Start | pause |
+| right stick click (U2) | Select | not used by the game |
 
 Not yet checked in a headset: the pad map, the comfort of factor 40 on a racer,
 and the controls above. The only evidence so far is the offline eye-order run
@@ -710,7 +717,7 @@ entry, no Hub row). From the game's manual as remembered, not checked against a
 copy of it:
 
 ```
-ACVR_PAD_MAP=ltrig=l,ra=a,rb=b,lclick=start
+ACVR_PAD_MAP=ltrig=l,ra=a,rb=b
 ```
 
 | VR control | 3DS | Kid Icarus: Uprising |
@@ -719,7 +726,8 @@ ACVR_PAD_MAP=ltrig=l,ra=a,rb=b,lclick=start
 | right controller's ray on the panel, right trigger held | stylus | aim the reticle; tap menus |
 | left trigger | L | shoot (hold to keep firing) |
 | right A, right B | A, B | menus and dialogs |
-| left stick click | Start | pause (the left menu button is dead under ALVR) |
+| left stick click (U1) | Start | pause |
+| right stick click (U2) | Select | not used by the game |
 
 Roll steering does not apply. R, the D-pad, X and Y are not mapped (their uses were
 not checked). Not checked in a headset: the panel's size and position, whether the

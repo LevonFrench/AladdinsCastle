@@ -32,6 +32,7 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | No desktop dialogs | `core/windows/winmain.cpp`, `core/sdl/sdl.cpp` | Flycast never shows a message box: its two error boxes are logged instead, Windows crash, critical-error and abort dialogs are off (`SetErrorMode`, `_set_abort_behavior`), SDL assertions are ignored, and a fatal error ends the program quietly when no debugger is attached. Checked: a missing disc ends the run with the reason in `flycast.log` and no window shown. |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
 | No widescreen in the headset | `core/rend/transform_matrix.cpp`, `core/rend/vr_reproject.cpp/.h` | `rend.WideScreen` is ignored while the 3D rebuild runs in the headset (`vr::ignoreWidescreen`): it squeezed the picture to 3/4 and shifted it sideways there, and the light gun aimed in the unsqueezed picture (see Findings 2026-10-21). |
+| Universal controls | `core/rend/vr/xr_host.cpp`, `core/rend/vr/acvr_chord.h`, `core/input/udp_lightgun.cpp` | The stick clicks are Start, Coin, recentre and quit (see Controls below); the menu buttons and left X no longer do anything. `lightgunSet` bit 9 presses the pad's D, the coin of Naomi and Atomiswave games. |
 | Eye-buffer test | `core/rend/gles/gles.cpp`, `core/rend/vr_reproject.cpp` | `ACVR_EYE_SIZE=2592x2688` makes the renderer build its matrices as if it drew into a headset eye buffer of that size (a PC test of the line above); `ACVR_NO_WIDE_FIX=1` switches the fix off to see the old picture. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
@@ -56,7 +57,30 @@ add an `emu.cfg` with `vr.Xr = yes` under `[config]`, start SteamVR, then:
 
     flycast.exe -config "config:vr.Xr=yes" "<your disc image>"
 
-Controls are in the upstream README (trigger shoots, shoot away from the view to reload, A Start).
+## Controls
+
+Gun: either trigger fires, a shot away from the view reloads (the game's own off-screen reload), the other hand's
+grip racks the HOTD2 pistol's slide, B or left Y is the gun's B (skip a scene, back out of menus, pump in the
+Atomiswave games). The thumbstick is the gun's D-pad in menus; with a grip held, up and down sizes the world.
+
+Universal layer (the same in every AladdinsCastle game; `core/rend/vr/acvr_chord.h`, identical to the copy in the
+Model 2 viewer and the Supermodel patch):
+
+| Gesture | Does |
+|---|---|
+| Left stick click, alone | Start (player 1's; with `vr.DualWield` and a game that shows the player 2 prompt, it lets player 2 join) |
+| Right stick click, alone | Coin (the pad's D; Naomi and Atomiswave coin, nothing in plain Dreamcast games) |
+| Both clicks, the second within 150 ms of the first, released within 1 s | Recentre |
+| Both clicks held for 3 s | Quit through Flycast's normal exit (`dc_exit`, as closing the window), which saves the VMU and NVRAM; on Android builds it only logs, because there is no desktop exit |
+
+A click waits 150 ms for the other, so Start and Coin arrive 150 ms late and never as part of a chord. Right A stays
+an extra Start (it has no other use). No menu or system button is bound on any profile, and left X, left A (Index)
+and the left menu button no longer do anything. Exceptions: the laser (M4) has no toggle, because right B and left Y
+are the gun's B, which games need; set `vr.Laser`. On Vive wands (no stick) the pad clicks are the universal clicks
+and the gun's B has no button. WMR keeps the pad click as the gun's B.
+
+`tools/test_chord_copies.py` fails if the three copies of the resolver differ; the resolver test is
+`setups/supermodel-vr/tools/chord_resolver_test.cpp`.
 
 ## Test without a headset
 

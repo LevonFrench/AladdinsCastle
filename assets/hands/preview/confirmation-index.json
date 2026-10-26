@@ -3307,7 +3307,7 @@
     "data/controls/wii/shell-and-stick.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "fb196a2f10e4e83839de694b72f0933d9b149b1ba583fcc1973fa761ea108c43"
+      "sha256": "7d0c16ac2bc66f1e698b01309df16d6af028ba39ea260f097c9fe8ccdbfb6cc9"
     },
     "data/guns/arc-pistol-slide.toml": {
       "kind": "source",
@@ -3402,7 +3402,7 @@
     "tools/wii_shell_stick.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "821f09475ffa00f3e6c84064b3f4bb4ad5a0764f20dd4f0ad8d014a2e603e3e8"
+      "sha256": "032f6923c233b9c33b9956fdb6a86741b00f404fc1e16f943bbb5c7264d8e227"
     }
   }
 }

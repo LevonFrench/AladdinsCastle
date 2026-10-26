@@ -278,7 +278,7 @@ quad visible only to its corresponding eye. The GL-to-quad copy flips rows;
 actual runtime orientation remains a headset acceptance check.
 
 The screen is placed in LOCAL space ahead of the initial head position/yaw.
-Home recentres it. Its width is distance times native image width divided by
+Both stick clicks pressed together and released within 1 s recentre it (Home on the keyboard does too). Its width is distance times native image width divided by
 `PCSX2_STEREO_FOCAL_PX`; height follows the display aspect. Thus screen size uses
 the profile's game FOV, which remains provisional rather than calibrated.
 `PCSX2_OPENXR_DISTANCE_M` defaults to 2.5 and `PCSX2_OPENXR_ASPECT` to 4/3.
@@ -371,7 +371,7 @@ remain in use. Normalized calibration is centered:
 Gun profile settings provide offset/scale, aim-dot/model toggles and grip
 mapping. `PCSX2_VR_GUN_OFFSET_X/Y` default to 0 and `SCALE_X/Y` to 1.
 `PCSX2_VR_GUN_DOT` and `PCSX2_VR_GUN_SHOW_MODEL` default to 1.
-Grip maps to C in every gun profile. Start and Select have separate inputs;
+Either grip maps to C in every gun profile (the contract's Time Crisis cover rule, M5). Start and Select have separate inputs;
 A no longer doubles as Start. The screen-depth dot is drawn
 at the same quad UV in each eye after the game-picture copy.
 
@@ -421,34 +421,45 @@ performance remain owner checks.
 
 `PCSX2_VR_CONTROLLERS=1` enables the common menu controls in every profile.
 Actions require focus; menu inputs do not require a tracked aiming pose.
-Inputs use Pointer-0 buttons 12/13/14 through InputManager, with in-memory
+Inputs use Pointer-0 buttons 12-15 (Select, Start, L3, R3) through InputManager, with in-memory
 Pad1 alternatives and USB1 alternatives for gun profiles. Source aggregation
 preserves held Xbox buttons when a VR source releases. Pad1 INI bytes remain
 unchanged. The action set has Touch and Index suggestions:
 
 | VR control | PS2 input |
 |---|---|
-| Left stick click | Start |
-| Right stick click | Select |
-| Touch left menu / Index left B (short release) | Spare Start, an alias of Start. The left menu is the SteamVR dashboard under ALVR, so only Index left B can send it there |
+| Left stick click, alone (U1) | Start |
+| Right stick click, alone (U2) | Select |
+| Both stick clicks together, released within 1 s (U3) | Recentre the screen or inside view at the current head position and yaw |
+| Both stick clicks held 3 s (U4) | Quit and save: graceful VM shutdown, memory cards flush, back to the Hub |
+| Left Y (Index left B) | L3 (native pad) |
+| Left X (Index left A) | R3 (native pad) |
 | Gun profile: right trigger | GunCon trigger; off-screen aim reloads |
 | Gun profile: right A / B | GunCon A / B |
-| Gun profile: right grip | GunCon C |
+| Gun profile: either grip | GunCon C |
 
-Index exposes no application menu button; its system button is reserved. Under
-ALVR the left menu button opens the SteamVR dashboard and never reaches the
-game, so Start on this setup is the left stick click, the same as the other
-setups (`docs/controls.md` section 2.6). Select is the right stick click, as in
-the PS1 face-button layout; the convention's "tap left Y" is not used because
-left Y (Index left B) carries the three-second quit hold. These VR clicks feed
-only the PS2 Start and Select buttons. They are not L3 or R3: the pad's L3 and
-R3 still come from the normal Pad 1 XInput bindings, so a game that reads L3 or
-R3 is unaffected and no fallback is needed. The change is in
+This follows the universal controls contract (2026-10-25). No menu or system
+button is bound on either controller: under ALVR the left menu button opens the
+SteamVR dashboard, and the right system button belongs to the headset. The Touch
+left menu "spare Start" alias is gone; so is the Index left B spare Start.
+
+Chord resolver (`pcsx2/Input/PS2VRStickChord.h`, in the patch): a stick click
+waits up to 150 ms for the other one. If it comes, the pair is a chord and no
+Start or Select is sent at all. Otherwise the click is sent as pressed for as long
+as it stays held. A tap shorter than the wait is stretched to a 100 ms pulse so the
+PS2 pad still sees it. A chord released within 1 s recentres, and a chord held 3 s
+quits; the recentre is then not sent. Letting go of one click cancels the quit
+countdown. The stick clicks no longer reach the pad's L3 and R3, so a game that
+needs them gets them on left Y (L3) and left X (R3). `PCSX2_VR_L3R3=0` switches
+those two off. The pad's normal XInput L3/R3 bindings are unchanged. The change is in
 `unattended-capture.patch` and has not been run in a headset.
-`PCSX2_VR_MENU_SCRIPT=seconds:Select;seconds:Start;seconds:SpareStart`
-provides bounded diagnostic pulses only with OpenXR disabled. Focus loss or a
-500ms stale publication releases every VR control. Gun tracking loss releases
-gun input while preserving focused menu inputs.
+`stick_chord_test.py` builds `stick_chord_test.cpp` against the header taken from
+the patch, checks the timings on the CPU, and pins the bindings above.
+`PCSX2_VR_MENU_SCRIPT=seconds:Select;seconds:Start;seconds:L3;seconds:R3`
+provides bounded diagnostic pulses only with OpenXR disabled (they bypass the
+chord resolver). Focus loss or a 500ms stale publication releases every VR control
+and resets the resolver. Gun tracking loss releases gun input while preserving
+focused menu inputs.
 
 The gun model uses the muzzle anchor's actual -Z bore rather than assuming
 the GLB grip axes match OpenXR grip axes. Its grip position stays in the hand;
@@ -631,12 +642,13 @@ with35ms amplitude1 feedback; actual vibration and tracked fit require a headset
 
 ### Reliable controller quit and private Stop helper
 
-Touch left Y (Index left B) held for3seconds requests graceful VM shutdown
-through the ordinary CPU-thread stop route, in every game. It remains available
-when gun aim tracking is absent. Release/focus loss resets the monotonic hold;
-a held button fires once. The Index button also retains its tap-to-Start role.
-Xbox mapping is unchanged. The offline-only injected hold exercises the same
-timer and gracefully exits the actual native program even with a frame limit.
+Both stick clicks held for 3 seconds request graceful VM shutdown (U4) through
+the ordinary CPU-thread stop route, in every game; memory cards flush as the VM
+stops and no save state is made. It remains available when gun aim tracking is
+absent. Release/focus loss resets the monotonic hold; a held chord fires once.
+Left Y is no longer the quit button. Xbox mapping is unchanged. The offline-only
+injected hold feeds both clicks to the same resolver and gracefully exits the
+actual native program even with a frame limit.
 
 The private Stop launcher writes the stop file first, waits15seconds, then forces
 only the exact private executable and a creation-time-verified launcher helper.
@@ -864,10 +876,9 @@ the lock. No extra swapchain wait is made during destruction.
 A native offline delay hook and a concurrent CPU fixture exercise timeout,
 publication progress, recovery and interruptible shutdown without OpenXR.
 
-Spare Start is emitted as a 250 ms pulse only after a short release (under
-400 ms). Holding Index left B for quit never sends Start. The Touch spare
-menu button follows the same tap rule; focus loss resets pending taps.
-CPU fixtures cover the short tap, long hold, cutoff boundary and focus reset.
+A lone stick click released before the 150 ms chord wait ends is sent as a
+100 ms pulse. Holding both clicks for the 3 s quit never sends Start or Select.
+`stick_chord_test.py` covers the short tap, long hold, chord boundary, quit, cancel and focus reset.
 
 Depth review only: nine profiles retain inherited 1000 m screen convergence;
 Virtua Cop and the generic OutRun 2 profile use 10 m. These are provisional,

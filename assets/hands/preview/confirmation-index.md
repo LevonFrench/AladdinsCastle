@@ -461,7 +461,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml](../../../data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml) | `b326ef4e2808a0d46bcacec8897d45adf0f6ab499d002002eadd7039c4ddfee5` |
 | [data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml](../../../data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml) | `81e4ede76cc78b7fd421ebd808a850eb9d50e4ea90a69e6d2ee7333b6f63e4ce` |
 | [data/controls/wii/games/wii-sin-and-punishment-star-successor.toml](../../../data/controls/wii/games/wii-sin-and-punishment-star-successor.toml) | `adefc9984ef84bfa1c6b64db93d3cf1201de0938a55ab74b75fd9630c2afe549` |
-| [data/controls/wii/shell-and-stick.toml](../../../data/controls/wii/shell-and-stick.toml) | `fb196a2f10e4e83839de694b72f0933d9b149b1ba583fcc1973fa761ea108c43` |
+| [data/controls/wii/shell-and-stick.toml](../../../data/controls/wii/shell-and-stick.toml) | `7d0c16ac2bc66f1e698b01309df16d6af028ba39ea260f097c9fe8ccdbfb6cc9` |
 | [data/guns/arc-pistol-slide.toml](../../../data/guns/arc-pistol-slide.toml) | `0d6474e4f0312ca1fcaa94758d43a1e5a7d0d15341e2a545a1d5d423cbf719c2` |
 | [data/guns/con-pistol-dpad.toml](../../../data/guns/con-pistol-dpad.toml) | `98774ea484e2fc235a027022621ca5f6494d71618c6217bbce75ad2fb4546f84` |
 | [data/guns/con-pistol-slim.toml](../../../data/guns/con-pistol-slim.toml) | `89179d8bc7e299138e52091ab5d608d8fa9a116eb59e4dec3a95719c56819754` |
@@ -480,4 +480,4 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [tools/gun_confirmation.py](../../../tools/gun_confirmation.py) | `6bfe61fcf6601275c9df908489e7800452ef98893de146e3180c7d13020b7a9e` |
 | [tools/hand_assembly.py](../../../tools/hand_assembly.py) | `0108825f00023bf6af342aa7e7b3cdc0e1d315dd88afb04baaa0897113b95f4b` |
 | [tools/wii_controls.py](../../../tools/wii_controls.py) | `a73fc096b65254db81cf915eeca86e65a37293c388ae9712ff533c93a7d27789` |
-| [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `821f09475ffa00f3e6c84064b3f4bb4ad5a0764f20dd4f0ad8d014a2e603e3e8` |
+| [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `032f6923c233b9c33b9956fdb6a86741b00f404fc1e16f943bbb5c7264d8e227` |

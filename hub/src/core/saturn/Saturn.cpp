@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include "core/launch/UniversalControls.h"
 namespace ac::saturn {
 namespace {
 // padMenus: the game's menus also need the pad (the other port), not only the gun.
@@ -23,7 +24,7 @@ const QList<Game> &table(){
 }
 const Game *find(const QString &id){for(const auto &game:table())if(id==QLatin1String(game.id))return &game;return nullptr;}
 QString controls(const Game &game){
- QString text="Your right controller is the Saturn Stunner (Virtua Gun): trigger fires, point off the screen to reload, A is its Start button.";
+ QString text="Your right controller is the Saturn Stunner (Virtua Gun): trigger fires, point off the screen to reload.";
  if(game.padMenus)text+=" Menus also take the pad: the left stick moves, the left trigger chooses.";
  if(*game.note)text+=" "+QString::fromUtf8(game.note);
  return text+" The gun is already calibrated in the game. On a big theatre screen.";
@@ -31,7 +32,7 @@ QString controls(const Game &game){
 }
 QVariantList games(){
  QVariantList result;
- for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",controls(game)},{"view","theatre"}};
+ for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",universal::with(controls(game))},{"view","theatre"}};
  return result;
 }
 QStringList launcherKeys(const QString &launcher){

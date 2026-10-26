@@ -39,14 +39,14 @@ int main(int argc, char **argv)
 {
 	if (argc < 2) return 2;
 	const DWORD pid = std::strtoul(argv[1], nullptr, 10);
-	bool scripted=false,no_xr=false,scriptedY=false;
+	bool scripted=false,no_xr=false,scriptedQuit=false;
 	for(int i=2;i<argc;++i) {
 		if(!std::strcmp(argv[i],"--scripted-input")) scripted=true;
 		else if(!std::strcmp(argv[i],"--no-xr")) no_xr=true;
-		else if(!std::strcmp(argv[i],"--scripted-y-hold")) scriptedY=true;
+		else if(!std::strcmp(argv[i],"--scripted-quit-hold") || !std::strcmp(argv[i],"--scripted-y-hold")) scriptedQuit=true;   // the old name still works
 		else { std::fprintf(stderr,"Unknown viewer switch\n"); return 2; }
 	}
-	if(scriptedY && !scripted) { std::fprintf(stderr,"Scripted Y requires scripted input\n"); return 2; }
+	if(scriptedQuit && !scripted) { std::fprintf(stderr,"Scripted quit hold requires scripted input\n"); return 2; }
 	no_xr=no_xr || scripted;
 	// Optional proof script (scripted runs only): see model2_script.h.
 	model2_script::ScriptFile script; bool haveScript=false;
@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	bool started = false, checked = false; unsigned frames = 0; std::uint64_t serial = 0; int result = 0;
 	ShotFeedback feedback;
 	CleanQuit quit;
-	ULONGLONG exitRequestedAt=0; bool exitSent=false,yLogged=false;
+	ULONGLONG exitRequestedAt=0; bool exitSent=false,holdLogged=false;
 	try
 	{
 		while (WaitForSingleObject(parent, 0) == WAIT_TIMEOUT)
@@ -87,9 +87,9 @@ int main(int argc, char **argv)
 			const auto now=GetTickCount64();
 			const DWORD stopAttributes=GetFileAttributesA(absoluteStop);
 			auto controller=ACVR_XR_ControllerInput();
-			if(scriptedY && local->serial && local->emulated_seconds>=65) {
+			if(scriptedQuit && local->serial && local->emulated_seconds>=65) {
 				controller.quitHeld=true;
-				if(!yLogged) { std::printf("Scripted Y hold began at %.3f emulated seconds\n",local->emulated_seconds); std::fflush(stdout); yLogged=true; }
+				if(!holdLogged) { std::printf("Scripted both-stick-click hold began at %.3f emulated seconds\n",local->emulated_seconds); std::fflush(stdout); holdLogged=true; }
 			}
 			quit.poll(now,controller.quitHeld,stopAttributes!=INVALID_FILE_ATTRIBUTES && !(stopAttributes&FILE_ATTRIBUTE_DIRECTORY));
 			if(!scripted && (GetAsyncKeyState(VK_ESCAPE) & 1)) quit.request(CleanQuit::Reason::escape);

@@ -2,9 +2,11 @@
 #include "runtime_host.hpp"
 #include "pose_math.hpp"
 #include "two_hand.hpp"
+#include "stick_chord.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <deque>
 #include <limits>
@@ -103,6 +105,8 @@ struct acvr_runtime {
     uint64_t period_whole = 0, period_rem = 0, remainder = 0;
     bool clock_started = false, user_paused = false, paused = false, failed = false, have_tracking = false;
     bool busy = false, have_calibration = false;
+    acvr::StickChord chord;           // U1-U4, shared by every host and game
+    bool quit_requested = false;       // U4 fired: the next tick returns ACVR_STOPPED
     std::string game, content, storage, options;
 #ifdef ACVR_GUN_MODELS
     std::unique_ptr<acvr::GunInstance> gun_model;
@@ -532,6 +536,9 @@ acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *config, con
 acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
     if (!r) return ACVR_BAD_ARGUMENT;
     if (!r->owns_thread() || r->failed || r->busy) return ACVR_BAD_STATE;
+    // U4: the host loop sees STOPPED, then acvr_runtime_destroy flushes the
+    // backend's persistent state (NVRAM, memory card) before exiting to the Hub.
+    if (r->quit_requested) return ACVR_STOPPED;
     r->busy=true;
     struct CallScope {acvr_runtime *runtime;~CallScope(){runtime->busy=false;}} call_scope{r};
     const auto activation=r->host->activate();
@@ -564,6 +571,22 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             r->calibration.sample_time_ns=d.tracking.sample_time_ns;
             r->calibration.focused=active?1u:0u;
             r->have_calibration=true;
+        }
+        // Universal stick-click layer (contract v1 U1-U4). Providers hand over RAW
+        // clicks; everything below this block, the mapper included, sees only the
+        // resolved levels: left = Start, right = Select/Coin, neither during a chord.
+        const auto stick = r->chord.step(uint64_t(now) / 1000000u,
+            d.controllers[ACVR_HAND_LEFT].stick_click, d.controllers[ACVR_HAND_RIGHT].stick_click);
+        d.controllers[ACVR_HAND_LEFT].stick_click = stick.start;
+        d.controllers[ACVR_HAND_RIGHT].stick_click = stick.select;
+        if (stick.recenter) {
+            std::fprintf(stderr, "libacvr: both stick clicks: recentre view\n");
+            r->host->runtime_action(acvr::RuntimeAction::Recenter); // a host without a movable view ignores it
+        }
+        if (stick.quit) {
+            std::fprintf(stderr, "libacvr: both stick clicks held 3 s: quit and save\n");
+            r->host->runtime_action(acvr::RuntimeAction::Quit);
+            r->quit_requested = true;
         }
         // OpenXR may request a visible picture before granting input focus.
         // The backend opens unpaused and has no lease until its first tick.
@@ -663,6 +686,16 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 r->gun_draw.support_grip=r->support_grip;
             }
 #endif
+            // U1/U2 reach every game that declares Start or Coin for player 0, with or
+            // without a mapper; a binding for the same button is OR-ed, never doubled.
+            for (const auto &u : {std::pair<uint32_t,bool>{ACVR_BUTTON_START,stick.start},
+                                  std::pair<uint32_t,bool>{ACVR_BUTTON_COIN,stick.select}}) {
+                if (!u.second || !r->buttons.count({u.first,0})) continue;
+                const auto found = std::find_if(d.buttons.begin(), d.buttons.end(), [&](const acvr_button_input &b) {
+                    return b.semantic == u.first && b.player == 0;});
+                if (found != d.buttons.end()) found->state |= ACVR_INPUT_HELD;
+                else {auto b = init<acvr_button_input>(); b.semantic = u.first; b.state = ACVR_INPUT_HELD; d.buttons.push_back(b);}
+            }
             std::map<Key, bool> seen_axes, seen_buttons;
             for (const auto &a : d.axes) {
                 const auto found = std::find_if(r->controls.begin(), r->controls.end(), [&](const acvr_control_desc &c) {

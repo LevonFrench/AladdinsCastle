@@ -32,12 +32,13 @@
    ACVR_AIM_DISTANCE=<m>  head-tracked: distance of the plane the arcade view is met on when pointing (default: the
                           HUD panel's distance, so the ray meets the panel where the game draws its crosshair)
    ACVR_HUD_MATCH=0|1     head-tracked: HUD panel over the arcade view exactly (default: on for analog-stick games)
-   ACVR_LASER=0           head-tracked pointing games: no laser and aim dot from the right controller
+   ACVR_LASER=0           head-tracked pointing games: no laser and aim dot from the right controller (right B
+                          toggles them while playing)
    ACVR_STICK_MODEL=1     with ACVR_STICK_GRAB and ACVR_CONTROLS: draw the cabinet's flight stick (off by default)
-   ACVR_WHEEL_GRAB=0|1    driving games: steer by holding both grips and turning the hands like a wheel. Default: on
-                          only with ACVR_CONTROLS=1 (the wheel is drawn); otherwise the left thumbstick steers
+   ACVR_WHEEL_GRAB=1      driving games: steer by holding both grips and turning the hands like a wheel. Off by
+                          default (opt-in only); the left thumbstick steers
    ACVR_FAKE_CONTROLLERS=<first>-<last>:<control>:<value>;...  made-up VR controllers for unattended checks, used
-                          only while no real ones are read. Controls: trigger.l trigger.r grip.l grip.r a b x y menu
+                          only while no real ones are read. Controls: trigger.l trigger.r grip.l grip.r a b x y
                           stick.lx stick.ly stick.rx stick.ry click.l click.r; wheel (degrees, both hands on a
                           wheel, positive turns right); aim.u aim.v (the right controller points at that place of
                           the game picture, 0..1 from the top left); aim.yaw aim.pitch (degrees, left and up
@@ -65,6 +66,8 @@ static long     s_acvrSaveStateFrame = -1;
 static bool     s_acvrWantSaveState = false;
 static std::string s_acvrCaptureDir = ".";
 static bool     s_acvrQuit = false;
+static acvr_chord::Resolver s_acvrChord;    // the universal stick-click layer (ACVRChord.h)
+static bool     s_acvrLaserHidden = false;  // right B toggles the laser and aim dot in pointing games
 
 static bool     s_acvrVRWanted = false, s_acvrVRFake = false, s_acvrVRBackdrop = false;
 static float    s_acvrFakeYaw = 0.0f;
@@ -334,7 +337,7 @@ static bool ACVR_FakeControllers(ACVRControllers &c)
     if (k == "trigger.l") c.trigger[0] = v; else if (k == "trigger.r") c.trigger[1] = v;
     else if (k == "grip.l") c.grip[0] = v; else if (k == "grip.r") c.grip[1] = v;
     else if (k == "a") c.a = v > 0.5f; else if (k == "b") c.b = v > 0.5f; else if (k == "x") c.x = v > 0.5f;
-    else if (k == "y") c.y = v > 0.5f; else if (k == "menu") c.menu = v > 0.5f;
+    else if (k == "y") c.y = v > 0.5f;
     else if (k == "stick.lx") c.stick[0][0] = v; else if (k == "stick.ly") c.stick[0][1] = v;
     else if (k == "stick.rx") c.stick[1][0] = v; else if (k == "stick.ry") c.stick[1][1] = v;
     else if (k == "click.l") c.stickClick[0] = v > 0.5f; else if (k == "click.r") c.stickClick[1] = v > 0.5f;
@@ -388,18 +391,21 @@ static bool ACVR_FakeControllers(ACVRControllers &c)
 // kind of cabinet. Only writes an input while its controller control is in use, so the keyboard and gamepad
 // keep working.
 //
-//   Driving     left thumbstick steers (with ACVR_WHEEL_GRAB: hold both grips and turn your hands like a wheel); right trigger =
-//               accelerator, left trigger = brake; right thumbstick up/down = shift up/down;
-//               A = start, B = coin, X = view change / VR1, Y = VR2 / hand brake, stick clicks = VR3 / VR4
+//   Every game, through the universal stick-click layer (ACVRChord.h, 150 ms chord wait): left click = Start,
+//               right click = Coin, both clicks released within 1 s = recentre, both held 3 s = quit and save
+//               NVRAM. No menu button is read.
+//   Driving     left thumbstick steers (with ACVR_WHEEL_GRAB=1: hold both grips and turn your hands like a wheel); right
+//               trigger = accelerator, left trigger = brake; right thumbstick up/down = shift up/down;
+//               A = extra Start and B = extra Coin (the cabinet had both, nothing else uses them),
+//               X = view change / VR1, Y = VR2 / hand brake
 //   Pointing    (analog joystick, Star Wars Trilogy) where the right controller points = the stick;
-//               right trigger = its trigger, right grip = its event button; A = start, B = coin
+//               right trigger = its trigger, right grip = its event button; right B = laser and dot on/off
 //   Flight stick (ACVR_STICK_GRAB=1, Star Wars Trilogy) hold the right grip to take the stick: tilt the hand
 //               back or forward (pitch) = stick Y, tip it to a side (roll) = stick X, from its pose at the grab;
 //               let go and it springs back to centre; right thumbstick when not holding it. Right trigger = its
-//               trigger, right stick click = its event button (the grip is the hand on the stick); A = start, B = coin
-//   Stick games left thumbstick = joystick; A, B, X, Y = the four buttons;
-//               menu button or right stick click = start (in Virtua Fighter 3 start also switches to the
-//               first-person view during a fight); left stick click = coin
+//               trigger, right A = its event button (the grip is the hand on the stick); right B = laser on/off
+//   Stick games left thumbstick = joystick; A, B, X, Y = the four buttons (Start is only the left click; in
+//               Virtua Fighter 3 it also switches to the first-person view during a fight)
 static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
 {
   s_acvrCabinet = (gameInputs & Game::INPUT_HARLEY) ? 2 : ((gameInputs & Game::INPUT_VEHICLE) ? 1 : 0);
@@ -420,26 +426,25 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
       return;
     }
   }
-  // Hold Y for 3 seconds of wall-clock time to quit the game. Y keeps its game mapping while held (driving:
-  // VR2 + HandBrake; stick games: Escape / Shift), so a 3 s hand-brake hold also quits.
-  static Uint32 yDownSince = 0;       // SDL_GetTicks() when Y went down, 0 = not held
   ACVRControllers c;
-  if (!ACVR_XR_GetControllers(c) && !ACVR_FakeControllers(c))
+  const bool real = ACVR_XR_GetControllers(c);
+  if (!real && !ACVR_FakeControllers(c))
   {
-    yDownSince = 0;                   // no input (focus lost, thread stopped, stale): the hold starts again
+    s_acvrChord.reset();              // no input (focus lost, thread stopped, stale): nothing stays pending or held
     return;
   }
-  if (!c.y)
-    yDownSince = 0;
-  else
+  // The stick clicks, resolved: wall clock for the headset; made-up controllers count frames, because unattended
+  // runs are not in real time. Both clicks held for 3 s quit through the normal exit, which saves NVRAM.
+  static bool quitCounting = false;
+  const acvr_chord::Output uc = s_acvrChord.step(real ? (std::uint64_t)SDL_GetTicks() : (std::uint64_t)(s_acvrFrame * 1000.0 / 57.5),
+                                                  c.stickClick[0], c.stickClick[1]);
+  if (uc.recentre) ACVR_XR_RequestRecentre();
+  if (uc.bothHeld && !quitCounting) { quitCounting = true; printf("ACVR: both stick clicks down; quit in 3 seconds if held\n"); }
+  else if (!uc.bothHeld) quitCounting = false;
+  if (uc.quit && !s_acvrQuit)
   {
-    const Uint32 now = SDL_GetTicks();
-    if (yDownSince == 0) yDownSince = now ? now : 1;
-    else if (!s_acvrQuit && (Uint32)(now - yDownSince) >= 3000)
-    {
-      printf("ACVR: Y held for 3 seconds; quitting\n");
-      s_acvrQuit = true;
-    }
+    printf("ACVR: both stick clicks held for 3 seconds; quitting\n");
+    s_acvrQuit = true;
   }
 
   // Once a second, note whether the controllers' pointing poses arrive (acvr-input.log in the working folder)
@@ -469,14 +474,14 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     if (c.trigger[1] > 0.02f) set("Accelerator", (int)(clampf(c.trigger[1], 0.0f, 1.0f) * 255.0f));
     if (c.trigger[0] > 0.02f) set("Brake", (int)(clampf(c.trigger[0], 0.0f, 1.0f) * 255.0f));
 
-    // Steering: the left thumbstick. Two-handed wheel (ACVR_WHEEL_GRAB=1; on by default only where the cabinet's
-    // wheel is drawn, ACVR_CONTROLS=1): both grips held = hands on the wheel, and the wheel angle is the tilt of
-    // the line from the left hand to the right hand, seen from the driver's seat; 80 degrees is full lock.
+    // Steering: the left thumbstick. Two-handed wheel (ACVR_WHEEL_GRAB=1, opt-in only): both grips held = hands
+    // on the wheel, and the wheel angle is the tilt of the line from the left hand to the right hand, seen from
+    // the driver's seat; 80 degrees is full lock.
     static int wheelGrab = -1;
     if (wheelGrab < 0)
     {
-      const char *g = getenv("ACVR_WHEEL_GRAB"), *ctl = getenv("ACVR_CONTROLS");
-      wheelGrab = (g && *g) ? (g[0] == '1') : (ctl && ctl[0] == '1');
+      const char *g = getenv("ACVR_WHEEL_GRAB");
+      wheelGrab = (g && g[0] == '1');
     }
     bool steering = false;
     float steer = 0.0f;
@@ -498,12 +503,10 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     if (steering) set("Steering", (int)clampf(128.0f + steer * 127.0f, 0.0f, 255.0f));
     if (steering) s_acvrSteer = steer;
 
-    press("Start1", c.a || c.menu);
-    press("Coin1", c.b);
+    press("Start1", uc.start || c.a);
+    press("Coin1", uc.select || c.b);
     press("ViewChange", c.x); press("VR1", c.x);
     press("VR2", c.y); press("HandBrake", c.y);
-    press("VR3", c.stickClick[0]);
-    press("VR4", c.stickClick[1]);
     press("GearShiftUp", c.stick[1][1] > 0.7f);
     press("GearShiftDown", c.stick[1][1] < -0.7f);
   }
@@ -564,9 +567,10 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
       ACVR_SetStick(inputs, x, y);
     ACVR_LogStick(inputs, grabbed ? "grabbed" : "free");
     press("AnalogJoyTrigger", c.trigger[1] > 0.5f);
-    press("AnalogJoyEvent", c.stickClick[1]);
-    press("Start1", c.a || c.menu);
-    press("Coin1", c.b);
+    press("AnalogJoyEvent", c.a);
+    press("Start1", uc.start);
+    press("Coin1", uc.select);
+    static bool grabBWas = false; if (c.b && !grabBWas) s_acvrLaserHidden = !s_acvrLaserHidden; grabBWas = c.b;
   }
   else if (gameInputs & Game::INPUT_ANALOG_JOYSTICK)
   {
@@ -592,8 +596,9 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     }
     press("AnalogJoyTrigger", c.trigger[1] > 0.5f);
     press("AnalogJoyEvent", c.grip[1] > 0.5f);
-    press("Start1", c.a || c.menu);
-    press("Coin1", c.b);
+    press("Start1", uc.start);
+    press("Coin1", uc.select);
+    static bool pointBWas = false; if (c.b && !pointBWas) s_acvrLaserHidden = !s_acvrLaserHidden; pointBWas = c.b;
   }
   else
   {
@@ -603,8 +608,8 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     press("Punch", c.a); press("Kick", c.b); press("Guard", c.x); press("Escape", c.y);
     press("Beat", c.a);  press("Charge", c.b); press("Jump", c.x); press("Shift", c.y);
     press("ShortPass", c.a); press("LongPass", c.b); press("Shoot", c.x);
-    press("Start1", c.menu || c.stickClick[1]);
-    press("Coin1", c.stickClick[0]);
+    press("Start1", uc.start);
+    press("Coin1", uc.select);
   }
 }
 
@@ -711,7 +716,7 @@ void ACVR_FrameBegin()
   const float yaw = atan2f(-fx, -fz);
   const float centre[3] = { 0.5f * (v[0].pos[0] + v[1].pos[0]), 0.5f * (v[0].pos[1] + v[1].pos[1]), 0.5f * (v[0].pos[2] + v[1].pos[2]) };
   const Uint8 *keys = SDL_GetKeyboardState(nullptr);
-  if (!s_acvrOriginSet || (keys && keys[SDL_SCANCODE_HOME]))
+  if (ACVR_XR_TakeRecentre() || !s_acvrOriginSet || (keys && keys[SDL_SCANCODE_HOME]))
   {
     if (s_acvrVRFake) { s_acvrOriginPos[0] = s_acvrOriginPos[1] = s_acvrOriginPos[2] = 0.0f; s_acvrOriginYaw = 0.0f; }
     else { s_acvrOriginPos[0] = centre[0]; s_acvrOriginPos[1] = centre[1]; s_acvrOriginPos[2] = centre[2]; s_acvrOriginYaw = yaw; }
@@ -1160,7 +1165,7 @@ static void ACVR_DrawPointer(int eye)
 {
   static int laser = -1;
   if (laser < 0) { const char *e = getenv("ACVR_LASER"); laser = !(e && e[0] == '0'); }
-  if (!laser || !g_acvrStereo.hudMatch || s_acvrAimFrame < s_acvrFrame - 1) return;
+  if (!laser || s_acvrLaserHidden || !g_acvrStereo.hudMatch || s_acvrAimFrame < s_acvrFrame - 1) return;
   if (!ACVR_MakePointerMeshes()) return;
   // reference space -> the recentred player frame, in game units (as the eye views are)
   const float ya = -s_acvrOriginYaw, ca = cosf(ya), sa = sinf(ya), u = s_acvrUnitsPerMetre;

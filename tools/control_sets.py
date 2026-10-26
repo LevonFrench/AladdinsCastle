@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ID = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
 HANDS = {'slot','left','right','either'}
 CONTROLS = {'trigger','grip','primary','secondary','thumbstick_click',
-            'offscreen_trigger','flick_up','pump','slide','menu_chord'}
+            'offscreen_trigger','flick_up','pump','slide'}  # menu buttons are off limits (contract v1 section 0)
 MODES = {'hold','press','toggle'}
 RUNTIME = {'laser_toggle','recenter','pause','hand_switch','join'}
 

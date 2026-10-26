@@ -27,6 +27,11 @@ function Invoke-HiddenTestProcess([string]$File,[string[]]$Arguments,[string]$Na
 $arguments=@('-std=c++17','-O2','-static',('-I"'+$source+'"'),('-I"'+$headers+'"'),('"'+(Join-Path $source 'presenter_test.cpp')+'"'),'-lopengl32','-lgdi32','-luser32','-o',('"'+$exe+'"'))
 Invoke-HiddenTestProcess (Join-Path $MsysRoot 'mingw64\bin\g++.exe') $arguments 'test-build' 120
 Invoke-HiddenTestProcess $exe @() 'presenter-test' 120
+# Universal stick-click layer: pure logic, no graphics or runtime.
+$chordExe=Join-Path $output 'chord-test.exe'
+$chordArguments=@('-std=c++17','-O1',('-I"'+(Join-Path $PSScriptRoot 'presenter\legacy')+'"'),('"'+(Join-Path $PSScriptRoot 'chord_resolver_test.cpp')+'"'),'-o',('"'+$chordExe+'"'))
+Invoke-HiddenTestProcess (Join-Path $MsysRoot 'mingw64\bin\g++.exe') $chordArguments 'chord-test-build' 120
+Invoke-HiddenTestProcess $chordExe @() 'chord-test' 60
 if(-not $LegacyPresenter) {
     $shared=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'libacvr\publish-presenter'
     $sharedExe=Join-Path $output 'shared-test.exe'

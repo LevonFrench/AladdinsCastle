@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/launch/Watchdog.h"
+#include "core/launch/UniversalControls.h"
 #include "core/launch/SteamVrStart.h"
 #include "core/app/PanelAttacher.h"
 #include "core/app/LaunchOptions.h"
@@ -226,17 +227,14 @@ int main(int argc,char **argv){
         ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball(qEnvironmentVariable("AC_UI_PINBALL_VIEW","desktop")); // A diagnostic's settings file chooses VR itself.
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
-    // In the headset, holding the left Y (B on Index) for 3 seconds closes a table launched in the headset, the ordinary way.
-    QObject::connect(&ui,&ac::UiController::nowPlayingChanged,&overlay,[&ui,&overlay]{
-        const auto session=ui.nowPlaying();
-        overlay.setCloseGesture(session.value("running").toBool()&&!session.value("closing").toBool()&&session.contains("pinballId")&&session.value("view")=="headset");
-    });
+    // No close gesture of the Hub's own while a game runs: left Y no longer quits (universal controls U4 is both stick clicks, held 3 seconds, in each host),
+    // and a Hub action on the stick clicks would take them away from the game. A table is left from the SteamVR dashboard's Hub panel, Exit game.
     QObject::connect(&overlay,&ac::OverlayHost::closeGameRequested,&ui,[&ui]{ui.stopLaunch();});
     // Diagnostic: one game started and ended through the Hub, written to AC_LAUNCH_PROOF.
     if(const auto proof=ac::launchProofOptions();!proof.output.isEmpty())ac::runLaunchProof(proof,services,ui);
     // Diagnostic, for pictures only: the now-playing screen with a sample session; nothing is started.
     if(qEnvironmentVariableIsSet("AC_UI_DEMO_NOWPLAYING"))QTimer::singleShot(400,&ui,[&ui]{
-        ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen","Home = set straight ahead. 1 = start, 3 = coin, hold Y for 3 seconds to quit.",QString());ui.launchStarted("model3-scud");});
+        ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen",ac::universal::withHint(QString()),QString());ui.launchStarted("model3-scud");});
     // Diagnostic: Get artwork for these games ("id,id"), one after another, as their pages' buttons do.
     // It still needs the setting on. With AC_UI_GET_ARTWORK_QUIT the Hub quits when the last one ends.
     if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK")){
@@ -271,7 +269,7 @@ int main(int argc,char **argv){
                 {"logFrom","Supermodel.log"},{"log","Supermodel 0.3a\nLoading ROM set\nRenderer: OpenGL 4.6\nNetwork board: off\nFrame 18342: unhandled exception"}}});
             ui.setWatchdog({strays.first()},QString());
         }
-        if(demo=="hung"){ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen","Home = set straight ahead. 1 = start, 3 = coin.",QString());ui.launchStarted("model3-scud");ui.setWatchdog({},"hung");}
+        if(demo=="hung"){ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen",ac::universal::with(QString()),QString());ui.launchStarted("model3-scud");ui.setWatchdog({},"hung");}
     });
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});

@@ -147,6 +147,37 @@
             }
           },
           {
+            "id": "start",
+            "label": "Start",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "start",
+            "when": "focused",
+            "binding_evidence": "question",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "left"
+            },
+            "source_rule": "Universal U1: left stick click alone, held back 150 ms to rule out the recentre/quit chord. The pinned host Start input is not confirmed.",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
             "id": "coin",
             "label": "Insert credit",
             "part": "coin-button",
@@ -158,23 +189,23 @@
               "semantic": "coin"
             },
             "binding": {
-              "role": "saved-primary",
-              "control": "primary",
+              "role": "right",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "right",
-              "source_openxr_path": "/user/hand/right/input/a/click"
+              "hand": "right"
             },
-            "source_action": "lower_button",
+            "source_action": "coin",
             "when": "focused",
-            "binding_evidence": "source",
+            "binding_evidence": "question",
             "anchor": {
               "kind": "controller",
               "node": "",
-              "hand_role": "saved-primary"
+              "hand_role": "right"
             },
+            "source_rule": "Universal U2: right stick click alone, held back 150 ms to rule out the recentre/quit chord.",
             "availability": {
               "state": "unavailable",
-              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
             }
           },
           {
@@ -202,37 +233,6 @@
               "kind": "gun-node",
               "node": "fx_laser",
               "hand_role": "active-gun"
-            },
-            "availability": {
-              "state": "unavailable",
-              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
-            }
-          },
-          {
-            "id": "recenter",
-            "label": "Recenter",
-            "part": "recenter-button",
-            "node": "",
-            "slot": 0,
-            "player": 0,
-            "input": {
-              "kind": "runtime",
-              "semantic": "recenter"
-            },
-            "binding": {
-              "role": "saved-off",
-              "control": "primary",
-              "mode": "press",
-              "hand": "left",
-              "source_openxr_path": "/user/hand/left/input/x/click"
-            },
-            "source_action": "lower_button",
-            "when": "focused",
-            "binding_evidence": "source",
-            "anchor": {
-              "kind": "controller",
-              "node": "",
-              "hand_role": "saved-off"
             },
             "availability": {
               "state": "unavailable",
@@ -272,8 +272,8 @@
           },
           {
             "id": "pause",
-            "label": "Pause / options",
-            "part": "stick-click-button",
+            "label": "Pause / options (press again to resume)",
+            "part": "pause-button",
             "node": "",
             "slot": 0,
             "player": 0,
@@ -282,23 +282,22 @@
               "semantic": "pause"
             },
             "binding": {
-              "role": "left",
-              "control": "thumbstick_click",
+              "role": "saved-off",
+              "control": "primary",
               "mode": "press",
-              "hand": "left",
-              "source_openxr_path": "/user/hand/left/input/thumbstick/click"
+              "hand": "left"
             },
             "source_action": "pause",
             "when": "focused",
-            "binding_evidence": "source",
+            "binding_evidence": "question",
             "anchor": {
               "kind": "controller",
               "node": "",
-              "hand_role": "left"
+              "hand_role": "saved-off"
             },
             "availability": {
               "state": "unavailable",
-              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
             }
           },
           {
@@ -313,23 +312,22 @@
               "semantic": "weapon_hand"
             },
             "binding": {
-              "role": "right",
-              "control": "thumbstick_click",
+              "role": "saved-primary",
+              "control": "secondary",
               "mode": "press",
-              "hand": "right",
-              "source_openxr_path": "/user/hand/right/input/thumbstick/click"
+              "hand": "right"
             },
             "source_action": "weapon_hand",
             "when": "paused",
-            "binding_evidence": "source",
+            "binding_evidence": "question",
             "anchor": {
               "kind": "controller",
               "node": "",
-              "hand_role": "right"
+              "hand_role": "saved-primary"
             },
             "availability": {
               "state": "unavailable",
-              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
             }
           },
           {
@@ -376,10 +374,10 @@
               "semantic": "gun_angle_reset"
             },
             "binding": {
-              "role": "left",
-              "control": "menu_chord",
+              "role": "saved-primary",
+              "control": "primary",
               "mode": "press",
-              "hand": "left"
+              "hand": "right"
             },
             "source_action": "gun_angle_reset",
             "when": "paused",
@@ -387,7 +385,7 @@
             "anchor": {
               "kind": "controller",
               "node": "",
-              "hand_role": "left"
+              "hand_role": "saved-primary"
             },
             "availability": {
               "state": "unavailable",
@@ -607,17 +605,17 @@
         },
         {
           "category": "route-binding",
+          "id": "start",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
           "id": "coin",
-          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
           "category": "route-binding",
           "id": "laser",
-          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
-        },
-        {
-          "category": "route-binding",
-          "id": "recenter",
           "reason": "Source mapping only; adopted-route live/controller acceptance pending"
         },
         {
@@ -628,12 +626,12 @@
         {
           "category": "route-binding",
           "id": "pause",
-          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
           "category": "route-binding",
           "id": "weapon-hand",
-          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
           "category": "route-binding",
@@ -818,6 +816,31 @@
             }
           },
           {
+            "id": "start",
+            "label": "Start",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "start",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
             "id": "coin",
             "label": "Insert credit",
             "part": "coin-button",
@@ -829,10 +852,10 @@
               "semantic": "coin"
             },
             "binding": {
-              "role": "left",
-              "control": "secondary",
+              "role": "right",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "left"
+              "hand": "right"
             },
             "source_action": "coin1",
             "when": "playing",
@@ -917,6 +940,11 @@
         {
           "category": "route-binding",
           "id": "view",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "start",
           "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
@@ -1092,6 +1120,31 @@
             }
           },
           {
+            "id": "start",
+            "label": "Start",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "start",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
             "id": "coin",
             "label": "Insert credit",
             "part": "coin-button",
@@ -1103,10 +1156,10 @@
               "semantic": "coin"
             },
             "binding": {
-              "role": "left",
-              "control": "secondary",
+              "role": "right",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "left"
+              "hand": "right"
             },
             "source_action": "coin1",
             "when": "playing",
@@ -1190,6 +1243,11 @@
         {
           "category": "route-binding",
           "id": "view",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "start",
           "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
@@ -1365,6 +1423,31 @@
             }
           },
           {
+            "id": "start",
+            "label": "Start",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "start",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
             "id": "coin",
             "label": "Insert credit",
             "part": "coin-button",
@@ -1376,10 +1459,10 @@
               "semantic": "coin"
             },
             "binding": {
-              "role": "left",
-              "control": "secondary",
+              "role": "right",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "left"
+              "hand": "right"
             },
             "source_action": "coin",
             "when": "playing",
@@ -1401,10 +1484,10 @@
               "semantic": "motion_stop"
             },
             "binding": {
-              "role": "right",
-              "control": "thumbstick_click",
+              "role": "left",
+              "control": "secondary",
               "mode": "press",
-              "hand": "right"
+              "hand": "left"
             },
             "source_action": "motion_stop",
             "when": "playing",
@@ -1487,6 +1570,11 @@
         {
           "category": "route-binding",
           "id": "view",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "start",
           "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
@@ -1603,10 +1691,10 @@
               "semantic": "coin"
             },
             "binding": {
-              "role": "left",
-              "control": "secondary",
+              "role": "right",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "left"
+              "hand": "right"
             },
             "source_action": "coin",
             "when": "playing",
@@ -1618,7 +1706,7 @@
           },
           {
             "id": "start",
-            "label": "Start / change view",
+            "label": "Start",
             "part": "start-button",
             "node": "",
             "slot": 0,
@@ -1628,10 +1716,10 @@
               "semantic": "start"
             },
             "binding": {
-              "role": "right",
-              "control": "secondary",
+              "role": "left",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "right"
+              "hand": "left"
             },
             "source_action": "start",
             "when": "playing",
@@ -1877,10 +1965,10 @@
               "semantic": "start"
             },
             "binding": {
-              "role": "right",
-              "control": "primary",
+              "role": "left",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "right"
+              "hand": "left"
             },
             "source_action": "start",
             "when": "playing",
@@ -1903,7 +1991,7 @@
             },
             "binding": {
               "role": "right",
-              "control": "secondary",
+              "control": "thumbstick_click",
               "mode": "press",
               "hand": "right"
             },
@@ -2074,10 +2162,10 @@
               "semantic": "start"
             },
             "binding": {
-              "role": "right",
-              "control": "primary",
+              "role": "left",
+              "control": "thumbstick_click",
               "mode": "press",
-              "hand": "right"
+              "hand": "left"
             },
             "source_action": "start",
             "when": "playing",
@@ -2100,7 +2188,7 @@
             },
             "binding": {
               "role": "right",
-              "control": "secondary",
+              "control": "thumbstick_click",
               "mode": "press",
               "hand": "right"
             },

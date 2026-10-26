@@ -29,9 +29,14 @@ from this project's PS1 theatre implementation; their single shared copy is in
 `libacvr/publish-presenter`. CRT scanlines are optional and off by default.
 
 Right trigger shoots; off-screen trigger reloads through MAME's normal gun
-mapping. Right A starts, right B inserts a coin, right grip is button 2. Hold
-left Y for three seconds to request normal exit (left B on the alternative
-controller profile). Home recentres. Focus loss releases input and hides the
+mapping. Controls follow the universal stick-click layer: the left stick click
+is Start, the right stick click is Coin, clicking both together recentres the
+screen in front of the head at its current height, and holding both for three
+seconds requests normal exit (MAME saves NVRAM and exits). Start and Coin wait
+150 ms to see whether the other click follows, so a chord never sends either.
+Right grip is button 2 (also Time Crisis' foot pedal). A, B, X, Y and the menu
+and system buttons are not read; the left Menu belongs to the SteamVR
+dashboard. Home still recentres from the keyboard. Focus loss releases input and hides the
 tracked gun; rendering does not require focus. MAME's 250 ms heartbeat expiry
 protects against a dead viewer. A stop file requests the same normal MAME exit
 as the hold gesture. Vibration is one pulse per trigger edge; it does not claim

@@ -1,5 +1,5 @@
 # Gun-game mapping checks; right A attempts to acknowledge the initial screen.
-# Plus=left thumb click; Minus=brief left-Y tap; Home=left-Y hold (brief Minus precedes Home).
+# Plus=left thumb click; Minus=right thumb click; Remote 2=brief left-Y tap; Home=left-Y hold (a brief 2 does not precede Home).
 12.0 12.4 R primary 1
 shot 10 g10
 shot 16 g16

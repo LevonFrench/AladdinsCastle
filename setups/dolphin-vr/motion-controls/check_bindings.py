@@ -7,7 +7,9 @@ Checks every WiimoteNew.ini / profile given (default: the templates next to this
     at the pinned commit; pass --source <DolphinXR source> to re-derive them from the file);
   * every Wii Remote button and D-pad direction has a binding, and so does every Nunchuk
     button and stick direction when the Nunchuk is the selected extension;
-  * the device line names the OpenXR controller.
+  * the device line names the OpenXR controller;
+  * with no file arguments, the stick-click layer (Plus, Minus, Home, Remote 2, GameCube Start/Z
+    and templates/Hotkeys.ini) matches universal_controls.py.
 A file with neither a [Profile] nor a [Wiimote1] section, a missing file, or an empty
 Profiles/Wiimote glob fails. Exit code 0 when all files pass. Standard library only.
 """
@@ -117,6 +119,11 @@ def main():
                 errors.append(f + ': [Wiimote1] Source must be 3 (OpenXR Wii Remote)')
             errors += check_section(f + ' [Wiimote1]', sections['Wiimote1'], valid)
         print(('FAIL ' if any(e.startswith(f) for e in errors) else 'ok   ') + f)
+    if not args.files:
+        # Universal controls contract v1: stick-click expressions come from one module.
+        import universal_controls
+        if universal_controls.main([]):
+            errors.append('universal_controls.py --write has not been applied')
     for e in errors:
         print('  ' + e)
     return 1 if errors else 0

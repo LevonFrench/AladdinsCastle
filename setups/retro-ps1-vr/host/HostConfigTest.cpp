@@ -69,9 +69,9 @@ int main(int argc, char **argv)
   Check(Throws(header + "[views.a]\ncolour = \"red\"\n"), "unknown view key");
   Check(Message(header + "[views.a]\nlabel = \"x\" junk\n").find("test.toml:3:") == 0, "errors carry file:line");
   {
-    const auto p = hostcfg::LoadProfileText("schema = 1\r\n# comment\r\nname = 'a # b'  # trailing\r\n[pad]\r\nmap = { rtrig = \"a\", lclick = \"start\" }\r\n", "crlf.toml");
+    const auto p = hostcfg::LoadProfileText("schema = 1\r\n# comment\r\nname = 'a # b'  # trailing\r\n[pad]\r\nmap = { rtrig = \"a\", ltrig = \"b\" }\r\n", "crlf.toml");
     Check(p.name == "a # b", "a literal string keeps its # and CRLF lines read");
-    Check(p.base.settings.count("ACVR_PAD_MAP") && p.base.settings.at("ACVR_PAD_MAP") == "rtrig=a,lclick=start", "an inline pad map keeps its order");
+    Check(p.base.settings.count("ACVR_PAD_MAP") && p.base.settings.at("ACVR_PAD_MAP") == "rtrig=a,ltrig=b", "an inline pad map keeps its order");
   }
   Check(!hostcfg::LoadProfileText(header + "system = \"3ds\"\n[settings]\nACVR_PS1_AIM = [1,0,1,0]\n", "w.toml").warnings.empty(), "a setting that does not apply to the system warns");
 
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
             options["citra_factor_3d"] == "40" && options["citra_resolution_factor"] == "3" && options.size() == 4, "star fox core options");
       Check(Get(r, "ACVR_PS1_SBS")->value == "1" && Get(r, "ACVR_PS1_SBS")->source == "profile", "star fox side by side");
       Check(!Get(r, "ACVR_PS1_LETTERBOX")->changed, "star fox letterbox stays automatic");
-      Check(Get(r, "ACVR_PAD_MAP")->value == "rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start", "star fox pad map");
+      Check(Get(r, "ACVR_PAD_MAP")->value == "rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r", "star fox pad map");
       Check(p.controls == "pad" && r.view == "theatre", "star fox controls and default view");
       Check(std::getenv("ACVR_PS1_SBS") && std::string(std::getenv("ACVR_PS1_SBS")) == "1", "the profile value reached the environment");
       // The environment wins, the command line wins over both.

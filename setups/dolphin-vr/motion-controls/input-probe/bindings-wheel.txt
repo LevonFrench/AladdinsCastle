@@ -1,4 +1,4 @@
-# AC Motion Wheel checks (opt-in): Plus=left thumb click; Minus=brief left-Y tap; Home=left-Y hold (brief Minus precedes Home).
+# AC Motion Wheel checks (opt-in): Plus=left thumb click; Minus=right thumb click; Remote 2=brief left-Y tap; Home=left-Y hold (a brief 2 does not precede Home).
 20.0 20.5 R primary 1
 21.0 21.5 R squeeze 1
 22.0 22.5 L trigger 1

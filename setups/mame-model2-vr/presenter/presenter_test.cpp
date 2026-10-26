@@ -83,19 +83,27 @@ XrResult XRAPI_CALL ActionSet(XrInstance,const XrActionSetCreateInfo*,XrActionSe
 XrResult XRAPI_CALL Action(XrActionSet,const XrActionCreateInfo *info,XrAction *out) {
  static std::uintptr_t next=10; *out=reinterpret_cast<XrAction>(++next);
  if(std::string(info->actionName)=="shot_pulse") assert(info->actionType==XR_ACTION_TYPE_VIBRATION_OUTPUT);
- if(std::string(info->actionName)=="clean_quit") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
+ assert(std::string(info->actionName)!="clean_quit"); // left Y no longer quits
+ if(std::string(info->actionName)=="left_click") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
+ if(std::string(info->actionName)=="right_click") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_right);
  return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Suggest(XrInstance,const XrInteractionProfileSuggestedBinding *info) {
- assert(info->countSuggestedBindings==6);
+ assert(info->countSuggestedBindings==7);
  assert(info->suggestedBindings[4].action==s_haptic);
  assert(info->suggestedBindings[4].binding==paths.at("/user/hand/right/output/haptic"));
- assert(info->suggestedBindings[5].action==s_quit);
- const auto expected=paths.at(suggestedProfiles==0?"/user/hand/left/input/y/click":"/user/hand/left/input/b/click");
- assert(info->suggestedBindings[5].binding==expected); ++suggestedProfiles; return XR_SUCCESS;
+ // U1/U2: the stick clicks; A and B stay as extra Start and Coin.
+ assert(info->suggestedBindings[5].action==s_leftClick && info->suggestedBindings[5].binding==paths.at("/user/hand/left/input/thumbstick/click"));
+ assert(info->suggestedBindings[6].action==s_rightClick && info->suggestedBindings[6].binding==paths.at("/user/hand/right/input/thumbstick/click"));
+ // Nothing on the left hand but its stick click, and no menu or system path (controls contract 0).
+ for(const auto &entry : paths) {
+  assert(entry.first.find("/menu")==std::string::npos && entry.first.find("/system")==std::string::npos);
+  assert(entry.first.rfind("/user/hand/left/input/",0)!=0 || entry.first=="/user/hand/left/input/thumbstick/click");
+ }
+ ++suggestedProfiles; return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Attach(XrSession,const XrSessionActionSetsAttachInfo*) { return XR_SUCCESS; }
-bool focused=true;
+bool focused=true; int clickMode=0; // bit 0 left click, bit 1 right click
 XrResult XRAPI_CALL Sync(XrSession,const XrActionsSyncInfo *info) {
  assert(info->countActiveActionSets==1 && info->activeActionSets[0].subactionPath==XR_NULL_PATH);
  return focused?XR_SUCCESS:XR_SESSION_NOT_FOCUSED;
@@ -103,8 +111,9 @@ XrResult XRAPI_CALL Sync(XrSession,const XrActionsSyncInfo *info) {
 XrResult XRAPI_CALL PoseState(XrSession,const XrActionStateGetInfo*,XrActionStatePose *state) { state->isActive=false; return XR_SUCCESS; }
 XrResult XRAPI_CALL FloatState(XrSession,const XrActionStateGetInfo*,XrActionStateFloat *state) { state->isActive=false; return XR_SUCCESS; }
 XrResult XRAPI_CALL BooleanState(XrSession,const XrActionStateGetInfo *info,XrActionStateBoolean *state) {
- state->isActive=state->currentState=info->action==s_quit;
- if(info->action==s_quit) assert(info->subactionPath==s_left);
+ state->isActive=state->currentState=(info->action==s_leftClick && (clickMode&1)) || (info->action==s_rightClick && (clickMode&2));
+ if(info->action==s_leftClick) assert(info->subactionPath==s_left);
+ if(info->action==s_rightClick) assert(info->subactionPath==s_right);
  return XR_SUCCESS;
 }
 XrResult XRAPI_CALL ActionSpace(XrSession,const XrActionSpaceCreateInfo*,XrSpace *out) { *out=reinterpret_cast<XrSpace>(2); return XR_SUCCESS; }
@@ -121,7 +130,7 @@ int main()
  CleanQuit held;
  held.poll(1000,true,false); held.poll(3999,true,false); assert(!held.requested());
  held.poll(4000,true,false); assert(held.requested());
- held.poll(4001,false,false); assert(held.requested()); // exit request stays latched
+ held.poll(4001,false,false); assert(held.requested()); // exit request stays latched assert(std::string(held.reason()).find("stick clicks")!=std::string::npos);
  CleanQuit interrupted;
  interrupted.poll(1000,true,false); interrupted.poll(3999,false,false);
  interrupted.poll(5000,true,false); interrupted.poll(7999,true,false); assert(!interrupted.requested());
@@ -213,11 +222,22 @@ int main()
  feedback.observe(14,510,520,true,ACVR_XR_QueueShotPulse); DispatchHaptics(true); assert(hapticCalls==3);
  assert(feedback.acknowledged==4 && feedback.queued==2); s_started=false;
  p_xrSyncActions=Sync; p_xrGetActionStatePose=PoseState; p_xrGetActionStateFloat=FloatState; p_xrGetActionStateBoolean=BooleanState;
- ReadController(0,0,0); assert(ACVR_XR_ControllerInput().quitHeld);
+ // U1-U4 through the real ReadController: both clicks are a chord (no Start or Coin, quit hold), focus loss releases it.
+ s_chord.reset(); clickMode=3;
+ ReadController(0,0,0); { const auto both=ACVR_XR_ControllerInput(); assert(both.quitHeld && !both.start && !both.coin); }
  focused=false; ReadController(0,0,0); assert(!ACVR_XR_ControllerInput().quitHeld);
  focused=true;
- std::puts("PASS quit actions: both-hand synchronization, left Y/equivalent bindings, focus loss releases hold");
- s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_aimSpace=XR_NULL_HANDLE; s_haptic=s_quit=XR_NULL_HANDLE;
+ // Released inside a second: one recentre request, no quit.
+ s_chord.reset(); s_recentreRequested=false; clickMode=3; ReadController(0,0,0); assert(!s_recentreRequested);
+ clickMode=0; ReadController(0,0,0); assert(s_recentreRequested.exchange(false) && !ACVR_XR_ControllerInput().quitHeld);
+ // A lone left click is Start after the 150 ms chord wait, a lone right click is Coin; neither recentres or quits.
+ s_chord.reset(); clickMode=1; ReadController(0,0,0); assert(!ACVR_XR_ControllerInput().start);
+ Sleep(170); ReadController(0,0,0); { const auto solo=ACVR_XR_ControllerInput(); assert(solo.start && !solo.coin && !solo.quitHeld); }
+ s_chord.reset(); clickMode=2; ReadController(0,0,0); Sleep(170); ReadController(0,0,0);
+ { const auto solo=ACVR_XR_ControllerInput(); assert(solo.coin && !solo.start && !solo.quitHeld && !s_recentreRequested); }
+ clickMode=0; s_chord.reset();
+ std::puts("PASS stick-click layer: left/right click bindings and no menu or system path, chord = quit hold without Start or Coin, recentre on release, solo Start and Coin after 150 ms, focus loss releases the hold");
+ s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_aimSpace=XR_NULL_HANDLE; s_haptic=s_leftClick=s_rightClick=XR_NULL_HANDLE;
  std::puts("PASS haptics: both output bindings, game serial to right-hand 30 ms/strong API call, no duplicate/stale/attach/focus-regain replay (injected API only)");
  glDeleteFramebuffers(2,fbos); glDeleteTextures(2,textures);
  assert(Host_GL_MakeCurrent(foreign,foreign->context)==0); glDeleteTextures(1,&sentinel); Host_DestroyWindow(foreign);
