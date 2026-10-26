@@ -314,6 +314,93 @@ class UiTest:public QObject {
   QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
   ui->setSetupReport({});
  }
+ // The step guide, the Welcome road, the per-system state and update tag, and the report page states, in the real scene.
+ void setupStatesRealScene(){
+  const auto previousView=root->property("view");const bool hadUpdate=ui->emulatorUpdateAvailable("supermodel");
+  const auto cleanup=qScopeGuard([&]{ui->setEmulatorUpdate("supermodel",hadUpdate);ui->setSetupSuggestions("model3",QVariantList{});ui->setSetupReport({});settings->set("setupKinds",QVariantMap{});settings->set("setupSystems",QVariantMap{});settings->set("setupDone",false);root->setProperty("view",previousView);});
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
+  const auto text=[&](const QString &name){const auto item=one(name);return item?item->property("text").toString():QStringLiteral("<%1 is not on the page exactly once>").arg(name);};
+  const auto shown=[&](const QString &name){const auto item=one(name);return item&&item->isVisible();};
+  // A click on the item when it is inside the visible page, else its own clicked signal (the report cards sit far down a scrolled page).
+  const auto press=[&](const QString &name){const auto item=one(name);if(!item){qWarning().noquote()<<name<<"is not on the page exactly once";return false;}
+   if(!softwareFrame(window))return false;
+   if(withinClips(item))QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));else QMetaObject::invokeMethod(item,"clicked");return true;};
+  // Nothing ticked, no update known, no folder suggestions: the page starts from its empty states.
+  settings->set("setupKinds",QVariantMap{{"arcade",false},{"pinball",false},{"consoles",false}});settings->set("setupSystems",QVariantMap{});
+  ui->setEmulatorUpdate("supermodel",false);ui->setEmulatorUpdate("model3",false);ui->setSetupSuggestions("model3",QVariantList{});ui->setSetupReport({});
+  root->setProperty("view","Setup");QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(one("setupWelcome"));
+  // Welcome: step 1 of 5, and the four jobs in order, each with its status and a way in.
+  QTRY_VERIFY(text("setupGuide").startsWith("Step 1 of 5"));
+  for(int i=0;i<4;++i){const auto road=QString("setupRoad%1").arg(i),status=QString("setupRoadStatus%1").arg(i);QTRY_VERIFY(shown(road));QTRY_VERIFY(shown(status));QVERIFY(!text(status).isEmpty());}
+  QVERIFY(text("setupRoadStatus1").contains("Nothing ticked yet"));QVERIFY(text("setupRoadStatus2").contains("Needs the step before"));
+  QVERIFY(press("setupNext"));QTRY_VERIFY(text("setupGuide").startsWith("Step 2 of 5"));
+  QVERIFY(press("setupBack"));QTRY_VERIFY(text("setupGuide").startsWith("Step 1 of 5"));
+  QVERIFY(press("setupRoad1"));QTRY_VERIFY(text("setupGuide").startsWith("Step 3 of 5"));
+  // What you have: the warning shows with nothing ticked and goes when a kind is ticked.
+  QTRY_VERIFY(shown("setupNothingTicked"));QVERIFY(text("setupGuide").contains("tick the systems"));
+  QVERIFY(press("setupKind-arcade"));QTRY_VERIFY(ui->setupKinds()["arcade"].toBool());
+  QTRY_VERIFY(one("setupNothingTicked")&&!one("setupNothingTicked")->isVisible());QTRY_VERIFY(text("setupGuide").contains("ticked. Choose Next"));
+  // Where it is: each ticked system says what it still needs and the one next thing to do.
+  QVERIFY(press("setupNext"));QTRY_VERIFY(text("setupGuide").startsWith("Step 4 of 5"));
+  QTRY_VERIFY(one("setupState-model3"));QTRY_VERIFY(one("setupAction-model3"));
+  QCOMPARE(text("setupState-model3"),QString("Needs a folder"));QVERIFY(text("setupAction-model3").contains("choose the folder"));QVERIFY(text("setupGuide").contains("still need something"));
+  if(settings->get("system22Executable",QString()).toString().isEmpty()){ // This system keeps its files beside its program, so only the program is asked for.
+   QTRY_VERIFY(one("setupState-system22"));QCOMPARE(text("setupState-system22"),QString("Needs its program"));QVERIFY(text("setupAction-system22").startsWith("Next: locate"));
+  }
+  // The update tag follows the update check: the emulator id (supermodel) lights the system that runs it (model3).
+  QTRY_VERIFY(one("setupUpdate-model3"));QVERIFY(!shown("setupUpdate-model3"));
+  ui->setEmulatorUpdate("supermodel",true,"1.0","0.9");
+  QTRY_VERIFY(shown("setupUpdate-model3"));QCOMPARE(text("setupUpdate-model3"),QString("Update available"));
+  ui->setEmulatorUpdate("supermodel",false);
+  QTRY_VERIFY(!shown("setupUpdate-model3"));
+  // Folder suggestions appear for a system with no folder.
+  QVERIFY(one("setupSuggestions-model3")&&!one("setupSuggestions-model3")->isVisible());
+  const QVariantMap suggested{{"folder","synthetic-folder/model3"},{"detail","Holds 3 files that fit."}};
+  ui->setSetupSuggestions("model3",QVariantList{suggested});
+  QTRY_VERIFY(shown("setupSuggestions-model3"));QVERIFY(!shown("setupFindFolder-model3"));
+  // Report page: reading, then nothing read, then the read failing.
+  QSignalSpy scans(ui.get(),SIGNAL(setupScanRequested(QStringList)));
+  QVERIFY(press("setupNext"));QTRY_VERIFY(text("setupGuide").startsWith("Step 5 of 5"));
+  QCOMPARE(scans.size(),1);QTRY_VERIFY(shown("setupProgress"));QVERIFY(text("setupGuide").contains("reading your folders"));
+  ui->setSetupReport({});
+  QTRY_VERIFY(shown("setupEmpty"));QVERIFY(text("setupEmpty").contains("Read now"));QCOMPARE(text("setupEmptyAction"),QString("Read now"));QVERIFY(!shown("setupReportError"));QVERIFY(!shown("setupProgress"));
+  const QVariantMap failed{{"error","synthetic-failure"},{"systems",QVariantList{}}};
+  ui->setSetupReport(failed);
+  QTRY_VERIFY(shown("setupReportError"));QVERIFY(text("setupReportError").contains("synthetic-failure"));QVERIFY(shown("setupErrorFolders"));QVERIFY(!shown("setupEmpty"));
+  // A read that found nothing right: the one-line summary, the advice, the toggles and the folder suggestions.
+  const QVariantMap missing{{"id","scud"},{"title","Synthetic Racer"},{"expected","synthetic.zip"}};
+  const QVariantMap unknown{{"name","synthetic.bin"},{"size",2048},{"reason","It matches no game the Hub knows."},{"kind","other"}};
+  const QVariantList copies{QVariantMap{{"name","a.zip"},{"kept",true}},QVariantMap{{"name","b.zip"},{"kept",false},{"why","An older copy."}}};
+  const QVariantMap twice{{"title","Synthetic Racer"},{"sameDisc",false},{"copies",copies}};
+  const QVariantMap none{{"id","model3"},{"title","Sega Model 3"},{"note",""},{"ready",QVariantList{}},{"notRight",QVariantList{}},{"missing",QVariantList{missing}},
+   {"unrecognised",QVariantList{unknown}},{"unrecognisedMore",0},{"duplicates",QVariantList{twice}},{"duplicateRule","The newest copy is used."}};
+  ui->setSetupReport(QVariantMap{{"scanned","today"},{"systems",QVariantList{none}}});
+  QTRY_VERIFY(one("setupResult-model3"));QTRY_VERIFY(shown("setupSummary"));
+  QVERIFY(text("setupSummary").startsWith("No game can start yet"));QVERIFY(shown("setupSummaryFolders"));QVERIFY(!shown("setupEmpty"));QVERIFY(!shown("setupReportError"));
+  QVERIFY(text("setupAdvice-model3").contains("Next: check that this system"));QVERIFY(text("setupGuide").contains("no game can start yet"));
+  QVERIFY(!shown("setupReportUpdate-model3"));QVERIFY(!shown("setupUnrecognisedUnchecked-model3"));QTRY_VERIFY(shown("setupReportSuggestions-model3"));
+  QTRY_VERIFY(shown("setupUnrecognisedToggle-model3"));QCOMPARE(text("setupUnrecognisedToggle-model3"),QString("Show the 1 file not recognised"));QVERIFY(!shown("setupUnrecognised-model3"));
+  QVERIFY(press("setupUnrecognisedToggle-model3"));QTRY_COMPARE(text("setupUnrecognisedToggle-model3"),QString("Hide the 1 file not recognised"));QTRY_VERIFY(shown("setupUnrecognised-model3"));
+  QVERIFY(press("setupUnrecognisedToggle-model3"));QTRY_VERIFY(!shown("setupUnrecognised-model3"));
+  QTRY_VERIFY(shown("setupTwiceToggle-model3"));QCOMPARE(text("setupTwiceToggle-model3"),QString("Show the 1 game found more than once"));QVERIFY(!shown("setupTwice-model3"));
+  QVERIFY(press("setupTwiceToggle-model3"));QTRY_COMPARE(text("setupTwiceToggle-model3"),QString("Hide the 1 game found more than once"));QTRY_VERIFY(shown("setupTwice-model3"));
+  QVERIFY(press("setupTwiceToggle-model3"));QTRY_VERIFY(!shown("setupTwice-model3"));
+  // A read that found a game, from a folder the game library has not looked through, for a system with an update.
+  QVariantMap found=none;found["ready"]=QVariantList{missing};found["missing"]=QVariantList{};found["unrecognisedChecked"]=false;found["updateAvailable"]=true;
+  ui->setSetupReport(QVariantMap{{"scanned","today"},{"systems",QVariantList{found}}});
+  QTRY_VERIFY(shown("setupUnrecognisedUnchecked-model3"));QTRY_VERIFY(shown("setupReportUpdate-model3"));
+  QTRY_VERIFY(text("setupSummary").startsWith("1 game can start now"));QVERIFY(!shown("setupSummaryFolders"));QVERIFY(text("setupAdvice-model3").contains("Next: nothing here"));
+  QVERIFY(text("setupGuide").contains("1 game can start. Choose Finish"));QVERIFY(!shown("setupReportSuggestions-model3"));
+  // Nothing ticked: the report page and the folders page both send the user back to tick something.
+  ui->setSetupReport({});ui->setSetupKind("arcade",false);
+  QTRY_VERIFY(text("setupEmpty").contains("Nothing is ticked"));QCOMPARE(text("setupEmptyAction"),QString("Tick what you have"));
+  QVERIFY(press("setupBack"));QTRY_VERIFY(text("setupGuide").startsWith("Step 4 of 5"));
+  QTRY_VERIFY(shown("setupGoSystems"));QVERIFY(text("setupGuide").contains("nothing is ticked"));
+  QVERIFY(press("setupGoSystems"));QTRY_VERIFY(text("setupGuide").startsWith("Step 3 of 5"));
+  QVERIFY(!settings->get("setupDone",false).toBool());
+ }
  // A SteamGridDB key saved in the clear by an earlier Hub is protected at the next start, and is never shown.
  void steamGridKeyIsKeptProtected(){
 #ifdef Q_OS_WIN
