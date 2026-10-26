@@ -10,8 +10,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadModel } from './models.js?v=20261025b';
-import { paint, GlyphAtlas, cellAspect } from './ascii/runtime/canvas.js?v=20261025b';
+import { loadModel } from './models.js?v=20261026a';
+import { paint, GlyphAtlas, cellAspect } from './ascii/runtime/canvas.js?v=20261026a';
 
 const canvas = document.getElementById('scene');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -420,7 +420,7 @@ function asciiScreen(slug, { w = 384, h = 288, offset = 0 } = {}) {
   t.userData.spots = [];
   const atlas = new GlyphAtlas();  // one per screen: an atlas resets whenever the cell size changes
   let draw = null, meta = null, last = -1, layout = null;
-  import(`./ascii/pieces/${slug}.js?v=20261025b`).then(mod => {
+  import(`./ascii/pieces/${slug}.js?v=20261026a`).then(mod => {
     meta = mod.meta; draw = mod.default();
     const aspect = cellAspect(meta), cw = Math.min(w / meta.cols, h / (meta.rows * aspect)), ch = cw * aspect;
     layout = { cw, ch, x: (w - meta.cols * cw) / 2, y: (h - meta.rows * ch) / 2 };
@@ -545,7 +545,7 @@ const screenBoard = screen((g, w, h, t) => {
     ['MAME', 'TIME CRISIS SCREEN', 'E3', '#9bdc3c'],
     ['PS1', '22 GAMES', 'E2', '#f6c744'],
     ['PS2', '12 GAMES', 'E2', '#f6c744'],
-    ['WII', '19 GAMES', 'E2', '#f6c744'],
+    ['WII', '20 GAMES', 'E2', '#f6c744'],
     ['M2', '14 GAMES', 'E2', '#f6c744'],
     ['DC', '5 GAMES', 'E2', '#f6c744'],
   ];

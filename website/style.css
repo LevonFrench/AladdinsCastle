@@ -296,6 +296,12 @@ h2 {
 .lede { font-size: 18px; }
 .fine { font-size: 14px; color: var(--ink-dim) !important; }
 
+/* scoreboard: dated workshop log */
+.log { margin-top: 16px; }
+.log-list { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 10px; }
+.log-list li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--card-edge); }
+.log-list time { font-family: var(--pixel); font-size: 10px; line-height: 1.6; color: var(--brass); white-space: nowrap; }
+.log-list b { color: #fff; }
 .ticks { margin: 0 0 14px; padding: 0; list-style: none; }
 .ticks li { position: relative; padding-left: 22px; margin: 4px 0; }
 .ticks li::before {
