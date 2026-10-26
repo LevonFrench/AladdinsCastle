@@ -103,6 +103,8 @@ add_library(hubcore STATIC
     src/core/install/Install.cpp
     src/core/install/Support.cpp
     src/core/install/Support.h
+    src/core/install/ErrorText.cpp
+    src/core/install/ErrorText.h
     src/core/install/Archive.cpp
     src/core/install/ConfigEdit.cpp
     src/core/install/ArtifactStore.cpp

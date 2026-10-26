@@ -16,7 +16,9 @@ are local data. Bindings JSON has `media` and `tools` objects keyed by requireme
 ID; media records contain `path`, `sha256` and `verified`.
 
 The Qt event contains `ts`, `run`, `kind`, `step`, `index`, `total`, `text` and
-`code`. The service emits `finished(bool, QString)` and `runtimeStateReady`.
+`code`. When `code` is set it also carries `plain`: what happened and what to do, in
+plain words (see "Plain-language errors"). `text` stays the technical wording for the
+log. `Result::plain()` gives the same words for a failed run. The service emits `finished(bool, QString)` and `runtimeStateReady`.
 Call `setRuntimeStateSource` with the repository's current snapshot provider so
 scan, art and recent-play changes made during a worker run are preserved.
 
@@ -36,9 +38,51 @@ queues additional requests. Uninstall compares bytes or managed config keys,
 keeps edits and unowned files, restores prior bytes, and removes only empty
 directories created by the engine. It never recursively deletes user folders.
 Updates stage a complete generation, copy unowned files into it, verify it,
-perform journalled renames, then verify and commit the live tree. Retained
-previous generations are deliberately kept until explicit cleanup policy is
-integrated; no startup cleanup deletes user data.
+perform journalled renames, then verify and commit the live tree.
+
+## Old generations
+
+An update leaves the old live folder beside the new one as
+`<install_dir>.previous-<run>`. The committed state records that run id as
+`previous_generation`, in the same write as the commit, so a crash cannot separate
+them. A repair carries the value forward. Once an update has committed, the engine
+removes every older `.previous-<run>` folder, so the live folder and one previous
+generation remain. `Engine::pruneGenerations` does the same later and is safe to call
+at any time.
+
+Rules:
+- Nothing is removed unless the state names a kept generation and that folder still
+  exists. An install made before this existed has no record, so its old folders are
+  left alone until its next update names one. Nothing is guessed from folder dates.
+- Only folders named exactly `<install_dir>.previous-<uuid>` or
+  `<install_dir>.pruning-<uuid>` are touched. Links and junctions are skipped.
+- A folder another process holds (the same shared use lock a running game takes) is
+  kept, with a warning event, and retried next time.
+- A folder is renamed to `.pruning-<uuid>` before it is deleted. A crash mid-delete
+  leaves a `.pruning` folder, never a half-deleted `.previous` one; the next prune
+  finishes it. The kept generation is never renamed.
+- A failed or rolled-back update, and any interrupted run, removes nothing.
+- Pruning is advisory and not journalled: the install is already committed, and a
+  failure only produces a warning.
+
+Uninstall does not remove previous generations; they stay until the owner decides.
+
+## Plain-language errors
+
+`ErrorText.h` is the one place that turns an `E_*` code into two plain sentences:
+what happened and what to do. Every code the engine raises has an entry, and an
+unknown code gets a generic "copy the log" answer rather than the raw code.
+`everyEngineErrorHasPlainWords` scans the install sources for `"E_..."` literals and
+fails when one has no entry, so a new code cannot ship without its words.
+
+## Failure handling
+
+A rollback that itself throws (a full disk, a locked state file) no longer escapes the
+engine. The run returns `rollback-incomplete`, the journal is untouched, and Recover
+repeats the rollback. Uninstall and Recover also turn an unexpected non-engine
+exception into a failed result with a `fail` event. Recovering a run whose commit
+reached the journal now also removes that run's extract staging, which a crash between
+the commit and its cleanup used to leave behind.
 
 Archive ingestion uses project-local pinned libarchive 3.8.9, zlib 1.3.1 and
 xz/liblzma 5.8.1, with upstream licence texts copied into build notices. ZIP,
