@@ -24,7 +24,7 @@
  * Controllers: triggers, grips, thumbsticks, face buttons and hand poses are read every headset frame and
  * handed to the game thread, which turns them into cabinet inputs.
  *
- * The Home key recentres. Everything the presenter does is written to acvr-xr.log in the working folder.
+ * Both stick clicks (or the Home key) recentre. Everything the presenter does is written to acvr-xr.log in the working folder.
  */
 #ifdef _WIN32
 
@@ -229,7 +229,8 @@ namespace
   XrActionSet s_actionSet = XR_NULL_HANDLE;
   XrAction    s_actTrigger = XR_NULL_HANDLE, s_actGrip = XR_NULL_HANDLE, s_actStick = XR_NULL_HANDLE, s_actStickClick = XR_NULL_HANDLE;
   XrAction    s_actGripPose = XR_NULL_HANDLE, s_actAimPose = XR_NULL_HANDLE;
-  XrAction    s_actA = XR_NULL_HANDLE, s_actB = XR_NULL_HANDLE, s_actX = XR_NULL_HANDLE, s_actY = XR_NULL_HANDLE, s_actMenu = XR_NULL_HANDLE;
+  XrAction    s_actA = XR_NULL_HANDLE, s_actB = XR_NULL_HANDLE, s_actX = XR_NULL_HANDLE, s_actY = XR_NULL_HANDLE;
+  std::atomic<bool> s_recentreRequest(false);   // universal recentre: set by the game thread, taken once by the presenter
   XrPath      s_handPath[2] = { XR_NULL_PATH, XR_NULL_PATH };
   XrSpace     s_gripSpace[2] = { XR_NULL_HANDLE, XR_NULL_HANDLE }, s_aimSpace[2] = { XR_NULL_HANDLE, XR_NULL_HANDLE };
   bool        s_inputReady = false;
@@ -282,7 +283,6 @@ namespace
     s_actB    = MakeAction("button_b", XR_ACTION_TYPE_BOOLEAN_INPUT, false);
     s_actX    = MakeAction("button_x", XR_ACTION_TYPE_BOOLEAN_INPUT, false);
     s_actY    = MakeAction("button_y", XR_ACTION_TYPE_BOOLEAN_INPUT, false);
-    s_actMenu = MakeAction("button_menu", XR_ACTION_TYPE_BOOLEAN_INPUT, false);
 
     std::vector<XrActionSuggestedBinding> common;
     const char *hands[2] = { "/user/hand/left", "/user/hand/right" };
@@ -301,7 +301,6 @@ namespace
     touch.push_back({ s_actB,    Path("/user/hand/right/input/b/click") });
     touch.push_back({ s_actX,    Path("/user/hand/left/input/x/click") });
     touch.push_back({ s_actY,    Path("/user/hand/left/input/y/click") });
-    touch.push_back({ s_actMenu, Path("/user/hand/left/input/menu/click") });
     Suggest("/interaction_profiles/oculus/touch_controller", touch);
     std::vector<XrActionSuggestedBinding> index = common;
     index.push_back({ s_actA, Path("/user/hand/right/input/a/click") });
@@ -398,7 +397,6 @@ namespace
         c.b = ReadBool(s_actB, XR_NULL_PATH);
         c.x = ReadBool(s_actX, XR_NULL_PATH);
         c.y = ReadBool(s_actY, XR_NULL_PATH);
-        c.menu = ReadBool(s_actMenu, XR_NULL_PATH);
       }
     }
     // Not focused, or the sync failed: c is still the empty, invalid state, so nothing stays held
@@ -728,7 +726,7 @@ namespace
           if (!(tr - tl > 0.05f) || !(tt - tb > 0.05f)) { tl = -0.6f; tr = 0.6f; tb = -0.45f; tt = 0.45f; }
           // Home recentres the screen (the key state is kept by the emulator's own event pump)
           const Uint8 *keys = SDL_GetKeyboardState(nullptr);
-          if (!s_poseSet || (keys && keys[SDL_SCANCODE_HOME]))
+          if (ACVR_XR_TakeRecentre() || !s_poseSet || (keys && keys[SDL_SCANCODE_HOME]))
             s_poseSet = PlaceScreen(fs.predictedDisplayTime);
           const float width  = s_distance * (tr - tl) * s_sizeScale;
           const float height = s_distance * (tt - tb) * s_sizeScale;
@@ -831,6 +829,9 @@ bool ACVR_XR_GetViews(ACVREyeView out[2])
   out[1] = s_latestViews[1];
   return true;
 }
+
+void ACVR_XR_RequestRecentre() { s_recentreRequest = true; }
+bool ACVR_XR_TakeRecentre() { return s_recentreRequest.exchange(false); }
 
 // Game thread: the newest controller state
 bool ACVR_XR_GetControllers(ACVRControllers &out)
@@ -937,6 +938,8 @@ float ACVR_XR_DistanceMetres() { return 2.5f; }
 bool ACVR_XR_Start(void *) { return false; }
 bool ACVR_XR_GetViews(ACVREyeView *) { return false; }
 bool ACVR_XR_GetControllers(ACVRControllers &) { return false; }
+void ACVR_XR_RequestRecentre() {}
+bool ACVR_XR_TakeRecentre() { return false; }
 void ACVR_XR_Publish(const ACVRPublish &) {}
 void ACVR_XR_Stop() {}
 int ACVR_XR_State() { return 0; }

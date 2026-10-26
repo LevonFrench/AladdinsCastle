@@ -46,7 +46,7 @@ It drops a publication when the reader is busy, rather than blocking emulation.
 The viewer flips bitmap rows for OpenGL, uploads both textures using its own
 hidden context, and uses the proven presenter's separate OpenXR thread and
 two eye-specific quad layers. The quad size follows the game's focal lengths
-at the zero-parallax distance. Initial placement and Home use current gaze;
+at the zero-parallax distance. Initial placement, both stick clicks and Home use current gaze;
 Esc requests a graceful emulator exit. Owner launchers are outside the repository.
 
 For Hub-owned clean shutdown, set `ACVR_M2_STOP_FILE` to an absolute, unique
@@ -69,12 +69,13 @@ Escape and the viewer's own time limit use this same clean request path. Only th
 diagnostic runs (`--scripted-input`, `--no-xr`) have a time limit; a game in the
 headset runs until it is quit.
 
-Holding left Y on Touch for three continuous real-time seconds requests the
-same clean exit. The corresponding binding on Index is left B, its upper face
-button (that controller has no Y-labelled button). Both hands' actions are
-synchronized; existing right-hand Start/Coin/shoot mappings remain intact.
+Holding both thumbstick clicks (left and right) for three continuous real-time
+seconds requests the same clean exit (universal controls v1, U4). The binding is
+`/input/thumbstick/click` on both hands, the same path on Touch and Index. Left Y
+and Index left B no longer quit, and no menu or system button is bound. Both hands'
+actions are synchronized; the right-hand shoot mapping remains intact.
 Release, lost focus or stale XR input resets an incomplete hold. A completed
-request stays latched. `--scripted-input --scripted-y-hold` is the explicit
+request stays latched. `--scripted-input --scripted-quit-hold` (the old name `--scripted-y-hold` still works) is the explicit
 headset-free proof switch; it synthesizes the hold after 65 emulated seconds,
 using the production three-second timer and exit path.
 
@@ -89,7 +90,7 @@ reloaded the hold run's final score, coin audit and initials. The test scores ar
 data for persistence testing, not earned gameplay scores. The original play
 saves, proof Lua scripts, byte comparisons, logs and MAME snapshots stay private.
 Timer, interrupted hold, both-hand action synchronization, binding and focus-loss
-checks also passed without starting an XR runtime. Physical Y/Index-button
+checks also passed without starting an XR runtime. Physical thumbstick-click
 operation still requires the headset.
 
 The final transport/upload test received 1,263 pairs and passed a GPU texture
@@ -99,7 +100,7 @@ Home behavior have not been tested; owner acceptance remains pending.
 
 The viewer now has a right-hand action set with aim pose, analog trigger and
 A/B clicks. Suggested bindings cover the Oculus Touch and Valve Index
-interaction profiles: trigger shoots, A starts, and B inserts a coin. Aim is
+interaction profiles: trigger shoots; Start and Coin are the universal stick clicks (below), with A and B kept as extra Start and Coin (a cabinet has both; nothing else here uses them). Aim is
 intersected with the submitted quad in its local coordinates, including the
 quad's rotation. Coordinates run from the top left `(0,0)` to bottom right
 `(1,1)`; a miss of the quad supplies an off-screen input. Triggering off screen
@@ -308,3 +309,29 @@ in the game's revolver display and impact marks (E2).
 
 The protocol-4 viewer and MAME must be rebuilt and installed together; the protocol-3
 viewer refuses the new transport.
+
+
+## Universal controls (2026-10-25)
+
+The viewer follows the shared stick-click layer. The same logic is in `presenter/legacy/ACVRChord.h`
+(a copy of `setups/supermodel-vr/patch/ACVRChord.h`; `setups/flycast-hotd2-vr/tools/test_chord_copies.py` checks the copies).
+
+| Gesture | Does |
+|---|---|
+| Left stick click, alone | Start (the game's own Start input) |
+| Right stick click, alone | Coin |
+| Both clicks, the second within 150 ms of the first, released within 1 s | Recentre the screen in front of the head |
+| Both clicks held for 3 s | Clean exit: MAME persists NVRAM, settings and coin audits, then the viewer exits |
+
+A click waits 150 ms for the other, so Start and Coin reach the game 150 ms late and never as part of a chord.
+A and B stay as extra Start and Coin on every Model 2 game (guns and racers): no Model 2 viewer feature uses them,
+and this viewer draws no laser, so the laser toggle (right B) is not needed here. Guns: aim ray, trigger, and a
+shot off the screen reloads (unchanged). Racers: left stick steers, right trigger accelerates, left trigger brakes,
+grips are the hold actions; rolling the controller like a wheel stays opt-in (`ACVR_M2_ROLL_STEER=1`).
+Left Y has no function here now; the Home key on a keyboard still recentres.
+
+`presenter/legacy` is the default build and carries this layer itself (in `ReadController`). The shared-presenter
+candidate (`presenter/`, `build-viewer.ps1 -SharedPresenter`) reads the same `start`, `coin`, `quitHeld` fields from
+`libacvr/publish-presenter`, so it has the layer once that library resolves the stick clicks the same way (lane D);
+its `presenter_test.cpp` still pins the old Y binding until then. `chord_resolver_test.cpp` here builds the header test:
+`g++ -std=c++17 -Ipresenter/legacy chord_resolver_test.cpp`.
