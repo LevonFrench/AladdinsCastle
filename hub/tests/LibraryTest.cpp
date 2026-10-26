@@ -300,6 +300,164 @@ private slots:
     QVERIFY(ac::library::copies(second, "wii", "umbrella").isEmpty());
     QCOMPARE(ac::library::copies(second, "ps2", "virtua-cop").size(), 1);
   }
+  // A file looked at and matched to nothing is named with why, in plain words, from what the reader already said.
+  void unrecognisedFilesAreListedWithReasons() {
+    QTemporaryDir t;
+    QVERIFY(t.isValid());
+    const auto root = t.filePath("roms");
+    write(root + "/junk/not a disc.iso", QByteArray(4096, 'j'));
+    write(root + "/junk/bad.chd", QByteArray(300, 'c'));
+    write(root + "/junk/broken.wbfs", QByteArray(300, 'w'));
+    write(root + "/junk/lost.cue", "FILE \"missing.bin\" BINARY\n TRACK 01 MODE1/2048\n INDEX 01 00:00:00\n");
+    write(root + "/arcade/pacman.zip", zip("pacman.6e", "c"));
+    auto ps1 = ps2Iso("SLES_512.29");
+    ps1.replace(21 * 2048, 5, "BOOT ");
+    write(root + "/elsewhere/ps1 game.iso", ps1);
+    write(root + "/wii/umbrella.wbfs", wbfs("RBUE08")); // Recognised, so never listed.
+    std::atomic_bool cancel = false;
+    QVariantMap index;
+    const auto first = ac::library::scan({root}, {}, cancel, 6, &index);
+    const auto byName = [](const QVariantMap &library) {
+      QMap<QString, QVariantMap> found;
+      for (const auto &value : library.value("unrecognised").toMap().value("files").toList())
+        found[value.toMap().value("name").toString()] = value.toMap();
+      return found;
+    };
+    const auto list = first.value("unrecognised").toMap();
+    QCOMPARE(list.value("total").toInt(), 6);
+    QCOMPARE(list.value("more").toInt(), 0);
+    auto named = byName(first);
+    QCOMPARE(named.size(), 6);
+    QVERIFY(!named.contains("umbrella.wbfs"));
+    QCOMPARE(named["not a disc.iso"].value("code").toString(), QString("unidentified"));
+    QCOMPARE(named["not a disc.iso"].value("size").toLongLong(), qint64(4096));
+    QCOMPARE(named["not a disc.iso"].value("folder").toString(), QDir::fromNativeSeparators(root) + "/junk");
+    QCOMPARE(named["bad.chd"].value("code").toString(), QString("notDisc"));
+    QCOMPARE(named["broken.wbfs"].value("code").toString(), QString("damaged"));
+    QVERIFY(!named["broken.wbfs"].value("detail").toString().isEmpty()); // The reader's own words, for the log.
+    QCOMPARE(named["lost.cue"].value("code").toString(), QString("badSheet"));
+    QCOMPARE(named["pacman.zip"].value("code").toString(), QString("unknownArchive"));
+    QCOMPARE(named["pacman.zip"].value("kind").toString(), QString("archive"));
+    QCOMPARE(named["ps1 game.iso"].value("code").toString(), QString("otherSystem"));
+    QCOMPARE(named["ps1 game.iso"].value("system").toString(), QString("ps1"));
+    QVERIFY(named["ps1 game.iso"].value("reason").toString().contains("PlayStation disc"));
+    for (auto it = named.cbegin(); it != named.cend(); ++it)
+      QVERIFY2(!it.value().value("reason").toString().isEmpty(), qPrintable(it.key()));
+    // The counts are still whole numbers of files, as before.
+    QCOMPARE(list.value("discs").toInt(), 4);
+    QCOMPARE(list.value("archives").toInt(), 1);
+    // Listed in path order, and the same on every search.
+    QStringList paths;
+    for (const auto &value : list.value("files").toList())
+      paths << value.toMap().value("file").toString();
+    auto sorted = paths;
+    sorted.sort();
+    QCOMPARE(paths, sorted);
+    // Only the files inside a folder.
+    QCOMPARE(ac::library::unrecognisedIn(first, root + "/junk").size(), 4);
+    QCOMPARE(ac::library::unrecognisedIn(first, root + "/junk/").size(), 4);
+    QCOMPARE(ac::library::unrecognisedIn(first, root + "/jun").size(), 0); // A name that merely starts the same is another folder.
+    QCOMPARE(ac::library::unrecognisedIn(first, QString()).size(), 6);
+    QVERIFY(ac::library::covers(first, root + "/junk"));
+    QVERIFY(ac::library::covers(first, root));
+    QVERIFY(!ac::library::covers(first, t.filePath("elsewhere-entirely")));
+    QVERIFY(!ac::library::covers({}, root));
+    // A second search reads nothing again for the files that have not changed, and gives the same list: the reasons come
+    // from the saved readings (here one is edited to a reading no disc gives, and the list follows it without a read).
+    index = QJsonDocument::fromJson(QJsonDocument::fromVariant(index).toJson()).toVariant().toMap();
+    auto records = index.value("files").toMap();
+    const auto key = QDir::fromNativeSeparators(root + "/junk/not a disc.iso");
+    auto record = records.value(key).toMap();
+    QCOMPARE(record.value("outcome").toMap().value("unknown").toString(), QString("disc"));
+    const auto same = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(same.value("reused").toInt(), 6);
+    QCOMPARE(same.value("unrecognised"), first.value("unrecognised"));
+    QCOMPARE(same.value("duplicates"), first.value("duplicates"));
+    record["outcome"] = QVariantMap{{"unknown", "disc"}, {"error", "CHD decoded-header budget exceeded"}, {"retry", false}};
+    records[key] = record;
+    index["files"] = records;
+    const auto followed = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(followed.value("reused").toInt(), 6);
+    QCOMPARE(byName(followed)["not a disc.iso"].value("code").toString(), QString("slow"));
+  }
+  void theUnrecognisedListIsCappedButTheCountsAreNot() {
+    QTemporaryDir t;
+    QVERIFY(t.isValid());
+    const auto root = t.filePath("roms");
+    for (int i = 0; i < 520; ++i)
+      write(QString("%1/junk/n%2.iso").arg(root).arg(i, 4, 10, QLatin1Char('0')), QByteArray(64, 'n'));
+    std::atomic_bool cancel = false;
+    const auto library = ac::library::scan({root}, {}, cancel);
+    const auto list = library.value("unrecognised").toMap();
+    QCOMPARE(list.value("discs").toInt(), 520);
+    QCOMPARE(list.value("total").toInt(), 520);
+    QCOMPARE(list.value("files").toList().size(), 500);
+    QCOMPARE(list.value("more").toInt(), 20);
+    QCOMPARE(list.value("files").toList().first().toMap().value("name").toString(), QString("n0000.iso")); // Path order, so the cut is stable.
+  }
+  // The same game in several files is grouped by the disc's own identity, never by name, and one copy is kept by the rule.
+  void sameGameInManyFilesIsGroupedByDiscIdentityNotName() {
+    QTemporaryDir t;
+    QVERIFY(t.isValid());
+    const auto root = t.filePath("roms");
+    // One Wii disc under two different names and formats, and the European release of it.
+    write(root + "/a/umbrella.iso", wiiIso("RBUE08"));
+    write(root + "/b/totally different name.wbfs", wbfs("RBUE08"));
+    write(root + "/c/other.iso", wiiIso("RBUP08"));
+    // Two files with the same name that are different games are not duplicates.
+    write(root + "/d/game.iso", wiiIso("R3ME01"));
+    write(root + "/e/game.iso", wiiIso("SBDE08"));
+    // One PS2 disc twice, the second in a longer path.
+    write(root + "/p/one.iso", ps2Iso("SLES_512.29"));
+    write(root + "/p/longer folder name/two.iso", ps2Iso("SLES_512.29"));
+    // A sheet and its playlist describe one disc, so they are not a second copy.
+    write(root + "/q/disc.bin", ps2Iso("SLUS_212.74"));
+    write(root + "/q/disc.cue", "FILE \"disc.bin\" BINARY\n TRACK 01 MODE1/2048\n INDEX 01 00:00:00\n");
+    write(root + "/q/set.m3u", "disc.cue\n");
+    // An arcade set in a folder that names the system and in a mixed one.
+    write(root + "/MAME/roms/scud.zip", zip("epr-19731.13", "a"));
+    write(root + "/arcade/model3/scud.zip", zip("epr-19731.13", "a"));
+    std::atomic_bool cancel = false;
+    QVariantMap index;
+    const auto library = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(files(ac::library::copies(library, "ps2", "outrun-2006")).size(), 2); // The sheet and the playlist are both found...
+    QMap<QString, QVariantMap> groups;
+    for (const auto &value : library.value("duplicates").toList())
+      groups[value.toMap().value("system").toString() + "/" + value.toMap().value("game").toString()] = value.toMap();
+    QCOMPARE(QStringList(groups.keys()), QStringList({"model3/scud", "ps2/virtua-cop", "wii/umbrella"})); // ...but not counted twice.
+    const auto wii = groups["wii/umbrella"];
+    QCOMPARE(wii.value("count").toInt(), 3);
+    QVERIFY(!wii.value("sameDisc").toBool()); // Two releases.
+    QVERIFY(wii.value("kept").toString().endsWith("/a/umbrella.iso"));
+    const auto wiiCopies = wii.value("copies").toList();
+    QVERIFY(wiiCopies[0].toMap().value("kept").toBool());
+    QVERIFY(wiiCopies[1].toMap().value("why").toString().contains("It is a .wbfs file; the kept copy is the plainer .iso."));
+    QVERIFY(wiiCopies[2].toMap().value("why").toString().contains("release; the kept copy is"));
+    QCOMPARE(wiiCopies[0].toMap().value("size").toLongLong(), qint64(0x400));
+    QVERIFY(!wii.value("title").toString().isEmpty());
+    const auto cop = groups["ps2/virtua-cop"];
+    QCOMPARE(cop.value("count").toInt(), 2);
+    QVERIFY(cop.value("sameDisc").toBool());
+    QCOMPARE(QFileInfo(cop.value("kept").toString()).fileName(), QString("one.iso"));
+    QCOMPARE(cop.value("copies").toList()[1].toMap().value("why").toString(), QString("The same copy in a longer path."));
+    const auto scud = groups["model3/scud"];
+    QVERIFY(scud.value("kept").toString().contains("/arcade/model3/"));
+    QCOMPARE(scud.value("copies").toList()[1].toMap().value("why").toString(), QString("Its folder does not name the system; the kept copy's does."));
+    QVERIFY(!scud.value("title").toString().isEmpty() && scud.value("title").toString() != "scud");
+    // The kept copy is what a game's page starts, so the two agree.
+    for (const auto &group : groups)
+      QCOMPARE(ac::library::chosen(library, group.value("system").toString(), group.value("game").toString(), {}).value("file").toString(), group.value("kept").toString());
+    const auto systems = library.value("systems").toMap();
+    QCOMPARE(systems.value("wii").toMap().value("duplicateGames").toInt(), 1);
+    QCOMPARE(systems.value("model3").toMap().value("duplicateGames").toInt(), 1);
+    QCOMPARE(systems.value("ps2").toMap().value("duplicateGames").toInt(), 1);
+    QVERIFY(ac::library::duplicateRule().contains("never by their names"));
+    // The same on the next search, which reads none of the files again.
+    index = QJsonDocument::fromJson(QJsonDocument::fromVariant(index).toJson()).toVariant().toMap();
+    const auto again = ac::library::scan({root}, {}, cancel, 6, &index);
+    QVERIFY(again.value("reused").toInt() > 0);
+    QCOMPARE(again.value("duplicates"), library.value("duplicates"));
+  }
 };
 QTEST_GUILESS_MAIN(LibraryTest)
 #include "LibraryTest.moc"

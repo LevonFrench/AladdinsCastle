@@ -18,7 +18,17 @@ namespace ac::library {
 //                        games (how many listed games were found), other (discs of the system not in
 //                        the Hub's list) } }
 //   pinballFolders: [ {folder, tables} ] (folders holding .vpx tables, most first)
-//   unrecognised: { discs, archives } (files of a kind the Hub reads that are none of its games)
+//   unrecognised: { discs, archives (counts of files of a kind the Hub reads that are none of its games),
+//                   files: [ {file, name, folder, size, kind (disc|archive|other), code, reason, detail?, system?} ] sorted
+//                   by path and cut at 500, total (how many there are), more (total - listed) }
+//                   Each file says why in plain words ("code" is stable: protected, unreadable, badSheet, notDisc, damaged,
+//                   slow, unidentified, unknownDisc, unknownArchive, otherSystem). Worked out from what the reader already
+//                   said, so listing them reads no file. A disc of a system outside the Hub's lists is kind "other".
+//   duplicates: [ {system, game, title, disc, count, sameDisc, kept (file), copies: [ {file, name, folder, size, region,
+//                 identity, kept, why} ]} ] the games found in more than one file, by the disc's own identity (the game,
+//                 and the disc number of a set), never the name; the first copy is the one kept by rule(). sameDisc is
+//                 true when every copy is the same disc, false when they are different releases. A playlist (.m3u) beside
+//                 another copy of the game only points at it and is not counted. systems[x].duplicateGames counts them.
 //   reused (files whose last reading was used again), cancelled (stopped part-way: the result is partial)
 //
 // With an index, a search is quick the second time: a file whose size and time are unchanged since the last
@@ -40,4 +50,12 @@ QVariantMap chosen(const QVariantMap &library, const QString &system, const QStr
 QVariantList copies(const QVariantMap &library, const QString &system, const QString &game);
 // The rule alone, said in words for the game's page.
 QString rule();
+// How copies of one game are grouped and which is kept, in words, for the duplicates list.
+QString duplicateRule();
+// The not-recognised files of a library result that lie in the folder or below it (all of them for an empty folder), in
+// the library's own order. Reads nothing.
+QVariantList unrecognisedIn(const QVariantMap &library, const QString &folder);
+// Whether the library result covers the folder, that is, the folder is one of its roots or below one. False before any
+// search, and for a folder it did not look through: then the list above says nothing about it.
+bool covers(const QVariantMap &library, const QString &folder);
 } // namespace ac::library
