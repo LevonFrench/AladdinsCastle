@@ -93,6 +93,12 @@ jobs:
           subprocess.run(['7z', 'x', '-y', '-bso0', '-bsp0', str(archive), '-oupstream/deps'], check=True)
           print('Dependency pack ready in upstream/deps')
 
+      - name: Show the dependency pack layout
+        shell: pwsh
+        run: |
+          Get-ChildItem upstream/deps | Select-Object -First 30 | ForEach-Object { Write-Host $_.Name }
+          Get-ChildItem upstream/deps -Recurse -Filter zstd.h | ForEach-Object { Write-Host "zstd.h: $($_.FullName)" }
+
       # The patch includes the OpenXR headers from 3rdparty/openxr/include/openxr, which upstream does not have. They come from
       # the reference source the pin names, at its commit, each checked against the pinned blob hash.
       - name: Fetch pinned OpenXR headers (headers only, SHA-256 checked)
