@@ -2,6 +2,7 @@
 #include "core/catalog/CatalogLoader.h"
 #include "core/catalog/CatalogPaths.h"
 #include "core/scan/Scan.h"
+#include "core/install/ErrorText.h"
 #include "core/install/Install.h"
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
@@ -23,6 +24,18 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QTextStream>
+#include <algorithm>
+namespace {
+// What the install engine says an E_* code means to a person, one indented line after the technical text. Nothing for a
+// code the engine does not know, and the technical text and the code are always printed as before.
+void plainLine(QTextStream &stream, const QString &code, const QString &plain) {
+  if (!code.isEmpty() && !plain.isEmpty())
+    stream << "  plain: " << plain << "  [" << code << "]\n";
+}
+QString plainFor(const QString &code) { return ac::install::hasPlainError(code) ? ac::install::plainErrorText(code) : QString(); }
+// The most unrecognised files and duplicate groups the library summary names; the counts are always whole.
+constexpr int kLibraryListed = 20;
+} // namespace
 int main(int argc, char **argv) {
   QCoreApplication app(argc, argv);
   auto args = app.arguments();
@@ -74,20 +87,38 @@ int main(int argc, char **argv) {
     return 2;
   }
   // The Game library over folders, read-only: counts per system and the time it took, nothing written.
+  // Also the files not recognised (the first 20, each with its plain reason) and the games found more than once.
   if(args[0]=="library" && args.size()>=2) {
     std::atomic_bool cancel=false;
     const auto result=ac::library::scan(args.mid(1),{},cancel);
+    const auto unread=result.value("unrecognised").toMap();
+    const auto unreadFiles=unread.value("files").toList();
+    const int shown=std::min<int>(int(unreadFiles.size()),kLibraryListed);
+    const int unreadTotal=unread.contains("total")?unread.value("total").toInt():int(unreadFiles.size());
+    QVariantMap unrecognised=unread;
+    unrecognised.insert("files",unreadFiles.mid(0,shown));
+    unrecognised.insert("total",unreadTotal);
+    unrecognised.insert("shown",shown);
+    unrecognised.insert("moreNotShown",unreadTotal-shown);
+    if(unreadTotal>shown)unrecognised.insert("note",QString("and %1 more").arg(unreadTotal-shown));
     QJsonObject summary{{"files",result.value("files").toInt()},{"seconds",result.value("seconds").toDouble()},{"depth",result.value("depth").toInt()},
-                        {"unrecognised",QJsonObject::fromVariantMap(result.value("unrecognised").toMap())}};
+                        {"unrecognised",QJsonObject::fromVariantMap(unrecognised)}};
     QJsonObject systems;
     const auto all=result.value("systems").toMap();
     for(auto it=all.cbegin();it!=all.cend();++it){
       const auto system=it.value().toMap();QJsonObject games;
       const auto copies=system.value("copies").toMap();
       for(auto game=copies.cbegin();game!=copies.cend();++game)games.insert(game.key(),game.value().toList().size());
-      systems.insert(it.key(),QJsonObject{{"games",system.value("games").toInt()},{"notInList",system.value("other").toInt()},{"copies",games}});
+      systems.insert(it.key(),QJsonObject{{"games",system.value("games").toInt()},{"notInList",system.value("other").toInt()},{"copies",games},{"duplicateGames",system.value("duplicateGames").toInt()}});
     }
     summary.insert("systems",systems);
+    const auto groups=result.value("duplicates").toList();
+    const int groupsShown=std::min<int>(int(groups.size()),kLibraryListed);
+    summary.insert("duplicates",QJsonArray::fromVariantList(groups.mid(0,groupsShown)));
+    summary.insert("duplicateGroups",int(groups.size()));
+    summary.insert("duplicatesMoreNotShown",int(groups.size())-groupsShown);
+    if(int(groups.size())>groupsShown)summary.insert("duplicatesNote",QString("and %1 more").arg(int(groups.size())-groupsShown));
+    summary.insert("duplicateRule",ac::library::duplicateRule());
     const auto folders=result.value("pinballFolders").toList();
     summary.insert("pinballTables",folders.isEmpty()?0:folders.first().toMap().value("tables").toInt());
     out<<QJsonDocument(summary).toJson();return 0;
@@ -109,7 +140,7 @@ int main(int argc, char **argv) {
       for(const auto &value:views){
         const auto view=value.toMap();QVariantMap row{{"system",system},{"game",game},{"title",title},{"view",view.value("id")},{"label",view.value("label")},
           {"controls",view.value("controls")},{"monitor",view.value("monitor").toBool()}};
-        try{row["plan"]=plan(view.value("id").toString());}catch(const ac::install::Error &e){row["error"]=QString(e.code)+": "+QString::fromUtf8(e.what());}
+        try{row["plan"]=plan(view.value("id").toString());}catch(const ac::install::Error &e){row["error"]=QString(e.code)+": "+QString::fromUtf8(e.what());if(const auto plain=plainFor(e.code);!plain.isEmpty())row["plain"]=plain;}
         rows.append(QJsonObject::fromVariantMap(row));
       }
     };
@@ -181,7 +212,7 @@ int main(int argc, char **argv) {
         {"runtime",request.runtime.toStdString()},{"args",ac::Json::array()}};
       for(const auto &arg:request.plan.args)receipt["args"].push_back(arg.toStdString());
       out<<QString::fromStdString(receipt.dump(2))<<'\n';return 0;
-    } catch(const ac::install::Error &e){err<<e.code<<": "<<e.what()<<'\n';return 64;}
+    } catch(const ac::install::Error &e){err<<e.code<<": "<<e.what()<<'\n';plainLine(err,e.code,plainFor(e.code));return 64;}
       catch(const std::exception &e){err<<e.what()<<'\n';return 64;}
   }
   if (args[0] != "count" && args[0] != "explain") {
@@ -237,6 +268,9 @@ int main(int argc, char **argv) {
       options.event = [&](const QVariantMap &value) {
         out << value.value("kind").toString() << "  "
             << value.value("text").toString() << '\n';
+        const auto code = value.value("code").toString();
+        if (!code.isEmpty())
+          plainLine(out, code, value.value("plain").toString().isEmpty() ? plainFor(code) : value.value("plain").toString());
         out.flush();
       };
       Engine engine(options);
@@ -262,9 +296,11 @@ int main(int argc, char **argv) {
         return 64;
       }
       out << result.state << ": " << result.message << '\n';
+      plainLine(out, result.code, result.plain());
       return result.exitCode;
     } catch (const ac::install::Error &e) {
       err << e.code << ": " << e.what() << '\n';
+      plainLine(err, e.code, plainFor(e.code));
       return 64;
     } catch (const std::exception &e) {
       err << e.what() << '\n';
