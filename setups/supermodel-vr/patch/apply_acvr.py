@@ -27,6 +27,7 @@ def nl_of(s):
 # ---------------------------------------------------------------- new files
 shutil.copyfile(os.path.join(HERE, 'ACVRXR.cpp'), 'Src/OSD/SDL/ACVRXR.cpp')
 shutil.copyfile(os.path.join(HERE, 'ACVRStereo.h'), 'Src/OSD/ACVRStereo.h')
+shutil.copyfile(os.path.join(HERE, 'ACVRChord.h'), 'Src/OSD/ACVRChord.h')
 
 # ---------------------------------------------------------------- New3D.cpp
 p = 'Src/Graphics/New3D/New3D.cpp'
@@ -183,7 +184,7 @@ wr(p, s)
 p = 'Src/OSD/SDL/Main.cpp'
 s = rd(p); nl = nl_of(s)
 s = rep(s, '#include "Gui.h"',
-        '#include "Gui.h"' + nl + '#include "OSD/ACVRStereo.h"' + nl + '#include <cstdlib>' + nl + '#include <string>')
+        '#include "Gui.h"' + nl + '#include "OSD/ACVRStereo.h"' + nl + '#include "OSD/ACVRChord.h"' + nl + '#include <cstdlib>' + nl + '#include <string>')
 s = rep(s,
         'SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | (fullScreen ? SDL_WINDOW_FULLSCREEN : 0));',
         'SDL_WINDOW_OPENGL | (getenv("ACVR_HIDDEN") ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN) | (fullScreen ? SDL_WINDOW_FULLSCREEN : 0));')

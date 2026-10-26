@@ -76,7 +76,7 @@ Open frame: add `-wide-screen` and give the window the shape you want, for examp
 
 Head-tracked mode wants square pictures and Supermodel's own supersampling: `-window -res=1344,1344 -stretch -ss=2`. Screen mode: `-window -res=1440,1080 -ss=2`.
 
-The Home key recentres. The presenter writes what it does to `acvr-xr.log` in the working folder.
+Both stick clicks together recentre (see Controllers); the Home key on the keyboard still does. The presenter writes what it does to `acvr-xr.log` in the working folder.
 
 With `ACVR_XR` the game never runs unseen. It closes cleanly, saving NVRAM, in three cases: when the runtime ends the session (SteamVR's "Exit game", a lost runtime), when the presenter cannot start (no runtime, no headset), or when the presenter's thread stops. While the session is starting, or after the runtime stopped it (headset idle, standby), the game waits, paused.
 
@@ -84,13 +84,24 @@ With `ACVR_XR` the game never runs unseen. It closes cleanly, saving NVRAM, in t
 
 Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
-- Driving: the left thumbstick steers; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A start, B coin, X view change, Y second view button or hand brake. Steering with both hands on a wheel (hold both grips and turn the hands) is opt-in: `ACVR_WHEEL_GRAB=1`, on by default only together with `ACVR_CONTROLS=1`, where the wheel is drawn to hold.
-- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Checked offline against the game's own crosshair at 12 points on Yavin: the largest error was 0.009 of the picture, on the normal and on the open-frame screen. Right trigger fires, right grip is the event button.
-- Stick and buttons: left thumbstick, and A, B, X, Y; start on the menu button or a right-stick click, coin on a left-stick click.
+- Driving: the left thumbstick steers; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A and B are extra Start and Coin (the cabinet had both and nothing else uses them), X view change, Y second view button or hand brake. Steering with both hands on a wheel (hold both grips and turn the hands) is opt-in only: `ACVR_WHEEL_GRAB=1`. It is off by default, also when `ACVR_CONTROLS=1` draws the wheel, which then turns with the stick.
+- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Checked offline against the game's own crosshair at 12 points on Yavin: the largest error was 0.009 of the picture, on the normal and on the open-frame screen. Right trigger fires, right grip is the event button, right B switches the laser and dot on or off.
+- Stick and buttons: left thumbstick, and A, B, X, Y as the game's four buttons. There are no Start or Coin aliases here.
+
+Every game, driving, pointing and stick games alike, has the same universal layer on the stick clicks (`patch\ACVRChord.h`, the same logic in every host; the menu buttons are never read):
+
+| Gesture | Does |
+|---|---|
+| Left stick click, alone | Start (held for as long as the click) |
+| Right stick click, alone | Coin |
+| Both clicks, the second within 150 ms of the first, released within 1 s | Recentre the screen or the head-tracked view |
+| Both clicks held for 3 s | Quit; the game saves its NVRAM through its normal exit |
+
+A click waits 150 ms for the other one before it is sent, so a Start or Coin press reaches the game 150 ms late, and neither is sent at all when it turns out to be a chord. Where a Star Wars Trilogy flight stick is grabbed (`ACVR_STICK_GRAB=1`), the event button is right A.
 
 The keyboard and gamepad keep working: a controller only overrides an input while it is being used.
 
-Hold Y for 3 seconds to quit; the game saves its NVRAM before the headset presenter stops (the presenter gets at most 3 s to stop). Y keeps its game input while held, so a 3-second hand-brake hold also quits. Controller input expires after 250 ms without a fresh reading, and is dropped when the headset session loses focus or the presenter stops, so nothing stays held.
+Holding both stick clicks for 3 seconds quits; the game saves its NVRAM before the headset presenter stops (the presenter gets at most 3 s to stop). Y no longer quits and keeps only its game input. Controller input expires after 250 ms without a fresh reading, and is dropped when the headset session loses focus or the presenter stops, so nothing stays held.
 
 ### The cabinet's own controls in the headset
 
@@ -108,7 +119,7 @@ The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of r
 | `ACVR_CONTROLS=1` | Draw the cabinet control (off by default) |
 | `ACVR_CONTROL_POS` | Where it sits relative to the recentred eyes, metres `x,y,z` (for example `0,-0.38,-0.45`) |
 | `ACVR_TEST_STEER` | Fix the steering at -1 to 1, for unattended pictures |
-| `ACVR_STICK_GRAB=1` | Star Wars Trilogy: holding the right grip takes the flight stick and tilting the hand moves it (25 degrees is full deflection, 2 degree dead zone; sideways roll steers, pulling back aims up). When the grip is not held the controller points 1:1, as without this setting. The event button moves to the right stick click while this is on |
+| `ACVR_STICK_GRAB=1` | Star Wars Trilogy: holding the right grip takes the flight stick and tilting the hand moves it (25 degrees is full deflection, 2 degree dead zone; sideways roll steers, pulling back aims up). When the grip is not held the controller points 1:1, as without this setting. The event button moves to right A while this is on |
 | `ACVR_STICK_MODEL=1` | With `ACVR_STICK_GRAB` and `ACVR_CONTROLS=1`: draw the cabinet stick (`assets/controls/stick-flight.glb`, baked to `Assets/acvr/stick-flight.acm`) tilting with the hand. Off by default |
 | `ACVR_STICK_INVERT=1` | With `ACVR_STICK_GRAB`: pushing forward aims up instead |
 | `ACVR_TEST_STICK` | With `ACVR_STICK_GRAB`: a stick held at `pitch,roll` degrees, for unattended pictures |
@@ -135,7 +146,9 @@ Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are fr
 | `patch\acvr_main_block.cpp` | Inserted into `Src\OSD\SDL\Main.cpp`: eye storage, head-tracked camera, HUD picture, sky fill, capture, controller mapping |
 | `patch\ACVRXR.cpp` | The OpenXR presenter and controller reader |
 | `patch\ACVRStereo.h` | State shared between the frame loop, the renderer and the presenter |
+| `patch\ACVRChord.h` | The universal stick-click layer: Start, Coin, recentre, 3-second quit (pure logic) |
 | `tools\Build.ps1` | Builds the patched solution at low priority |
+| `tools\chord_resolver_test.cpp` | CPU-only test of `ACVRChord.h` (build line in the file) |
 | `tools\Run-Capture.ps1` | One hidden, low-priority run that saves chosen frames as pictures |
 | `upstream-pin.json` | The Supermodel commit the patch is written against |
 

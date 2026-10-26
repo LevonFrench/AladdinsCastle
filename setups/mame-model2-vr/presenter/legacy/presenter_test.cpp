@@ -81,26 +81,31 @@ XrResult XRAPI_CALL ActionSet(XrInstance,const XrActionSetCreateInfo*,XrActionSe
 XrResult XRAPI_CALL Action(XrActionSet,const XrActionCreateInfo *info,XrAction *out) {
  static std::uintptr_t next=10; *out=reinterpret_cast<XrAction>(++next);
  if(std::string(info->actionName)=="shot_pulse") assert(info->actionType==XR_ACTION_TYPE_VIBRATION_OUTPUT);
- if(std::string(info->actionName)=="clean_quit") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
+ assert(std::string(info->actionName)!="clean_quit"); // no Y/B quit binding any more
+ if(std::string(info->actionName)=="stick_click_left") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
+ if(std::string(info->actionName)=="stick_click_right") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_right);
  for(const char *left:{"brake","steer_stick","grip_left"}) if(std::string(info->actionName)==left) assert(info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
  if(std::string(info->actionName)=="grip_right") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->subactionPaths[0]==s_right);
  return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Suggest(XrInstance,const XrInteractionProfileSuggestedBinding *info) {
- assert(info->countSuggestedBindings==10);
- // Racing and extra-button bindings, identical paths on both profiles.
- assert(info->suggestedBindings[6].action==s_brake && info->suggestedBindings[6].binding==paths.at("/user/hand/left/input/trigger/value"));
- assert(info->suggestedBindings[7].action==s_stickX && info->suggestedBindings[7].binding==paths.at("/user/hand/left/input/thumbstick/x"));
- assert(info->suggestedBindings[8].action==s_gripR && info->suggestedBindings[8].binding==paths.at("/user/hand/right/input/squeeze/value"));
- assert(info->suggestedBindings[9].action==s_gripL && info->suggestedBindings[9].binding==paths.at("/user/hand/left/input/squeeze/value"));
+ assert(info->countSuggestedBindings==11);
+ // Stick clicks (universal layer), racing and extra-button bindings, identical paths on both profiles.
+ assert(info->suggestedBindings[5].action==s_clickL && info->suggestedBindings[5].binding==paths.at("/user/hand/left/input/thumbstick/click"));
+ assert(info->suggestedBindings[6].action==s_clickR && info->suggestedBindings[6].binding==paths.at("/user/hand/right/input/thumbstick/click"));
+ assert(info->suggestedBindings[7].action==s_brake && info->suggestedBindings[7].binding==paths.at("/user/hand/left/input/trigger/value"));
+ assert(info->suggestedBindings[8].action==s_stickX && info->suggestedBindings[8].binding==paths.at("/user/hand/left/input/thumbstick/x"));
+ assert(info->suggestedBindings[9].action==s_gripR && info->suggestedBindings[9].binding==paths.at("/user/hand/right/input/squeeze/value"));
+ assert(info->suggestedBindings[10].action==s_gripL && info->suggestedBindings[10].binding==paths.at("/user/hand/left/input/squeeze/value"));
+ // No menu or system button anywhere.
+ for(unsigned i=0;i<info->countSuggestedBindings;++i)
+  for(const auto &entry:paths) if(entry.second==info->suggestedBindings[i].binding) assert(entry.first.find("/menu")==std::string::npos && entry.first.find("/system")==std::string::npos);
  assert(info->suggestedBindings[4].action==s_haptic);
  assert(info->suggestedBindings[4].binding==paths.at("/user/hand/right/output/haptic"));
- assert(info->suggestedBindings[5].action==s_quit);
- const auto expected=paths.at(suggestedProfiles==0?"/user/hand/left/input/y/click":"/user/hand/left/input/b/click");
- assert(info->suggestedBindings[5].binding==expected); ++suggestedProfiles; return XR_SUCCESS;
+ ++suggestedProfiles; return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Attach(XrSession,const XrSessionActionSetsAttachInfo*) { return XR_SUCCESS; }
-bool focused=true;
+bool focused=true,leftDown=false,rightDown=false;
 XrResult XRAPI_CALL Sync(XrSession,const XrActionsSyncInfo *info) {
  assert(info->countActiveActionSets==1 && info->activeActionSets[0].subactionPath==XR_NULL_PATH);
  return focused?XR_SUCCESS:XR_SESSION_NOT_FOCUSED;
@@ -108,8 +113,9 @@ XrResult XRAPI_CALL Sync(XrSession,const XrActionsSyncInfo *info) {
 XrResult XRAPI_CALL PoseState(XrSession,const XrActionStateGetInfo*,XrActionStatePose *state) { state->isActive=false; return XR_SUCCESS; }
 XrResult XRAPI_CALL FloatState(XrSession,const XrActionStateGetInfo*,XrActionStateFloat *state) { state->isActive=false; return XR_SUCCESS; }
 XrResult XRAPI_CALL BooleanState(XrSession,const XrActionStateGetInfo *info,XrActionStateBoolean *state) {
- state->isActive=state->currentState=info->action==s_quit;
- if(info->action==s_quit) assert(info->subactionPath==s_left);
+ state->isActive=true; state->currentState=false;
+ if(info->action==s_clickL) { assert(info->subactionPath==s_left); state->currentState=leftDown; }
+ if(info->action==s_clickR) { assert(info->subactionPath==s_right); state->currentState=rightDown; }
  return XR_SUCCESS;
 }
 XrResult XRAPI_CALL ActionSpace(XrSession,const XrActionSpaceCreateInfo*,XrSpace *out) { *out=reinterpret_cast<XrSpace>(2); return XR_SUCCESS; }
@@ -215,11 +221,24 @@ int main()
  feedback.observe(14,510,520,true,ACVR_XR_QueueShotPulse); DispatchHaptics(true); assert(hapticCalls==3);
  assert(feedback.acknowledged==4 && feedback.queued==2); s_started=false;
  p_xrSyncActions=Sync; p_xrGetActionStatePose=PoseState; p_xrGetActionStateFloat=FloatState; p_xrGetActionStateBoolean=BooleanState;
- ReadController(0,0,0); assert(ACVR_XR_ControllerInput().quitHeld);
- focused=false; ReadController(0,0,0); assert(!ACVR_XR_ControllerInput().quitHeld);
- focused=true;
- std::puts("PASS quit actions: both-hand synchronization, left Y/equivalent bindings, focus loss releases hold");
- s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_aimSpace=XR_NULL_HANDLE; s_haptic=s_quit=XR_NULL_HANDLE;
+ {
+  // Universal stick-click layer through the real ReadController (real clock, so a few short sleeps).
+  auto read=[] { ReadController(0,0,0); return ACVR_XR_ControllerInput(); };
+  leftDown=true; rightDown=false; auto in=read(); assert(!in.start && !in.coin && !in.quitHeld); // waits for a possible chord
+  Sleep(200); in=read(); assert(in.start && !in.coin && !in.quitHeld);                            // left click alone = Start
+  leftDown=false; in=read(); assert(!in.start);
+  rightDown=true; read(); Sleep(200); in=read(); assert(in.coin && !in.start); rightDown=false; read();   // right click alone = Coin
+  s_recentreRequest=false; s_chord.reset();
+  leftDown=true; read(); Sleep(40); rightDown=true; in=read();                                    // both within the wait: a chord
+  assert(!in.start && !in.coin && in.quitHeld && !s_recentreRequest);
+  Sleep(200); in=read(); assert(!in.start && !in.coin && in.quitHeld);                            // still no Start or Coin
+  leftDown=rightDown=false; in=read(); assert(!in.start && !in.coin && !in.quitHeld && s_recentreRequest.exchange(false)); // released: recentre once
+  leftDown=rightDown=true; read(); focused=false; in=read(); assert(!in.quitHeld && !in.start);   // focus loss drops the hold
+  focused=true; leftDown=rightDown=false; read(); s_chord.reset(); s_recentreRequest=false;
+ }
+ std::puts("PASS stick clicks: left Start, right Coin, 150 ms chord wait, chord sends neither, recentre on release, both held = quit hold, focus loss resets");
+ { CleanQuit held; held.poll(1000,true,false); held.poll(4000,true,false); assert(held.requested() && std::string(held.reason()).find("stick clicks")!=std::string::npos); }
+ s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_aimSpace=XR_NULL_HANDLE; s_haptic=s_clickL=s_clickR=XR_NULL_HANDLE;
  std::puts("PASS haptics: both output bindings, game serial to right-hand 30 ms/strong API call, no duplicate/stale/attach/focus-regain replay (injected API only)");
  glDeleteFramebuffers(2,fbos); glDeleteTextures(2,textures);
  assert(Host_GL_MakeCurrent(foreign,foreign->context)==0); glDeleteTextures(1,&sentinel); Host_DestroyWindow(foreign);

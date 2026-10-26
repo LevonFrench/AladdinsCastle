@@ -96,7 +96,7 @@ struct ACVRControllers
   float grip[2]    = { 0, 0 };  // 0 to 1
   float stick[2][2] = { { 0, 0 }, { 0, 0 } };   // x: right is positive, y: up is positive
   bool  stickClick[2] = { false, false };
-  bool  a = false, b = false, x = false, y = false, menu = false;
+  bool  a = false, b = false, x = false, y = false;   // no menu button: the left Menu and right system buttons are never read
   bool  gripValid[2] = { false, false };
   float gripPos[2][3] = { { 0 } };              // where each hand is, reference space, metres
   bool  aimValid[2] = { false, false };
@@ -113,6 +113,10 @@ struct ACVRControllers
 };
 
 bool  ACVR_XR_GetControllers(ACVRControllers &out);
+// Universal recentre (both stick clicks): the game thread asks, the presenter takes it once. Screen mode and
+// head-tracked mode both call Take, so a request is used by whichever mode is running. The Home key still works.
+void  ACVR_XR_RequestRecentre();
+bool  ACVR_XR_TakeRecentre();
 float ACVR_XR_DistanceMetres();
 bool  ACVR_XR_Start(void *sdlWindow);
 bool  ACVR_XR_GetViews(ACVREyeView out[2]);   // false until the headset is tracked
