@@ -10,7 +10,7 @@ namespace {
 struct Game {const char *id,*title;int year;const char *controls;const char *file=nullptr;};
 const char *const viewOnly="View only for now: no controls yet.";
 // A game with controls gets U1-U4 after its own text; a view-only game has no controls to describe.
-QString shown(const char *text){return text==viewOnly?QString::fromUtf8(text):universal::with(QString::fromUtf8(text));}
+QString shown(const char *text){return text==viewOnly?QString::fromUtf8(text):universal::with(QString::fromUtf8(text)+" A and B also start and insert a coin.");}
 const char *const lightGun="Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload.";
 const char *const racing="Controls new, untested: the left stick steers, right trigger = gas, left trigger = brake, grips = shift or the game's buttons.";
 const Game kGames[]={

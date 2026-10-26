@@ -302,7 +302,7 @@ QString ControlsViewModel::notice() const {
         if(m_data.value("schema").toString()=="shell-stick/1") return
             "Route: "+m_data.value("route").toString()+" · Hold: "+holdMode()+" · Firing hand: "+m_primaryHand+
             (m_twoGunsActive ? ". A shell at each controller; no separate stick." : m_holdMode=="docked" ? ". Stick seated at the shell's rear grip; two-handed aim." : ". Shell in firing hand; stick in the other.")+
-            (m_data.value("route").toString()=="dolphinxr" ? " Both thumbstick clicks recenter through the installed native hotkey." :
+            (m_data.value("route").toString()=="dolphinxr" ? " Both thumbstick clicks together recentre, and holding both for 3 seconds quits and saves, through the installed native hotkeys." :
                 " Canonical DSU: Remote slot 0, stick slot 1. Tracked recentre unavailable."+
                 QString(m_data.value("transport").toMap().value("live_bridge_compatible").toBool() ? " Transport source-tested; gameplay validation pending." : " Live producer unavailable pending source review.")+
                 QString(m_twoGunsActive ? " Two-remotes producer remains planned." : ""))+

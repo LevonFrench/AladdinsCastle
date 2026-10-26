@@ -532,13 +532,13 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             const auto plan=dreamcast::launchPlan(file,view,settings_->get("dreamcastExecutable",QString()).toString());
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
-            hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+            hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor. Right A also starts; right B or left Y is the gun's B (skip, back, pump). The left stick click also lets player 2 join where the game offers it; the right stick click is a coin on NAOMI and Atomiswave games only.":"The mouse is the gun.";
         }else if(id.startsWith("wii-")){
             // The authored DolphinXR route: the build's own User folder, OpenXR on, the disc where it is.
             const auto plan=wii::launchPlan(file,settings_->get("wiiExecutable",QString()).toString());
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:wii::games())if("wii-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · In the headset";
-            hint="Aim with your controller.";
+            hint="Aim with your right controller. Remote 2 is a quick press of left Y; Home is left Y held for half a second.";
         }else if(id.startsWith("model2-")){
             // Two programs: the emulator first, then the viewer given the emulator's process id.
             const auto game=id.mid(7);

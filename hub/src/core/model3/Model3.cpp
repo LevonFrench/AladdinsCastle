@@ -86,9 +86,9 @@ QString viewControls(const QString &game,const QString &view){
  if(view=="sbs-monitor")return "Needs no headset. "+keys;
  if(view=="inside-wheel")return QString("The drawn %1 turns as you steer with the left stick. Triggers = pedals. ").arg(game=="harley"?"handlebars":"wheel")+vr(sit);
  if(view=="inside-stick")return "Point the right controller: the game's crosshair goes where the red laser ends. Right trigger = fire, A = event button. Holding the right grip still takes the old tilt stick. "+vr(sit);
- if(game=="swtrilgy")return vr("Point the right controller to aim, right trigger = fire.");
+ if(game=="swtrilgy")return vr("Point the right controller to aim, right trigger = fire. Right B shows or hides the laser.");
  if(QStringList{"vf3","fvipers2","spikeout","vs2"}.contains(game))return vr("VR: the game's buttons are on the pad.");
- return vr("VR: left stick = steering, right trigger = accelerator, left trigger = brake.");
+ return vr("VR: left stick = steering, right trigger = accelerator, left trigger = brake. A and B also start and insert a coin.");
 }
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 const View *findView(const QString &id){for(const auto &view:table())if(id==QLatin1String(view.id))return &view;return nullptr;}

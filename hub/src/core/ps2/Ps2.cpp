@@ -11,7 +11,7 @@
 #include "core/launch/UniversalControls.h"
 namespace ac::ps2 {
 namespace {
-QString controls(const QVariantMap &game){return QString(game.value("gun").toBool()?"Gamepad only for now (an Xbox-style controller); aiming with the VR controllers is still to come.":"Played with a gamepad (an Xbox-style controller).")+(game.value("measured").toBool()?" Depth: measured.":" Depth: experimental, a general profile not yet tuned for this game.");}
+QString controls(const QVariantMap &game){return QString(game.value("gun").toBool()?"Gamepad only for now (an Xbox-style controller); aiming with the VR controllers is still to come.":"Played with a gamepad (an Xbox-style controller).")+QString(" With the VR controllers, L3 is left Y and R3 is left X, for games that read them.")+(game.value("gun").toBool()?" In gun games either grip is the GunCon C button (cover).":"")+(game.value("measured").toBool()?" Depth: measured.":" Depth: experimental, a general profile not yet tuned for this game.");}
 QVariantList table(){return scan::DiscIndex::games("ps2");}
 }
 QVariantList games(){QVariantList result;for(const auto &value:table()){const auto game=value.toMap();result<<QVariantMap{{"id",game.value("id")},{"title",game.value("title")},{"year",game.value("year")},{"controls",universal::with(controls(game))}};}return result;}

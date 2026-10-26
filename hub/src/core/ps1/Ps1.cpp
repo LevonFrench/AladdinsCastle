@@ -49,7 +49,7 @@ QString controls(const Game &game){
                  "Pad: right A Cross, right B Circle (cancel), left X Square, left Y Triangle. "
                  "On a big theatre screen.").arg(QString::fromLatin1(game.gun));
  QString text=QString("Your right controller is the %1: trigger fires, point off the screen to reload, A and B are its buttons").arg(QString::fromLatin1(game.gun));
- text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; the grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");
+ text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; either grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");
  if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, point off the screen to reload.";
  if(QString::fromLatin1(game.gun)=="Justifier")text="Your right controller is the Justifier: trigger fires, point off the screen to reload; Start begins each mission.";
  if(game.sprites)return text+" On a big theatre screen.";

@@ -7,7 +7,9 @@
 namespace ac::system22 {
 namespace {
 struct View {const char *id,*label,*help,*controls,*env;};
-const char *const headsetControls="Either trigger fires, hold a grip to leave cover.";
+const char *const headsetControls="Either trigger fires; point off the screen and pull it to reload. Hold either grip to leave cover. Laser: B or Y on the gun hand. "
+ "Pause and options: A or X on the hand that does not hold the gun (press again to resume). "
+ "While paused: that same A or X resumes, off-hand B or Y changes cover mode, gun-hand B or Y changes the gun hand, gun-hand A or X resets the gun angle.";
 const QList<View> &table(){
  static const QList<View> list{
   {"vr","In the headset","The whole game around you, with a tracked gun.",headsetControls,""},

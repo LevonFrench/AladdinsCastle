@@ -13,7 +13,7 @@ const QList<Game> &table(){
    "Steer with the left stick; the right trigger fires (hold to charge a lock-on shot), right A is the 3DS Y button (bombs), the right grip is X (boost) and the left grip is B (brake). "
    "The left trigger and right B are L and R: bank, twice for a barrel roll. Answer no when the tutorial asks about gyro aiming. In stereo on a big theatre screen."},
   {"3ds-mario-kart-7","Mario Kart 7",2011,"3ds",
-   "Steer with the left stick; the right trigger accelerates (A), the left grip brakes and reverses (B), the right grip hops and drifts (R), the left trigger or right A uses an item (L), "
+   "Steer with the left stick; the right trigger accelerates (A), the left trigger brakes and reverses (B), the right grip hops and drifts (R), the left grip or right A uses an item (L), "
    "right B looks behind (X). Steering is the stick only; there is no tilt steering. In stereo on a big theatre screen. Not yet checked in a headset."},
  };
  return games;
