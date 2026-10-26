@@ -277,6 +277,19 @@ rule in words; and, for a folder that fits nothing, a note of what it holds and
 suggested folders with **Use this folder**. An "update available" flag per
 system is shown the same way. The fields are listed in `src/core/setup/Setup.h`.
 
+## Updates and problem reports
+
+- **Check for updates** (in the emulators dialog) asks GitHub's public release
+  list whether a newer release of each tool the Hub knows from `data/emulators/`
+  exists. It says so on the tool and on the Set-up rows built from it, and does
+  nothing else: nothing is downloaded, installed or changed. A tool with no
+  GitHub release to ask about makes no request, and an answer the Hub cannot
+  decide is shown as unknown, never as an update.
+- **Save a problem report** (Settings and the help panel) writes one ZIP of the
+  Hub's logs and the last game's log. Folder names, the account name, emails and
+  keys are taken out; game files and saves are never included. Look inside the
+  ZIP before sending it.
+
 ## Systems
 
 | System | Folder setting | Program setting | How a game is checked |
