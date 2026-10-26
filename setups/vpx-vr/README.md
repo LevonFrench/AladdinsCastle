@@ -1,7 +1,8 @@
-# vpx-vr: hold-to-quit for Visual Pinball X in the headset
+# vpx-vr: hold-to-quit and hold-only table adjust for Visual Pinball X in the headset
 
 A small patch for [Visual Pinball X](https://github.com/vpinball/vpinball) (VPX) that adds the universal quit
-(U4 in [docs/controls.md](../../docs/controls.md)) inside a pinball table:
+(U4 in [docs/controls.md](../../docs/controls.md)) inside a pinball table, and makes the table adjust (U3p) work
+only while both stick clicks are held:
 
 - **Hold both stick clicks for 3 seconds, hands still:** VPX closes the table through its own Exit Game action, the
   same as pressing Esc. The table script's exit runs, PinMAME writes its NVRAM, and VPX saves its settings, as on any
@@ -11,6 +12,10 @@ A small patch for [Visual Pinball X](https://github.com/vpinball/vpinball) (VPX)
   and the next hold starts fresh.
 - **Countdown:** from 1 second the headset shows "Keep holding both stick clicks to quit: 2 s", then "Quitting and
   saving...". A cancelled hold shows "Quit cancelled: your hands moved the table". The VPX log gets `[ACVR]` lines.
+- **Table adjust, hold-only:** the Hub binds VPX's "Align VR view using controllers" to both stick clicks. Standard VPX
+  toggles that on each press, so after a double click the table kept following the hands until the next double
+  click. In this build the table follows the hands only while both clicks are held, and stays where it is when you
+  let go ("release to keep" in the contract).
 
 It contains no table, ROM or built program. CI builds the program from VPX's source with this patch applied.
 The VPX source files this patch edits are marked GPL v3 or later, and so is everything in this folder. The shared
@@ -29,10 +34,11 @@ chord header from libacvr is MIT.
 
 | File | What it is |
 |---|---|
-| `patch/apply_acvr.py` | Run from the VPX source root. Copies the two headers below into `src/input/acvr/`, edits `src/input/XRInputHandler.h`, `src/renderer/VRDevice.cpp` and `src/core/git_version.h`. Every edit checks its anchor and stops if the source has moved |
+| `patch/apply_acvr.py` | Run from the VPX source root. Copies the headers below into `src/input/acvr/`, edits `src/input/XRInputHandler.h`, `src/input/InputManager.cpp`, `src/renderer/VRDevice.cpp` and `src/core/git_version.h`. Every edit checks its anchor and stops if the source has moved |
 | `patch/acvr/HoldToQuit.h` | The hold logic: libacvr's chord timing plus the 5 cm hand-travel cancel. No OpenXR, no VPX |
+| `patch/acvr/TableFollow.h` | The hold-only table adjust rule: follow on press, stop on release, no change otherwise |
 | `../../libacvr/src/stick_chord.hpp` | The chord timing every AladdinsCastle host shares (150 ms window for the second click, quit at 3 s). Copied in unchanged at build time, not duplicated here |
-| `tests/hold_to_quit_test.cpp` | CPU-only test of the hold logic: still hold quits at 3 s, jitter under 5 cm still quits, 6 cm cancels, a late move still cancels, late second click is not a chord, untracked hands still quit, one quit per hold |
+| `tests/hold_to_quit_test.cpp` | CPU-only test of the hold logic: still hold quits at 3 s, jitter under 5 cm still quits, 6 cm cancels, a late move still cancels, late second click is not a chord, untracked hands still quit, one quit per hold; the table follows only while held, where unpatched VPX kept following after release |
 | `upstream-pin.json` | The pinned tag and commit |
 
 How it fits into VPX: the OpenXR input handler (`XRInputHandler`) reads both stick clicks and both grip poses every
@@ -58,7 +64,8 @@ countdown as a VPX notification.
 2. Check the hash: `Get-FileHash VPinballX_BGFX64_acvr.exe` must match `SHA256SUMS.txt`.
 3. Copy `VPinballX_BGFX64_acvr.exe` into your VPX folder, **beside** `VPinballX_BGFX64.exe`. Do not replace the
    original. It uses the same DLLs, plugins, settings and tables, because it is the same VPX version.
-4. In the Hub, set the pinball program to `VPinballX_BGFX64_acvr.exe`.
+4. In the Hub, set the pinball program to `VPinballX_BGFX64_acvr.exe`. The Hub reads its version information (it
+   never runs it), sees the `-acvr` product version, and switches its pinball text to this build's controls.
 
 Undo: set the Hub's pinball program back to `VPinballX_BGFX64.exe` and delete the `_acvr` file.
 

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// CPU-only check of the VPX hold-to-quit logic (patch/acvr/HoldToQuit.h) on libacvr's chord timing. No headset, no VPX.
+// CPU-only check of the VPX patch logic: hold-to-quit (patch/acvr/HoldToQuit.h) on libacvr's chord timing, and the
+// hold-only table adjust (patch/acvr/TableFollow.h). No headset, no VPX.
 // From the repository root:
 //   g++ -std=c++17 -Wall -Wextra -Werror -I libacvr/src -I setups/vpx-vr/patch/acvr setups/vpx-vr/tests/hold_to_quit_test.cpp -o hold_to_quit_test
 #include "HoldToQuit.h"
+#include "TableFollow.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -107,6 +109,26 @@ int main()
       Run a;
       a.hold(true, true, 8000);
       CHECK(a.quits == 1);
+   }
+   { // table adjust (U3p): the table follows the hands only while both clicks are held, and stays put on release
+      // VPX's own action toggled on every press: after the first chord was released the table still followed the hands.
+      bool vpx = false, ours = false, held = false;
+      const auto change = [&](bool now) {
+         if (now && !held) vpx = !vpx; // the unpatched handler: toggle on press, nothing on release
+         ours = acvr::table_follows_hands(held, now, ours);
+         held = now;
+      };
+      change(true);  CHECK(vpx && ours);    // both clicks down: follows
+      change(false); CHECK(vpx && !ours);   // let go: unpatched keeps following (the bug), patched keeps the table where it is
+      change(true);  CHECK(!vpx && ours);   // second chord: unpatched stops, patched follows again while held
+      change(false); CHECK(!vpx && !ours);
+      // No change of the binding keeps whatever the state is (e.g. VPX's head recentre switched following off mid-hold).
+      CHECK(acvr::table_follows_hands(true, true, false) == false);
+      CHECK(acvr::table_follows_hands(true, true, true) == true);
+      CHECK(acvr::table_follows_hands(false, false, true) == true);
+      // A release always stops following, a press always starts it.
+      CHECK(acvr::table_follows_hands(true, false, true) == false);
+      CHECK(acvr::table_follows_hands(false, true, false) == true);
    }
    std::puts("hold_to_quit_test: all checks passed");
    return 0;

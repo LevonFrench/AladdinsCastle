@@ -40,7 +40,7 @@ def edit(path, pairs):
     wr(path, s)
 
 
-for p in ('src/input/XRInputHandler.h', 'src/renderer/VRDevice.cpp', 'src/core/git_version.h'):
+for p in ('src/input/XRInputHandler.h', 'src/input/InputManager.cpp', 'src/renderer/VRDevice.cpp', 'src/core/git_version.h'):
     assert os.path.isfile(p), 'not a VPX source root (missing %s)' % p
 assert 'ACVR' not in rd('src/input/XRInputHandler.h'), 'already patched'
 
@@ -49,6 +49,22 @@ assert 'ACVR' not in rd('src/input/XRInputHandler.h'), 'already patched'
 os.makedirs('src/input/acvr', exist_ok=True)
 shutil.copyfile(os.path.join(REPO, 'libacvr', 'src', 'stick_chord.hpp'), 'src/input/acvr/stick_chord.hpp')
 shutil.copyfile(os.path.join(HERE, 'acvr', 'HoldToQuit.h'), 'src/input/acvr/HoldToQuit.h')
+shutil.copyfile(os.path.join(HERE, 'acvr', 'TableFollow.h'), 'src/input/acvr/TableFollow.h')
+
+# ---------------------------------------------------------------- InputManager.cpp
+# "Align VR view using controllers" (the Hub binds it to both stick clicks) becomes hold-only: the table follows the
+# hands while the binding is held and stays put on release (U3p), instead of toggling on every press.
+edit('src/input/InputManager.cpp', [
+    ('#include "ui/live/LiveUI.h"\n',
+     '#include "ui/live/LiveUI.h"\n'
+     '#include "input/acvr/TableFollow.h" // ACVR: hold-only table adjust\n'),
+    ('         if (isPressed && m_player->IsVR())\n'
+     '            m_player->m_vrDevice->EnableControllerViewCentering(!m_player->m_vrDevice->IsControllerViewCenteringEnabled());\n',
+     '         // ACVR (AladdinsCastle): the table follows the hands only while the binding is held; letting go keeps it (U3p).\n'
+     '         if (m_player->IsVR())\n'
+     '            m_player->m_vrDevice->EnableControllerViewCentering(\n'
+     '               acvr::table_follows_hands(wasPressed, isPressed, m_player->m_vrDevice->IsControllerViewCenteringEnabled()));\n'),
+])
 
 # ---------------------------------------------------------------- XRInputHandler.h
 edit('src/input/XRInputHandler.h', [
