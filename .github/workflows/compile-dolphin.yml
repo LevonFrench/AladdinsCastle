@@ -1,5 +1,5 @@
 name: Dolphin VR compile check
-# Compiles the patched DolphinXR source (the facing, draw-trace, route-diagnostic, input-probe and XFB patches together) from
+# Compiles the patched DolphinXR source (the facing, draw-trace, route-diagnostic, input-probe, XFB and hold-ring patches together) from
 # its pinned commit with Visual Studio 2026: the core, VideoCommon and Direct3D video libraries that those patches change.
 # Nothing is run: no game, no VR runtime. The Qt front end is not built (none of the patches touch it).
 # Runs only on changes to the patch folders it uses (and this file), on demand, and every Monday.
@@ -14,6 +14,9 @@ on:
       - 'setups/dolphin-vr/xfb-stereo-preservation/**'
       - 'setups/dolphin-vr/motion-controls/input-probe/**'
       - 'setups/dolphin-vr/gamecube/input-probe/**'
+      - 'setups/dolphin-vr/hold-ring/**'
+      - 'libacvr/src/stick_chord.hpp'
+      - 'libacvr/src/hold_ring*.hpp'
       - '.github/workflows/compile-dolphin.yml'
   pull_request:
     paths:
@@ -24,6 +27,9 @@ on:
       - 'setups/dolphin-vr/xfb-stereo-preservation/**'
       - 'setups/dolphin-vr/motion-controls/input-probe/**'
       - 'setups/dolphin-vr/gamecube/input-probe/**'
+      - 'setups/dolphin-vr/hold-ring/**'
+      - 'libacvr/src/stick_chord.hpp'
+      - 'libacvr/src/hold_ring*.hpp'
       - '.github/workflows/compile-dolphin.yml'
   workflow_dispatch:
   schedule:
@@ -87,6 +93,7 @@ jobs:
           python -B "$S/gamecube/input-probe/apply_gc.py" "$SRC"
           git apply --check "$S/xfb-stereo-preservation/preserve-stereo-xfb.patch"
           git apply "$S/xfb-stereo-preservation/preserve-stereo-xfb.patch"
+          python -B "$S/hold-ring/apply.py" "$SRC"
           git status --short
 
       - name: Set up MSVC x64
