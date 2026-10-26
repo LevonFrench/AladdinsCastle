@@ -30,6 +30,7 @@ TheatreFrame TheatreState(XrTime time,bool focused){
  }
  const Uint8* keys=Host_GetKeyboardState(nullptr);frame.recenter=keys && keys[Host_SCANCODE_HOME];
  // Focus gates input only; VISIBLE sessions can still draw and begin/end frames.
+ bool clicksRead=false;
  if(focused){
   XrActiveActionSet set{s_actions,XR_NULL_PATH};XrActionsSyncInfo sync={XR_TYPE_ACTIONS_SYNC_INFO};sync.countActiveActionSets=1;sync.activeActionSets=&set;
   if(p_xrSyncActions(s_session,&sync)==XR_SUCCESS){
@@ -49,9 +50,14 @@ TheatreFrame TheatreState(XrTime time,bool focused){
    if(s_leftGrip){pose(s_leftGrip,s_leftGripSpace,frame.leftGrip,s_left);frame.leftTrigger=scalar(s_leftTrigger,s_left);}
    auto stick=[&](XrAction action,XrPath hand,float out[2]){XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=hand;XrActionStateVector2f value={XR_TYPE_ACTION_STATE_VECTOR2F};if(action && p_xrGetActionStateVector2f && XR_SUCCEEDED(p_xrGetActionStateVector2f(s_session,&get,&value)) && value.isActive){out[0]=value.currentState.x;out[1]=value.currentState.y;}};
    stick(s_leftStick,s_left,frame.leftStick);stick(s_rightStick,s_right,frame.rightStick);
-   frame.start=button(s_start,s_right);frame.coin=button(s_coin,s_right);frame.quitHeld=button(s_quit,s_left);
+   // U1-U4: raw stick clicks in, resolved Start/Coin, recentre pulse and quit hold out.
+   clicksRead=true;
+   const auto stickState=s_chord.step(GetTickCount64(),button(s_leftClick,s_left),button(s_rightClick,s_right));
+   frame.start=stickState.start;frame.coin=stickState.select;frame.quitHeld=stickState.chord;
+   frame.recenter=frame.recenter||stickState.recenter;frame.chordMs=stickState.chord_ms;frame.quitProgress=stickState.quit_visible?stickState.quit_progress:0.f;
   }
  }
+ if(!clicksRead)s_chord.step(GetTickCount64(),false,false); // focus loss or a failed sync releases every click
  DispatchHaptics(frame.focused);
  return frame;
 }

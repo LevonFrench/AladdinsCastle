@@ -98,7 +98,7 @@ class Viewer:public TheatreClient {
  acvr_mono::motion body{};
  FILE* trace=nullptr;
  unsigned lastButtons=~0u;
- bool initialized=false;
+ bool initialized=false,quitLogged=false;
 public:
  std::atomic<bool> exitSent{false};
  bool captured=false;
@@ -133,6 +133,9 @@ public:
   scene.showDot=!options.motion && frame.focused && frame.aim.valid && on;scene.dotU=u;scene.dotV=v;scene.trigger=frame.trigger;
   if(scene.showGun)scene.gunRoot=gun.alignedRoot(Mat4::FromPose(frame.grip.position,frame.grip.orientation),aim,0);
   quit.poll(GetTickCount64(),frame.focused && frame.quitHeld,stopRequested || (!options.stop.empty() && fs::exists(options.stop)));
+  // U4 has no drawn ring in this viewer: say so in the log once the hold outlives the recentre window.
+  if(frame.quitProgress>0 && !quitLogged){std::fprintf(stderr,"viewer: both stick clicks held; quit and save in %.0f s if still held\n",3*(1-quit.progress(GetTickCount64())));quitLogged=true;}
+  if(!frame.quitHeld)quitLogged=false;
   acvr_mono::controls input{};input.heartbeat_ms=GetTickCount64();
   input.valid=frame.focused && !quit.requested();input.off_screen=!on;input.u=std::clamp(u,0.f,1.f);input.v=std::clamp(v,0.f,1.f);
   input.trigger=input.valid && frame.aim.valid && frame.trigger>=.55f;

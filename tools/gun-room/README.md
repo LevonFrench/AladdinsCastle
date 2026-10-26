@@ -24,6 +24,8 @@ The room accepts `--root ABS_PATH --xr`, with `--model arc-pistol-slide` by
 default. Optional `--angle-file FILE` reads `right`/`left` degree values;
 `--right-angle-deg N` and `--left-angle-deg N` override and save them.
 
+The room runs on libacvr's universal stick-click layer: clicking both sticks together recentres the view in front of the head at its current height, and holding both for 3 seconds quits (libacvr stops its tick loop, the room destroys the runtime, which flushes any backend save, and exits zero). A single click does nothing here because the room has no Start or Coin. The menu buttons are never bound.
+
 For controller calibration, launch with `--xr --calibrate-grip --hand right|left`.
 The selected hand must have a focused, tracked grip and aim, active B/Y,
 thumbstick axes and trigger, and the trigger must be released. Start with B/Y

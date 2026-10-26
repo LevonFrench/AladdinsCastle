@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "controls.hpp"
 #include "control_fixture.hpp"
+#include "stick_chord.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <limits>
@@ -30,10 +31,10 @@ void mapping_and_rearm() {
 }
 void toggle_and_runtime() {
     acvr::ControlMapper mapper;std::string error;
-    const auto source=control_header()+control_row("cover","axis","cover_pedal","grip","toggle")+control_row("pause","runtime","pause","menu_chord","press");
+    const auto source=control_header()+control_row("cover","axis","cover_pedal","grip","toggle")+control_row("pause","runtime","pause","thumbstick_click","press");
     check(mapper.prepare(source,declarations(),0,acvr::action_bit(acvr::RuntimeAction::Pause),error));
     acvr::ControllerButtons h[2];bool tracked[]{true,true};acvr::MappedControls out;
-    h[0].grip=1;h[0].menu_chord=true;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==1&&out.actions.size()==1);
+    h[0].grip=1;h[0].stick_click=true;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==1&&out.actions.size()==1);
     check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==1&&out.actions.empty());
     h[0]={};check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==1);
     h[0].grip=1;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==0);
@@ -68,4 +69,59 @@ void inverted_either_grip() {
     h[0].grip=0;h[1].grip=1;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==0);
     tracked[0]=tracked[1]=false;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes.empty());
 }
-int main() {try {mapping_and_rearm();toggle_and_runtime();invalid_and_collisions();inverted_either_grip();}catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" control checks passed\n";}
+// Universal stick-click layer, contract v1 U1-U4. Times are milliseconds.
+struct Chord {
+    acvr::StickChord c;uint64_t t=0;
+    acvr::StickChordState at(uint64_t now,bool l,bool r) {t=now;return c.step(now,l,r);}
+};
+void chord_solo_and_tap() {
+    Chord k;
+    // Start is held back for the 150 ms window, then held for as long as the click is.
+    check(!k.at(0,true,false).start&&!k.at(100,true,false).start);
+    auto s=k.at(150,true,false);check(s.start&&!s.select&&!s.chord);
+    check(k.at(1000,true,false).start);
+    check(!k.at(1010,false,false).start);
+    // Right click alone is Select (Coin).
+    check(!k.at(2000,false,true).select);s=k.at(2150,false,true);check(s.select&&!s.start);
+    check(!k.at(2300,false,false).select);
+    // A tap shorter than the window still reaches the game as a short press.
+    k.at(3000,false,true);s=k.at(3060,false,false);check(s.select&&!s.start);
+    check(k.at(3100,false,false).select);check(!k.at(3200,false,false).select);
+    // Left Start never leaks Select, and neither leaks anything during a chord.
+    for(uint64_t now=4000;now<4100;now+=10) {s=k.at(now,true,true);check(!s.start&&!s.select&&s.chord);}
+    check(!k.at(4200,true,true).start&&!k.at(4200,true,true).select);
+}
+void chord_recenter_and_quit() {
+    // U3: both within the window, released within 1 s: one recentre pulse, no Start or Select.
+    Chord k;bool leaked=false,pulses=false;unsigned count=0;
+    for(uint64_t now=0;now<=400;now+=10) {const auto s=k.at(now,true,now>=100);leaked=leaked||s.start||s.select;count+=s.recenter;}
+    check(!leaked&&count==0);
+    auto s=k.at(410,false,false);check(s.recenter&&!s.quit&&!s.chord&&!s.start&&!s.select);
+    check(!k.at(420,false,false).recenter);
+    // Same instant also forms a chord.
+    k.at(1000,true,true);check(k.at(1500,true,true).chord);
+    // Released exactly at 1 s still recentres; one tick later it does not.
+    s=k.at(2000,false,false);check(s.recenter);
+    k.at(3000,true,true);s=k.at(4001,false,false);check(!s.recenter&&!s.quit);
+    (void)pulses;
+    // One click released early, the other held to the end: no stray Start or Select.
+    k.at(5000,true,true);s=k.at(5300,true,false);check(!s.start&&!s.select&&s.chord);
+    s=k.at(5800,false,false);check(s.recenter&&!s.start&&!s.select);
+    // U4: both held 3 s fires quit once; the release afterwards sends no recentre.
+    Chord q;unsigned quits=0,rings=0;float last=0;
+    for(uint64_t now=0;now<=3500;now+=10) {const auto st=q.at(now,true,true);quits+=st.quit;rings+=st.quit_visible;last=st.quit_progress;check(!st.recenter&&!st.start&&!st.select);}
+    check(quits==1&&rings>0&&last==1.f);
+    s=q.at(3600,false,false);check(!s.recenter&&!s.quit&&!s.chord);
+    // Just under 3 s never quits.
+    Chord u;for(uint64_t now=0;now<3000;now+=10) check(!u.at(now,true,true).quit);
+    check(!u.at(3000-1,true,true).quit);
+    // Pinball adjust: moving the hands cancels the quit countdown for this hold only.
+    Chord p;p.at(0,true,true);p.c.cancel_quit();check(!p.at(3200,true,true).quit);p.at(3300,false,false);
+    p.at(4000,true,true);check(p.at(7000,true,true).quit);
+    // Re-pressing one click while the chord is still held changes nothing.
+    Chord r;r.at(0,true,true);r.at(200,false,true);s=r.at(500,true,true);check(!s.start&&!s.select&&s.chord);
+    // Second click after the window is two solo presses, never a chord.
+    Chord w;w.at(0,true,false);s=w.at(200,true,true);check(s.start&&!s.chord&&!s.select);
+    s=w.at(400,true,true);check(s.start&&s.select&&!s.chord);
+}
+int main() {try {mapping_and_rearm();toggle_and_runtime();invalid_and_collisions();inverted_either_grip();chord_solo_and_tap();chord_recenter_and_quit();}catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" control checks passed\n";}

@@ -1,5 +1,6 @@
 #include "Presenter.h"
 #include "TheatreClient.h"
+#include "../src/stick_chord.hpp"
 #include <exception>
 /*
  * ACVR shared publish OpenXR presenter, extracted from Model 2 (AladdinsCastle project). GPL v3 or later, like Supermodel.
@@ -65,6 +66,9 @@ namespace
   XrSpace s_gripSpace=XR_NULL_HANDLE;
   XrAction s_leftGrip=XR_NULL_HANDLE,s_leftTrigger=XR_NULL_HANDLE,s_leftStick=XR_NULL_HANDLE,s_rightStick=XR_NULL_HANDLE;
   XrSpace s_leftGripSpace=XR_NULL_HANDLE;
+  // Theatre input is the universal stick-click layer (U1-U4), resolved by one shared StickChord.
+  XrAction s_leftClick=XR_NULL_HANDLE,s_rightClick=XR_NULL_HANDLE;
+  acvr::StickChord s_chord;
   unsigned s_theatreW[2]{},s_theatreH[2]{};
   std::atomic<bool> s_wantViews{false};
   struct Fov {float tanL=0,tanR=0,tanB=0,tanT=0;} s_fov;
@@ -198,12 +202,35 @@ namespace
         !action("left_grip_pose","Left grip",XR_ACTION_TYPE_POSE_INPUT,s_leftGrip,s_left) ||
         !action("left_trigger","Left trigger",XR_ACTION_TYPE_FLOAT_INPUT,s_leftTrigger,s_left) ||
         !action("left_stick","Left thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_leftStick,s_left) ||
-        !action("right_stick","Right thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_rightStick))) return false;
+        !action("right_stick","Right thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_rightStick) ||
+        !action("left_click","Start (left stick click)",XR_ACTION_TYPE_BOOLEAN_INPUT,s_leftClick,s_left) ||
+        !action("right_click","Coin (right stick click)",XR_ACTION_TYPE_BOOLEAN_INPUT,s_rightClick))) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
+    if(s_theatre){
+      // Gun theatre: pointer, trigger, grips, sticks and the stick clicks. Start and Coin are
+      // the clicks (U1, U2); A, B, Y, the menu and the system buttons are never suggested.
+      const std::pair<XrAction,const char*> list[]={
+        {s_aim,"/user/hand/right/input/aim/pose"},{s_trigger,"/user/hand/right/input/trigger/value"},{s_haptic,"/user/hand/right/output/haptic"},
+        {s_grip,"/user/hand/right/input/grip/pose"},{s_secondary,"/user/hand/right/input/squeeze/value"},
+        {s_leftGrip,"/user/hand/left/input/grip/pose"},{s_leftTrigger,"/user/hand/left/input/trigger/value"},
+        {s_leftStick,"/user/hand/left/input/thumbstick"},{s_rightStick,"/user/hand/right/input/thumbstick"},
+        {s_leftClick,"/user/hand/left/input/thumbstick/click"},{s_rightClick,"/user/hand/right/input/thumbstick/click"}};
+      XrActionSuggestedBinding bindings[11]{};
+      for(unsigned i=0;i<11;++i){
+        bindings[i].action=list[i].first;
+        if(!Check(p_xrStringToPath(s_instance,list[i].second,&bindings[i].binding),"theatre binding path")) return false;
+      }
+      for(const char *profile : profiles){
+        XrInteractionProfileSuggestedBinding suggested = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
+        if(!Check(p_xrStringToPath(s_instance,profile,&suggested.interactionProfile),"interaction profile")) return false;
+        suggested.countSuggestedBindings=11; suggested.suggestedBindings=bindings;
+        Check(p_xrSuggestInteractionProfileBindings(s_instance,&suggested),profile);
+      }
+    } else {
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
                            "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
     const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
-    XrActionSuggestedBinding bindings[12]{};
+    XrActionSuggestedBinding bindings[6]{};
     for (unsigned i=0; i<5; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
@@ -215,19 +242,9 @@ namespace
       if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
       bindings[5].action=s_quit;
       if(!Check(p_xrStringToPath(s_instance,quitPaths[profileIndex++],&bindings[5].binding),"clean quit button path")) return false;
-      if(s_theatre){
-        bindings[6].action=s_grip;bindings[7].action=s_secondary;
-        if(!Check(p_xrStringToPath(s_instance,"/user/hand/right/input/grip/pose",&bindings[6].binding),"grip path") ||
-           !Check(p_xrStringToPath(s_instance,"/user/hand/right/input/squeeze/value",&bindings[7].binding),"second button path"))return false;
-        bindings[8].action=s_leftGrip;bindings[9].action=s_leftTrigger;
-        if(!Check(p_xrStringToPath(s_instance,"/user/hand/left/input/grip/pose",&bindings[8].binding),"left grip path") ||
-           !Check(p_xrStringToPath(s_instance,"/user/hand/left/input/trigger/value",&bindings[9].binding),"left trigger path"))return false;
-        bindings[10].action=s_leftStick;bindings[11].action=s_rightStick;
-        if(!Check(p_xrStringToPath(s_instance,"/user/hand/left/input/thumbstick",&bindings[10].binding),"left stick path") ||
-           !Check(p_xrStringToPath(s_instance,"/user/hand/right/input/thumbstick",&bindings[11].binding),"right stick path"))return false;
-      }
-      suggested.countSuggestedBindings = s_theatre?12:6; suggested.suggestedBindings = bindings;
+      suggested.countSuggestedBindings = 6; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
+    }
     }
     XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
     attach.countActionSets = 1; attach.actionSets = &s_actions;
@@ -475,7 +492,8 @@ namespace
     DestroyChains();
     if(s_gripSpace)p_xrDestroySpace(s_gripSpace);s_gripSpace=XR_NULL_HANDLE;
     if(s_leftGripSpace)p_xrDestroySpace(s_leftGripSpace);s_leftGripSpace=XR_NULL_HANDLE;
-    s_grip=s_secondary=s_leftGrip=s_leftTrigger=s_leftStick=s_rightStick=XR_NULL_HANDLE;
+    s_grip=s_secondary=s_leftGrip=s_leftTrigger=s_leftStick=s_rightStick=s_leftClick=s_rightClick=XR_NULL_HANDLE;
+    s_chord.reset();
     if(s_aimSpace) p_xrDestroySpace(s_aimSpace);
     if(s_viewSpace) p_xrDestroySpace(s_viewSpace);
     if(s_space) p_xrDestroySpace(s_space);

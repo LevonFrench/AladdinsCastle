@@ -165,6 +165,11 @@ public:
     }
     bool headless() const noexcept override {return false;}
     bool supports_calibration_samples() const noexcept override {return true;}
+    uint32_t supported_runtime_actions() const noexcept override {return action_bit(RuntimeAction::Recenter);}
+    acvr_result runtime_action(RuntimeAction action) override {
+        if(action==RuntimeAction::Recenter){recenter_pending_=true;return ACVR_OK;}
+        return ACVR_UNSUPPORTED;
+    }
 #ifdef ACVR_GUN_GL
     GunMount primary_anchor_mount(uint32_t hand) const noexcept override {
         if(!hands_ready_)return {"grip"};
@@ -281,7 +286,7 @@ private:
     XrSession session_=XR_NULL_HANDLE;XrSpace stage_=XR_NULL_HANDLE,view_space_=XR_NULL_HANDLE;
     XrActionSet actions_=XR_NULL_HANDLE;XrAction grip_=XR_NULL_HANDLE,aim_=XR_NULL_HANDLE;
     XrAction trigger_=XR_NULL_HANDLE,select_=XR_NULL_HANDLE,squeeze_=XR_NULL_HANDLE,primary_=XR_NULL_HANDLE;
-    XrAction secondary_=XR_NULL_HANDLE,stick_x_=XR_NULL_HANDLE,stick_y_=XR_NULL_HANDLE;
+    XrAction secondary_=XR_NULL_HANDLE,stick_x_=XR_NULL_HANDLE,stick_y_=XR_NULL_HANDLE,stick_click_=XR_NULL_HANDLE;
     XrPath hand_paths_[2]{};XrSpace grip_spaces_[2]{},aim_spaces_[2]{};
     int64_t colour_format_=0;
     EyeSwapchain eyes_[2]{};std::array<acvr_eye,2> acvr_eyes_{};
@@ -290,7 +295,7 @@ private:
     XrFrameState frame_{XR_TYPE_FRAME_STATE};
     acvr_pose anchor_=identity_pose();
     float scale_=1;uint32_t anchor_mode_=ACVR_ANCHOR_RAIL;
-    bool running_=false,exiting_=false,in_frame_=false,submit_=false,first_anchor_=true;
+    bool running_=false,exiting_=false,in_frame_=false,submit_=false,first_anchor_=true,recenter_pending_=false;
     HDC previous_dc_=nullptr;HGLRC previous_context_=nullptr;bool active_=false;
     XrSessionState session_state_=XR_SESSION_STATE_UNKNOWN;
     uint64_t waited_frames_=0,render_requested_frames_=0,focused_frames_=0,submitted_frames_=0;
@@ -479,7 +484,8 @@ acvr_result OpenXrGlHost::init_actions() {
        !create(XR_ACTION_TYPE_BOOLEAN_INPUT,"primary_click",primary_)||
        !create(XR_ACTION_TYPE_BOOLEAN_INPUT,"secondary_click",secondary_)||
        !create(XR_ACTION_TYPE_FLOAT_INPUT,"cal_stick_x",stick_x_)||
-       !create(XR_ACTION_TYPE_FLOAT_INPUT,"cal_stick_y",stick_y_))return ACVR_ERROR;
+       !create(XR_ACTION_TYPE_FLOAT_INPUT,"cal_stick_y",stick_y_)||
+       !create(XR_ACTION_TYPE_BOOLEAN_INPUT,"stick_click",stick_click_))return ACVR_ERROR;
     for(unsigned i=0;i<2;++i) {
         XrActionSpaceCreateInfo info{XR_TYPE_ACTION_SPACE_CREATE_INFO};info.poseInActionSpace.orientation.w=1;
         info.subactionPath=hand_paths_[i];info.action=grip_;
@@ -492,7 +498,7 @@ acvr_result OpenXrGlHost::init_actions() {
                            const char *hold_path,bool required){
         XrPath profile=XR_NULL_PATH;
         if(XR_FAILED(StringToPath_(instance_,profile_path,&profile)))return !required;
-        std::array<XrActionSuggestedBinding,16> bindings{};uint32_t n=0;
+        std::array<XrActionSuggestedBinding,20> bindings{};uint32_t n=0;
         for(unsigned i=0;i<2;++i){
             const std::string prefix=paths[i];XrPath path=XR_NULL_PATH;
             for(const auto pair:{std::pair<const char *,XrAction>{"/input/grip/pose",grip_},
@@ -514,8 +520,11 @@ acvr_result OpenXrGlHost::init_actions() {
                 bindings[n++]={primary_,path};
             if(touch||index) {
                 const char *secondary_path=touch?(i==0?"/input/b/click":"/input/y/click"):"/input/b/click";
+                // Stick clicks are the universal layer (U1-U4). The menu and
+                // system buttons are never suggested.
                 for(const auto pair:{std::pair<const char *,XrAction>{secondary_path,secondary_},
-                                     {"/input/thumbstick/x",stick_x_},{"/input/thumbstick/y",stick_y_}})
+                                     {"/input/thumbstick/x",stick_x_},{"/input/thumbstick/y",stick_y_},
+                                     {"/input/thumbstick/click",stick_click_}})
                     if(XR_SUCCEEDED(StringToPath_(instance_,(prefix+pair.first).c_str(),&path)))
                         bindings[n++]={pair.second,path};
             }
@@ -559,6 +568,12 @@ acvr_result OpenXrGlHost::fill_tracking(Display &d) {
     if(XR_FAILED(LocateSpace_(view_space_,stage_,frame_.predictedDisplayTime,&head)))return ACVR_ERROR;
     d.tracking.head_flags=flags(head.locationFlags);
     if(d.tracking.head_flags==3)d.tracking.head=pose(head.pose);
+    if(recenter_pending_ && d.tracking.head_flags==3) {
+        // U3: re-seat the view in front of the head at its current height.
+        if(recenter_anchor(d.tracking.head,d.tracking.head.position_m[1],anchor_)==ACVR_OK){
+            recenter_pending_=false;first_anchor_=false;
+        }
+    }
     if(first_anchor_ && d.focused && d.tracking.head_flags==3 && anchor_mode_==ACVR_ANCHOR_COCKPIT) {
         // A vertical first gaze has no usable horizontal heading. Keep the
         // initial anchor pending until a focused frame supplies one.
@@ -599,6 +614,9 @@ acvr_result OpenXrGlHost::fill_tracking(Display &d) {
         XrActionStateBoolean primary{XR_TYPE_ACTION_STATE_BOOLEAN};get.action=primary_;
         if(XR_SUCCEEDED(GetActionStateBoolean_(session_,&get,&primary))&&primary.isActive)
             d.controllers[i].primary=primary.currentState!=0;
+        XrActionStateBoolean click{XR_TYPE_ACTION_STATE_BOOLEAN};get.action=stick_click_;
+        if(XR_SUCCEEDED(GetActionStateBoolean_(session_,&get,&click))&&click.isActive)
+            d.controllers[i].stick_click=click.currentState!=0; // raw; the runtime resolves U1-U4
         XrActionStateBoolean secondary{XR_TYPE_ACTION_STATE_BOOLEAN};get.action=secondary_;
         if(XR_SUCCEEDED(GetActionStateBoolean_(session_,&get,&secondary))&&secondary.isActive){
             d.calibration.active[i]|=ACVR_CALIB_SECONDARY_ACTIVE;

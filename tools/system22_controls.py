@@ -12,7 +12,7 @@ from control_sets import ROOT,Resolver,confined_path,integer,load,merge,require,
 
 ROUTE='namco22-vr'
 ROLES={'left','right','saved-primary','saved-off'}
-CONTROLS={'trigger','grip','primary','secondary','thumbstick','thumbstick_click','menu','menu_chord'}
+CONTROLS={'trigger','grip','primary','secondary','thumbstick','thumbstick_click'} # menu buttons are off limits (contract v1 section 0)
 NATIVE={'native-host':{'cover_mode','weapon_hand','gun_angle','gun_angle_reset','view_distance'},
         'native-cabinet':{'pedal_backward','trigger_left','trigger_right','motion_stop','trackball_x','trackball_y'}}
 
@@ -21,11 +21,9 @@ def physical_hand(role,primary):
     return primary if role=='saved-primary' else ('left' if primary=='right' else 'right') if role=='saved-off' else role
 
 def touch_path(hand,control):
-    require(control!='menu_chord','Menu chord is a host-defined chord with no OpenXR path')
     token={'trigger':'trigger/value','grip':'squeeze/value','primary':('a' if hand=='right' else 'x')+'/click',
            'secondary':('b' if hand=='right' else 'y')+'/click','thumbstick':'thumbstick',
-           'thumbstick_click':'thumbstick/click','menu':'menu/click','pointer':'aim/pose'}[control]
-    require(control!='menu' or hand=='left','Pinned host has only left menu')
+           'thumbstick_click':'thumbstick/click','pointer':'aim/pose'}[control]
     return '/user/hand/'+hand+'/input/'+token
 
 def binding_label(hand,control,component=''):
@@ -39,7 +37,7 @@ def validate(data,assignment,vocab,nodes=None):
     require(data.get('route')==ROUTE,'Wrong System22 route')
     kind=assignment['control_type'];require(kind in ('gun','wheel','handlebars','trackball'),'Unknown cabinet control type')
     require(bool(assignment.get('gun_model'))==(kind=='gun'),'Gun model cannot be assigned to nongun controls')
-    seen={}
+    seen={};seen_paused={};pending_paused=[]
     for eid,e in rows_by_id(data.get('element',[]),'System22 element').items():
         require(all(text(e.get(k)) for k in ('label','part','source_action')) and isinstance(e.get('node'),str),eid+': incomplete part/action/source')
         require(e.get('slot')==0 and type(e.get('slot')) is int and e.get('player')==0 and type(e.get('player')) is int,eid+': one native cabinet/player only')
@@ -49,14 +47,23 @@ def validate(data,assignment,vocab,nodes=None):
         component=b.get('component','');require(component in ('','x','y') and (not component or b['control']=='thumbstick'),eid+': invalid axis component')
         require(e.get('binding_evidence') in ('source','question') and e.get('when') in ('playing','focused','paused'),eid+': missing evidence/context')
         key=(b['hand'],b['control'],component)
-        require(key not in seen,eid+': controller collision with '+seen.get(key,''));seen[key]=eid
+        # Paused-only option rows may reuse a gameplay button; they never reuse the pause button itself.
+        group=seen_paused if e['when']=='paused' else seen
+        require(key not in group,eid+': controller collision with '+group.get(key,''));group[key]=eid
+        if e['when']=='paused':pending_paused.append((eid,key))
         if e['node']:
             require(kind=='gun',eid+': nongun element cannot have a gun node')
             if nodes is not None:require(e['node'] in nodes,eid+': missing authored node '+e['node'])
         require(e.get('availability',{}).get('state')=='unavailable',eid+': source data cannot claim live availability')
+    for eid,key in pending_paused:require(seen.get(key)!='pause',eid+': paused option cannot reuse the pause button')
+    # Universal layer (contract v1 U1/U2): every game maps Start and Coin to the stick clicks, and nothing else may use them.
+    by_sem={e['input']['semantic']:e for e in data['element'] if e['input']['kind']=='button'}
+    for sem,hand in (('start','left'),('coin','right')):
+        b=by_sem.get(sem,{}).get('binding',{});require(b.get('control')=='thumbstick_click' and b.get('hand')==hand and b.get('mode')=='hold','Universal controls: '+sem+' must be the '+hand+' stick click')
+    require(sorted(e['id'] for e in data['element'] if e['binding']['control']=='thumbstick_click')==sorted(e['id'] for e in by_sem.values() if e['input']['semantic'] in ('start','coin')),'Stick clicks belong to the universal layer only')
     if kind=='gun':
         require(assignment['gun_model']=='arc-pistol-slide','TC route must retain the assigned existing gun')
-        require(not any(e['input']['semantic'] in ('reload','start') for e in data['element']),'Pinned TC1 has no separate Start/offscreen reload input')
+        require(not any(e['input']['semantic']=='reload' for e in data['element']),'Pinned TC1 has no separate offscreen reload input')
         require({e['binding']['hand'] for e in data['element'] if e['input']=={'kind':'gun','semantic':'trigger'}}=={'left','right'},'Both trigger handoff controls required')
         require({e['binding']['hand'] for e in data['element'] if e['input']['semantic']=='cover_pedal'}=={'left','right'},'Either grip cover controls required')
         require(data['policy']['two_guns']=='off' and data['policy']['native_players']==1,'Trigger handoff must not create P2')

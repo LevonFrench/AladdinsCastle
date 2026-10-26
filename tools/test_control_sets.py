@@ -161,6 +161,14 @@ class ControlSetTests(unittest.TestCase):
             user_override=[{'extension':{'two':2}},{'extension':{'one':'!delete'}}])
         self.assertEqual(row['data']['extension'],{'two':2})
         self.assertEqual(row['layers'][-2:],['pack 1','user override'])
+    def test_menu_buttons_are_not_bindable(self):
+        # Contract v1 section 0: the left Menu and right system buttons are off limits everywhere.
+        import control_sets
+        self.assertFalse({'menu','menu_chord'} & control_sets.CONTROLS)
+        data,model = self.generic()
+        data['element'][0]['binding']['control'] = 'menu_chord'
+        with self.assertRaises(ValueError):
+            validate_set(data,self.resolver.vocab,model)
 
 
 if __name__ == '__main__':
