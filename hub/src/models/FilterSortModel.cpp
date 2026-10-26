@@ -23,12 +23,22 @@ FilterSortModel::FilterSortModel(QObject *parent) : QSortFilterProxyModel(parent
     connect(this, &QAbstractItemModel::rowsRemoved, this, &FilterSortModel::visibleCountChanged);
 }
 void FilterSortModel::buildSortKeys(QAbstractItemModel *model){
-    m_sortKeys.clear();if(const auto *source=qobject_cast<GameListModel *>(model))for(const auto &game:source->records())m_sortKeys<<SortKeys{folded(game.roles.value("title").toString()),folded(game.roles.value("manufacturerLabel").toString()),folded(game.id)};
+    m_sortKeys.clear();forgetSearch();if(const auto *source=qobject_cast<GameListModel *>(model))for(const auto &game:source->records())m_sortKeys<<SortKeys{folded(game.roles.value("title").toString()),folded(game.roles.value("manufacturerLabel").toString()),folded(game.id)};
+}
+void FilterSortModel::forgetSearch() { m_rowSearch.clear(); }
+void FilterSortModel::forgetRanks() {
+    for (auto &s : m_rowSearch)
+        s.rank = -2;
 }
 void FilterSortModel::setSourceModel(QAbstractItemModel *model) {
     buildSortKeys(model);
     m_choicesCache.clear();
     QSortFilterProxyModel::setSourceModel(model);
+    // Search words are prepared per game on first use; any change of rows starts them again.
+    connect(model, &QAbstractItemModel::modelAboutToBeReset, this, [this] { forgetSearch(); });
+    connect(model, &QAbstractItemModel::layoutAboutToBeChanged, this, [this] { forgetSearch(); });
+    connect(model, &QAbstractItemModel::rowsAboutToBeInserted, this, [this] { forgetSearch(); });
+    connect(model, &QAbstractItemModel::rowsAboutToBeRemoved, this, [this] { forgetSearch(); });
     connect(model, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex &,const QModelIndex &,const QList<int> &roles){
         m_choicesCache.clear();const auto *source=qobject_cast<GameListModel *>(sourceModel());
         if(source&&(roles.isEmpty()||roles.contains(source->roleForName("title"))||roles.contains(source->roleForName("manufacturerLabel"))||roles.contains(source->roleForName("gameId")))){buildSortKeys(sourceModel());invalidate();sort(0);}
@@ -41,7 +51,12 @@ void FilterSortModel::setQuery(const QString &query) {
         return;
     m_query = query;
     m_choicesCache.clear();
-    invalidateFilter();
+    forgetRanks();
+    // In A to Z order the ranks change with the words, so rows that stay visible are sorted again too.
+    if (m_sort == "title")
+        invalidate();
+    else
+        invalidateFilter();
     emit queryChanged();
     emit visibleCountChanged();
 }
@@ -144,6 +159,7 @@ void FilterSortModel::clearFacets() {
     m_facets.clear();
     m_query.clear();
     m_choicesCache.clear();
+    forgetRanks();
     invalidateFilter();
     emit facetsChanged();
     emit queryChanged();
@@ -283,12 +299,32 @@ bool FilterSortModel::acceptsRow(int row, const QVariantMap &facets) const {
             isHidden = false;
     if (isHidden)
         return false;
+    return queryClass(row, r) >= 0;
+}
+FilterSortModel::RowSearch &FilterSortModel::rowSearch(int row, const QVariantMap &r) const {
+    if (m_rowSearch.size() <= row)
+        m_rowSearch.resize(row + 1);
+    auto &s = m_rowSearch[row];
+    if (!s.ready) {
+        s.names = match::searchKeys(QStringList{r.value("title").toString()} + r.value("altTitles").toStringList());
+        s.series = match::searchKeys({r.value("series").toString()});
+        s.ready = true;
+    }
+    return s;
+}
+int FilterSortModel::queryClass(int row, const QVariantMap &r) const {
+    const auto search = r.value("searchIndex").toMap();
+    const auto tokens = folded(m_query).split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    const auto best = r.value("vrBest").toString();
+    QStringList ordinary, missed;
     for (auto token : tokens) {
         if (token.startsWith('+') && token.size() > 1)
             continue;
         const bool exclude = token.startsWith('-') && token.size() > 1;
         if (exclude)
             token = token.mid(1);
+        const bool special =
+            QStringList{"gun", "racing", "true3d", "theatre", "planned", "new", "roomscale"}.contains(token);
         bool hit = false;
         if (QStringList{"gun", "racing"}.contains(token))
             hit = r.value("genreId").toString() == token;
@@ -307,10 +343,48 @@ bool FilterSortModel::acceptsRow(int row, const QVariantMap &facets) const {
                                     "hardware", "subgenre", "blurb", "badges"})
                 hit |= search.value(key).toString().contains(token);
         }
-        if (exclude ? hit : !hit)
-            return false;
+        if (exclude ? hit : !hit) {
+            if (exclude || special)
+                return -1;
+            missed << token; // maybe a slip ("mraio kart") or a closed-up space ("kart7")
+        }
+        if (!exclude && !special)
+            ordinary << token;
     }
-    return true;
+    if (ordinary.isEmpty())
+        return 2;
+    auto &keys = rowSearch(row, r);
+    if (!missed.isEmpty()) {
+        const auto typed = missed.join(' ');
+        return match::searchRank(keys.names, typed) != match::SearchRank::None ||
+                       match::searchRank(keys.series, typed) != match::SearchRank::None
+                   ? 3
+                   : -1;
+    }
+    switch (match::searchRank(keys.names, ordinary.join(' '))) {
+    case match::SearchRank::Exact:
+        return 0;
+    case match::SearchRank::Prefix:
+        return 1;
+    default:
+        return 2;
+    }
+}
+// Typed search lists what it was asked for first: a title that is the words, then titles that start
+// with them, then the rest, then the near misses. Only in the A to Z order; another order is kept.
+int FilterSortModel::relevance(int row) const {
+    const auto *source = qobject_cast<GameListModel *>(sourceModel());
+    if (!source || row < 0 || row >= source->records().size())
+        return 0;
+    // A game that shows although it does not match (one that failed to load) goes last.
+    const auto place = [](int rank) { return rank < 0 ? 4 : rank; };
+    if (m_rowSearch.size() > row && m_rowSearch[row].rank != -2)
+        return place(m_rowSearch[row].rank);
+    const auto rank = queryClass(row, source->records().at(row).roles);
+    if (m_rowSearch.size() <= row)
+        m_rowSearch.resize(row + 1);
+    m_rowSearch[row].rank = qint8(rank);
+    return place(rank);
 }
 bool FilterSortModel::lessThan(const QModelIndex &left, const QModelIndex &right) const {
     const auto *source = qobject_cast<GameListModel *>(sourceModel());
@@ -325,7 +399,7 @@ bool FilterSortModel::lessThan(const QModelIndex &left, const QModelIndex &right
         auto x = a.value(key).toLongLong(), y = b.value(key).toLongLong();
         return x < y ? -1 : x > y ? 1 : 0;
     };
-    int cmp = 0;
+    int cmp = m_sort == "title" && !m_query.isEmpty() ? relevance(left.row()) - relevance(right.row()) : 0;
     if (m_sort == "year")
         cmp = number("year");
     else if (m_sort == "manufacturer") {

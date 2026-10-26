@@ -24,6 +24,14 @@ jobs:
           python-version: '3.12'
       - run: python tools/validate_catalog.py
       - run: python tools/validate_catalog.py --test
+      - name: Emulator pin tool tests (local JSON fixture; no network, no downloads)
+        timeout-minutes: 2
+        run: python tools/pin_artifact.py --test
+      - name: Emulator manifest lint (https, allow-listed hosts, pins, sizes, licence notes, no game or BIOS content)
+        timeout-minutes: 2
+        run: |
+          python tools/validate_emulator_manifests.py --test
+          python tools/validate_emulator_manifests.py
       - name: Wii DSU packet, hand isolation and motion checks
         run: python -m unittest discover -s tools/wii-bridge -p "test_*.py" -v
       - name: Isolated Dolphin profile checks

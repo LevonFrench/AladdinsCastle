@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 #include "GameListModel.h"
+#include "core/match/TitleMatch.h"
 #include <QSortFilterProxyModel>
 namespace ac {
 class FilterSortModel : public QSortFilterProxyModel {
@@ -36,10 +37,19 @@ class FilterSortModel : public QSortFilterProxyModel {
 
   private:
     bool acceptsRow(int row, const QVariantMap &facets) const;
+    // How a game answers the search words: -1 not at all, 0 a title is what was typed, 1 a title
+    // starts with it, 2 every word is found as typed, 3 found only with a slip or a closed-up space.
+    int queryClass(int row, const QVariantMap &roles) const;
+    int relevance(int row) const;
+    struct RowSearch {bool ready=false;match::SearchKeys names,series;qint8 rank=-2;};
+    RowSearch &rowSearch(int row, const QVariantMap &roles) const;
+    void forgetSearch();
+    void forgetRanks();
     void buildSortKeys(QAbstractItemModel *model);
     struct SortKeys {QString title,manufacturer,id;};
     QVector<SortKeys> m_sortKeys;
     mutable QMap<QString, QVariantList> m_choicesCache;
+    mutable QVector<RowSearch> m_rowSearch;
     QString m_query, m_sort = "title";
     QVariantMap m_facets;
     bool m_scanComplete = false;

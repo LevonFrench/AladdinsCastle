@@ -53,6 +53,14 @@ A picture matches a game by:
 - the disc's own file or folder name;
 - the title, loosely, so `Time Crisis 3 (USA).png` fits Time Crisis 3.
 
+"Loosely" means the same title written another way: case, accents, punctuation, `&` or
+`and`, `The` or `, The`, a region or revision tag such as `(USA)` or `[!]`, and roman or
+arabic numerals (`Time Crisis II` is `Time Crisis 2`). It never means a different game: an
+extra or missing word or another number does not match, so `Ridge Racer` is not
+`Ridge Racer V` and `Star Fox` is not `Star Fox Adventures`. One shared matcher
+(`src/core/match/TitleMatch.cpp`) does this for artwork, library search and pinball table
+names. It compares titles only; a file name never says which disc a file is.
+
 What a picture is comes from its folders. `flyers`, `marquees`, `box` or `covers`,
 `titles` and `snaps` or `screenshots` say what they hold. `Named_Boxarts`,
 `Named_Titles` and `Named_Snaps` count too. A folder you chose called

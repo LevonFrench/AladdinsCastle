@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
+#include "core/library/Library.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
@@ -47,6 +48,7 @@ QByteArray ps2Header(const QByteArray &serial){
   b[d]=46;qToLittleEndian<quint32>(21,b.data()+d+2);qToLittleEndian<quint32>(64,b.data()+d+10);
   b[d+32]=12;b.replace(d+33,12,"SYSTEM.CNF;1");const auto cnf=QByteArray("BOOT2 = cdrom0:\\")+serial+";1\r\n";b.replace(21*2048,cnf.size(),cnf);return b;
 }
+QByteArray wiiHeader(const QByteArray &id){QByteArray h(0x400,'\0');h.replace(0,6,id);qToBigEndian<quint32>(0x5D1C9EA3,h.data()+0x18);return h;}
 QString hex(const QByteArray &data){return "0x"+QString::number(crc32(data),16).toUpper();}
 QVariantMap entry(const QVariantMap &result,const char *group,const QString &id){for(const auto &value:result.value(group).toList())if(value.toMap().value("id")==id)return value.toMap();return {};}
 // A stand-in emulator folder whose list names two files for one game and a parent for another.
@@ -558,6 +560,97 @@ private slots:
       QVERIFY2(reason.contains("no VR profile"),id);QVERIFY2(!reason.contains("not checked"),id);
     }
     QVERIFY(result["other"].toList().isEmpty());
+  }
+  // The report names the files in a system's folder that matched nothing, and the games found twice, from the library result.
+  void reportNamesUnrecognisedFilesAndDuplicates() {
+    QTemporaryDir t;const auto root=t.filePath("roms"),folder=root+"/wii",program=t.filePath("Dolphin.exe");
+    write(program,"synthetic");
+    write(folder+"/umbrella.iso",wiiHeader("RBUE08"));write(root+"/other/copy.iso",wiiHeader("RBUE08"));
+    write(folder+"/notes.iso",QByteArray(2048,'n'));
+    auto ps1=ps2Header("SLES_512.29");ps1.replace(21*2048,5,"BOOT ");write(folder+"/ps1 disc.iso",ps1);
+    write(root+"/model3/readme.zip",zip({{"x","y"}}));
+    std::atomic_bool cancel=false;
+    const auto library=ac::library::scan({root},{},cancel);
+    const QVariantMap settings{{"wiiGameFolder",folder},{"wiiExecutable",program}};
+    const auto report=ac::setup::scanSystem("wii",settings,{{"library",library}},{},cancel);
+    QVERIFY(report["unrecognisedChecked"].toBool());
+    QCOMPARE(report["unrecognisedMore"].toInt(),0);
+    const auto files=report["unrecognised"].toList();
+    QCOMPARE(files.size(),2); // The zip lies outside the folder, and an archive is not an unknown disc in a disc folder.
+    QCOMPARE(files[0].toMap()["name"].toString(),QString("notes.iso"));
+    QVERIFY(!files[0].toMap()["reason"].toString().isEmpty());
+    QCOMPARE(files[1].toMap()["name"].toString(),QString("ps1 disc.iso"));
+    QCOMPARE(files[1].toMap()["code"].toString(),QString("otherSystem")); // Another system's disc in this folder.
+    const auto twice=report["duplicates"].toList();
+    QCOMPARE(twice.size(),1);
+    QCOMPARE(twice[0].toMap()["game"].toString(),QString("umbrella"));
+    QCOMPARE(twice[0].toMap()["count"].toInt(),2);
+    QVERIFY(twice[0].toMap()["sameDisc"].toBool());
+    QVERIFY(!report["duplicateRule"].toString().isEmpty());
+    // A library that did not look through the folder says nothing about it, and says so.
+    QTemporaryDir other;write(other.filePath("x/a.iso"),wiiHeader("RBUE08"));
+    const auto elsewhere=ac::library::scan({other.path()},{},cancel);
+    const auto unchecked=ac::setup::scanSystem("wii",settings,{{"library",elsewhere}},{},cancel);
+    QVERIFY(!unchecked["unrecognisedChecked"].toBool());QVERIFY(unchecked["unrecognised"].toList().isEmpty());
+    // Without a library result the report is as it was.
+    const auto plain=ac::setup::scanSystem("wii",settings,{},{},cancel);
+    QVERIFY(!plain.contains("unrecognised"));QVERIFY(!plain.contains("duplicates"));
+    // An arcade folder lists unknown zips, not discs; the pinball folder lists neither.
+    const QVariantMap arcade{{"model3GameFolder",root+"/model3"}};
+    const auto model3=ac::setup::scanSystem("model3",arcade,{{"library",library}},{},cancel);
+    QCOMPARE(model3["unrecognised"].toList().size(),1);QCOMPARE(model3["unrecognised"].toList()[0].toMap()["code"].toString(),QString("unknownArchive"));
+    const QVariantMap tables{{"tables",QVariantList{}}};
+    QVERIFY(!ac::setup::scanSystem("pinball",{{"pinballFolder",root+"/model3"}},{{"library",library},{"pinballScan",tables}},{},cancel).contains("unrecognised"));
+  }
+  // A wrong or empty folder is judged by what is inside a few of its files, never by what the folder or files are called.
+  void folderChecksAndSuggestionsReadTheFilesNotTheNames() {
+    QTemporaryDir t;const auto root=t.filePath("games");
+    write(root+"/stuff one/a.iso",ps2Header("SLUS_212.74"));write(root+"/stuff one/b.iso",ps2Header("SLUS_206.32"));write(root+"/stuff one/c.iso",ps2Header("SLES_512.29"));
+    write(root+"/stuff two/x.iso",wiiHeader("RBUE08"));write(root+"/stuff two/y.iso",wiiHeader("R3ME01"));
+    write(root+"/stuff two/PS2 Game (SLUS-21274).iso",wiiHeader("RBUP08")); // Named for PS2, holds a Wii disc.
+    write(root+"/ps2/z.iso",wiiHeader("SBDE08")); // A folder named for PS2 that holds a Wii disc.
+    QVERIFY(QDir().mkpath(root+"/chosen"));
+    std::atomic_bool cancel=false;
+    const auto ps2=ac::setup::suggestFolders("ps2",root+"/chosen",{root+"/chosen"},{},cancel);
+    QCOMPARE(ps2.size(),1); // Folders only some of whose files fit are left out when one fits well.
+    QCOMPARE(ps2[0].toMap()["folder"].toString(),root+"/stuff one");
+    QCOMPARE(ps2[0].toMap()["matched"].toInt(),3);QCOMPARE(ps2[0].toMap()["checked"].toInt(),3);
+    QCOMPARE(ps2[0].toMap()["detail"].toString(),QString("3 of the 3 files checked look like Sony PlayStation 2 games."));
+    for(const auto &value:ps2){const auto folder=value.toMap()["folder"].toString();QVERIFY2(folder!=root+"/ps2"&&folder!=root+"/stuff two"&&folder!=root+"/chosen",qPrintable(folder));}
+    const auto wii=ac::setup::suggestFolders("wii",root+"/chosen",{root+"/chosen"},{},cancel);
+    QCOMPARE(wii.size(),2);
+    QCOMPARE(wii[0].toMap()["folder"].toString(),root+"/stuff two");QCOMPARE(wii[0].toMap()["matched"].toInt(),3);
+    QCOMPARE(wii[1].toMap()["folder"].toString(),root+"/ps2"); // The name says nothing; its file is a Wii disc.
+    // The library's own roots are looked through as well.
+    QTemporaryDir distant;write(distant.filePath("somewhere/deep/d.iso"),ps2Header("SLUS_212.74"));
+    const auto viaLibrary=ac::setup::suggestFolders("ps2",QString(),{},{distant.path()},cancel);
+    QCOMPARE(viaLibrary.size(),1);QCOMPARE(viaLibrary[0].toMap()["folder"].toString(),distant.path()+"/somewhere/deep"); // The most specific folder holding them.
+    // A system of unreadable kinds, an unknown system, nothing to find, and a cancelled search give nothing.
+    QVERIFY(ac::setup::suggestFolders("system22",QString(),{},{root},cancel).isEmpty());
+    QVERIFY(ac::setup::suggestFolders("not-a-system",QString(),{},{root},cancel).isEmpty());
+    QVERIFY(ac::setup::suggestFolders("dreamcast",root+"/chosen",{root+"/chosen"},{},cancel).isEmpty());
+    std::atomic_bool stopped=true;
+    QVERIFY(ac::setup::suggestFolders("ps2",root+"/chosen",{root+"/chosen"},{},stopped).isEmpty());
+    // The check of one folder says how many of its files are the system's.
+    const auto right=ac::setup::folderCheck("ps2",root+"/stuff one",cancel);
+    QCOMPARE(right["matched"].toInt(),3);QCOMPARE(right["files"].toInt(),3);
+    const auto wrong=ac::setup::folderCheck("ps2",root+"/stuff two",cancel);
+    QCOMPARE(wrong["checked"].toInt(),3);QCOMPARE(wrong["matched"].toInt(),0);
+    QCOMPARE(wrong["detail"].toString(),QString("None of the 3 files checked look like Sony PlayStation 2 games."));
+    const auto empty=ac::setup::folderCheck("ps2",root+"/chosen",cancel);
+    QCOMPARE(empty["files"].toInt(),0);QVERIFY(empty["detail"].toString().startsWith("No files"));
+    QCOMPARE(ac::setup::folderCheck("ps2",root+"/gone",cancel)["files"].toInt(),0);
+  }
+  // Pinball tables, cartridges and arcade sets are checked by their bytes or set name as well.
+  void folderChecksCoverTablesCartridgesAndArcadeSets() {
+    QTemporaryDir t;const auto root=t.filePath("x");
+    write(root+"/tables/one.vpx",QByteArray::fromHex("d0cf11e0a1b11ae1")+QByteArray(64,'\0'));write(root+"/tables/two.vpx","not a table");
+    write(root+"/carts/a.z64",QByteArray::fromHex("80371240")+QByteArray(64,'\0'));write(root+"/carts/b.z64",QByteArray(64,'\0'));
+    write(root+"/model3/scud.zip",zip({{"epr-19731.13","a"}}));write(root+"/model3/pacman.zip",zip({{"pacman.6e","c"}}));
+    std::atomic_bool cancel=false;
+    const auto tables=ac::setup::folderCheck("pinball",root+"/tables",cancel);QCOMPARE(tables["matched"].toInt(),1);QCOMPARE(tables["checked"].toInt(),2);
+    const auto carts=ac::setup::folderCheck("n64",root+"/carts",cancel);QCOMPARE(carts["matched"].toInt(),1);QCOMPARE(carts["checked"].toInt(),2);
+    const auto arcade=ac::setup::folderCheck("model3",root+"/model3",cancel);QCOMPARE(arcade["matched"].toInt(),1);QCOMPARE(arcade["checked"].toInt(),2); // Only the set the Hub plays.
   }
 };
 QTEST_APPLESS_MAIN(SetupTest)

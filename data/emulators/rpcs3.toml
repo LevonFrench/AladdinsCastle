@@ -13,10 +13,12 @@ unverified_platforms = []
 do = "github-release"
 repo = "RPCS3/rpcs3-binaries-win"
 tag = "build-304d544bc1b3af4f15400a47b34132ff49b1bc69"
-asset = "rpcs3-v*_win64_msvc.7z"
+asset = "rpcs3-v0.0.43-20250-304d544b_win64_msvc.7z"
 checksum_asset = "rpcs3-v0.0.43-20250-304d544b_win64_msvc.7z.sha256"
 version = "v0.0.43-20250-304d544b"
 archive = "7z"
+sha256 = "27bee955e3bb385cb18ce634dabe5c0cf1bb48eb25f7edd72a65aaac5a7e8d1b"
+bytes = 38906247
 note = "Latest build tag, published 2026-10-08 (verified). Tags are build hashes, so pin the tag and check the .sha256 asset. The Linux build is not on GitHub: no Linux install block is offered."
 
 [portable]

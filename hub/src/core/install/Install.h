@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
+#include "ErrorText.h"
 #include "core/catalog/GameRecord.h"
 #include <QFutureWatcher>
 #include <QObject>
@@ -29,6 +30,8 @@ struct Result {
   int exitCode = 1;
   QString state, code, message;
   Json manifest = Json::object();
+  // What happened and what to do, in plain words, for a failed run; empty when there is no error code.
+  QString plain() const { return code.isEmpty() ? QString() : plainErrorText(code); }
 };
 using EventSink = std::function<void(const QVariantMap &)>;
 using FaultHook = std::function<void(const QString &)>;
@@ -56,6 +59,11 @@ public:
   // Purge only UUID quarantine runs proven terminal by strict local journals.
   // Interrupted, orphan, corrupt and unsafe folders are deliberately retained.
   QStringList sweepFinishedMediaRemovals(const QString &root) const;
+  // Remove update generations older than the one kept for rollback (the live folder and one
+  // `.previous-<run>` stay). An install or update does this itself once it commits; this is for a
+  // later sweep. Returns the removed folders. Does nothing while a run is interrupted, when no kept
+  // generation is recorded, or for a folder another process holds.
+  QStringList pruneGenerations(const Request &request) const;
   Json uninstallPreview(const Request &request) const;
   RuntimeState runtimeState(const Request &request) const;
   static Request emulatorRequest(const QString &root, const Json &manifest,

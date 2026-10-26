@@ -4,14 +4,29 @@ $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'Run this regression with Windows PowerShell 5.1.' }
 if (Test-Path -LiteralPath $FixtureRoot) { throw 'Use a new fixture folder.' }
 $source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
-$probe = Join-Path $source '.local/wii/ps51-probe.exe'
+$probe = Join-Path $FixtureRoot 'inert-deploy.exe'
 New-Item -ItemType Directory -Path $FixtureRoot | Out-Null
-if ($FreshDeployProbe -or -not (Test-Path -LiteralPath $probe)) {
-    # CI has no private local artifacts. Its built-in compiler makes only this
-    # inert console fixture, never a product, SDK or third-party dependency.
-    $probe = Join-Path $FixtureRoot 'inert-deploy.exe'
-    Add-Type -TypeDefinition 'public class PortableDeployFixture { public static int Main(string[] args) { return 0; } }' -Language CSharp -OutputAssembly $probe -OutputType ConsoleApplication
+# CI has no private local artifacts. Its built-in compiler makes only this inert console fixture, never a
+# product, SDK or third-party dependency. Like windeployqt it writes the files named in deploy-files.txt
+# (beside it) into the --dir folder, as empty-looking stand-ins that are never loaded.
+Add-Type -TypeDefinition @'
+public class PortableDeployFixture {
+    public static int Main(string[] args) {
+        string dir = null;
+        for (int i = 0; i < args.Length - 1; i++) { if (args[i] == "--dir") { dir = args[i + 1]; } }
+        string list = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "deploy-files.txt");
+        if (dir == null || !System.IO.File.Exists(list)) { return 0; }
+        foreach (string line in System.IO.File.ReadAllLines(list)) {
+            if (line.Length == 0) { continue; }
+            string target = System.IO.Path.Combine(dir, line.Replace('/', '\\'));
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target));
+            System.IO.File.WriteAllText(target, "synthetic deployed runtime; never loaded");
+        }
+        return 0;
+    }
 }
+'@ -Language CSharp -OutputAssembly $probe -OutputType ConsoleApplication
+. (Join-Path $source 'hub/packaging/PortablePolicy.ps1')
 $oldCiRevision = $env:GITHUB_SHA
 $failures = 0
 function Write-FixtureFile([string]$Path,[string]$Text) {
@@ -35,6 +50,8 @@ function New-Fixture([string]$Name) {
         Copy-Item -LiteralPath (Join-Path $source "hub/cmake/$module") -Destination (Join-Path $repo 'hub/cmake')
     }
     Copy-Item -LiteralPath $probe -Destination (Join-Path $root 'qt/bin/windeployqt.exe')
+    $deployList = Join-Path $root 'qt/bin/deploy-files.txt'
+    [IO.File]::WriteAllLines($deployList,[string[]]@(Get-PortableQtRuntimeFiles),[Text.UTF8Encoding]::new($false))
     $product = Get-Content -LiteralPath (Join-Path $source 'data/product.json') -Raw
     Write-FixtureFile (Join-Path $repo 'data/product.json') $product
     Write-FixtureFile (Join-Path $build 'generated/product.json') $product
@@ -46,6 +63,10 @@ function New-Fixture([string]$Name) {
         Write-FixtureFile (Join-Path $repo $file) 'synthetic public metadata/notice'
     }
     Write-FixtureFile (Join-Path $build 'bin/resources/sample.txt') 'synthetic resource'
+    $shortId = (ConvertFrom-Json $product).short_id
+    foreach ($resource in @("$shortId.vrmanifest",'overlay-thumbnail.png','hub-actions.json','hub-bindings-oculus_touch.json','hub-bindings-knuckles.json')) {
+        Write-FixtureFile (Join-Path $build "bin/resources/$resource") 'synthetic runtime resource'
+    }
     Write-FixtureFile (Join-Path $build 'licenses/sample.txt') 'synthetic dependency notice'
     Write-FixtureFile (Join-Path $root 'qt/sbom/sample.spdx.json') '{"synthetic":true}'
     foreach ($dll in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll')) {
@@ -65,7 +86,7 @@ function New-Fixture([string]$Name) {
     }
     $receipt = [ordered]@{schema='hub-portable-build/1';source_commit=$revision;product_sha256=(Get-FileHash (Join-Path $repo 'data/product.json')).Hash.ToLowerInvariant();build_succeeded=$true;targets=@('aladdinscastle-hub','hubtool','arttool','steamtool');binaries=$binaries}
     $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $build 'generated/portable-build.json') -Encoding utf8
-    return @{Root=$root;Repo=$repo;Build=$build;Revision=$revision;Receipt=$receipt;Program=$program;Output=(Join-Path $root 'package')}
+    return @{Root=$root;Repo=$repo;Build=$build;Revision=$revision;Receipt=$receipt;Program=$program;ShortId=$shortId;DeployList=$deployList;Output=(Join-Path $root 'package')}
 }
 function Invoke-Package($Fixture,[hashtable]$Extra=@{}) {
     $env:GITHUB_SHA = $Fixture.Revision
@@ -119,6 +140,33 @@ function Assert-RefusedBeforeOutput($Fixture) {
     Assert-Test $refused 'Unsafe package inputs were accepted.'
     Assert-Test (-not (Test-Path -LiteralPath $Fixture.Output)) 'Refusal created an output folder.'
 }
+function Assert-PreflightRefuses($Fixture,[string]$Expected) {
+    $reason = ''
+    try { Invoke-Package $Fixture } catch { $reason = $_.Exception.Message }
+    Assert-Test ($reason -like '*preflight failed*') "Package was not refused by the preflight: $reason"
+    Assert-Test ($reason -like "*$Expected*") "Preflight did not name '$Expected': $reason"
+    Assert-Test (-not (Test-Path -LiteralPath ($Fixture.Output+'.zip'))) 'A refused package still produced a ZIP.'
+}
+function New-PayloadFolder([string]$Name) {
+    # A hand-made payload for calling the preflight on its own: every required file, nothing else.
+    $root = Join-Path $FixtureRoot "payload-$Name"
+    $product = Get-Content -LiteralPath (Join-Path $source 'data/product.json') -Raw | ConvertFrom-Json
+    foreach ($relative in Get-PortableRequiredFiles -HubProgram ($product.program_name+'.exe') -ShortId $product.short_id) {
+        Write-FixtureFile (Join-Path $root $relative) 'synthetic payload file'
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $root 'user') | Out-Null
+    return @{Root=$root;Program=($product.program_name+'.exe');ShortId=$product.short_id}
+}
+function Invoke-Preflight($Payload,[string[]]$Markers=@()) {
+    Assert-PortablePayload -Root $Payload.Root -HubProgram $Payload.Program -ShortId $Payload.ShortId -PrivateMarkers $Markers
+}
+function Assert-Preflight($Payload,[string]$Expected,[string[]]$Markers=@()) {
+    $reason = ''
+    try { Invoke-Preflight $Payload $Markers } catch { $reason = $_.Exception.Message }
+    Assert-Test ($reason -like '*preflight failed*') "Preflight accepted the payload (wanted '$Expected')."
+    Assert-Test ($reason -like "*$Expected*") "Preflight did not name '$Expected': $reason"
+    Assert-Test ($reason -notlike "*$($Payload.Root)*") 'Preflight leaked an absolute path.'
+}
 function Test-Case([string]$Name,[scriptblock]$Body) {
     try { & $Body; Write-Output "PASS $Name" } catch { ++$script:failures; Write-Output "FAIL $Name : $($_.Exception.Message)" }
 }
@@ -142,6 +190,73 @@ try {
         $extra=New-Fixture 'untracked-emulator-catalog'
         Write-FixtureFile (Join-Path $extra.Repo 'data/emulators/untracked.toml') 'id="untracked"'
         Assert-RefusedBeforeOutput $extra
+    }
+    Test-Case 'preflight accepts a complete payload and names a missing runtime file' {
+        $p = New-PayloadFolder 'complete'
+        Invoke-Preflight $p
+        foreach ($missing in @('Qt6Quick.dll','platforms/qwindows.dll','vcruntime140_1.dll','openvr_api.dll',"resources/$($p.ShortId).vrmanifest",'resources/hub-actions.json','data/product.json','BUILD-INFO.txt')) {
+            $q = New-PayloadFolder ('missing-'+($missing -replace '[^A-Za-z0-9]','-'))
+            Remove-Item -LiteralPath (Join-Path $q.Root $missing.Replace('/','\'))
+            Assert-Preflight $q "missing runtime file: $missing"
+        }
+        $empty = New-PayloadFolder 'empty'
+        [IO.File]::WriteAllText((Join-Path $empty.Root 'Qt6Core.dll'),'')
+        Assert-Preflight $empty 'empty runtime file: Qt6Core.dll'
+    }
+    Test-Case 'preflight refuses a private path and names the file and line, not the path' {
+        # Built from pieces so this test file holds no private-looking path itself.
+        $drive = 'C' + ':' + [char]92 + 'Synthetic' + [char]92 + 'work'
+        $userFolder = '/' + 'Users' + '/synthetic/work'
+        foreach ($text in @(("line one`nroot = "+$drive),("x`ny`nplace: file:///C"+':/synthetic/x'),("path "+$userFolder+"/file"),("a = D"+':'+[char]92+'x'))) {
+            $p = New-PayloadFolder 'private-path'
+            Write-FixtureFile (Join-Path $p.Root 'data/note.toml') $text
+            Assert-Preflight $p 'private path (a drive or user folder) in data/note.toml, line'
+            $reason = ''; try { Invoke-Preflight $p } catch { $reason = $_.Exception.Message }
+            Assert-Test ($reason -notlike '*Synthetic*' -and $reason -notlike '*synthetic/work*') 'Preflight repeated the private text.'
+            Remove-Item -LiteralPath $p.Root -Recurse -Force
+        }
+        $p = New-PayloadFolder 'private-line'
+        Write-FixtureFile (Join-Path $p.Root 'BUILD-INFO.txt') ("ok`nfine`nbuilt in "+$drive)
+        Assert-Preflight $p 'in BUILD-INFO.txt, line 3'
+        $m = New-PayloadFolder 'marker'
+        Write-FixtureFile (Join-Path $m.Root 'BUILD-INFO.txt') 'built in /workspace/synthetic-builder/repo'
+        Assert-Preflight $m "this PC's build path in BUILD-INFO.txt, line 1" @('/workspace/synthetic-builder','')
+        # URLs, JSON-escaped URLs and third-party notices are not private paths.
+        $ok = New-PayloadFolder 'public-text'
+        Write-FixtureFile (Join-Path $ok.Root 'data/links.json') '{"a":"https://example.org/x","b":"http:\/\/example.org\/y","c":"7-Zip C SDK"}'
+        Write-FixtureFile (Join-Path $ok.Root 'licenses/Qt-sbom/sample.spdx.json') ('{"path":"'+$drive.Replace('\','/')+'"}')
+        Invoke-Preflight $ok
+    }
+    Test-Case 'preflight refuses games, BIOS, keys, archives and personal data in the payload' {
+        foreach ($intruder in @('resources/synthetic game.iso','data/disc.chd','data/Track 01.bin','games/rom.z64','games/pack.zip','games/pack.7z','data/prod.keys','data/save.srm',
+                                'data/scph5501.rom','data/ps2-bios.dat','data/dc_boot.dat','user/settings.json','user/library/cache.json')) {
+            $p = New-PayloadFolder ('intruder-'+($intruder -replace '[^A-Za-z0-9]','-'))
+            Write-FixtureFile (Join-Path $p.Root $intruder) 'synthetic stand-in; no game content'
+            Assert-Preflight $p $intruder
+        }
+        # Several problems are all reported in one go.
+        $p = New-PayloadFolder 'several'
+        Remove-Item -LiteralPath (Join-Path $p.Root 'Qt6Gui.dll')
+        Write-FixtureFile (Join-Path $p.Root 'data/disc.iso') 'synthetic'
+        $reason = ''; try { Invoke-Preflight $p } catch { $reason = $_.Exception.Message }
+        Assert-Test ($reason -like '*Qt6Gui.dll*' -and $reason -like '*data/disc.iso*') "Not every problem was listed: $reason"
+    }
+    Test-Case 'packaging stops before the ZIP for a missing runtime file, a private path and a player file' {
+        $f = New-Fixture 'preflight-missing-qt'
+        [IO.File]::WriteAllLines($f.DeployList,[string[]]@(Get-PortableQtRuntimeFiles | Where-Object { $_ -ne 'Qt6Quick.dll' }),[Text.UTF8Encoding]::new($false))
+        Assert-PreflightRefuses $f 'missing runtime file: Qt6Quick.dll'
+        $f = New-Fixture 'preflight-missing-resource'
+        Remove-Item -LiteralPath (Join-Path $f.Build 'bin/resources/hub-actions.json')
+        Assert-PreflightRefuses $f 'missing runtime file: resources/hub-actions.json'
+        $f = New-Fixture 'preflight-private-path'
+        Write-FixtureFile (Join-Path $f.Build 'bin/resources/sample.txt') ('built in C'+':'+[char]92+'synthetic'+[char]92+'checkout')
+        Assert-PreflightRefuses $f 'private path (a drive or user folder) in resources/sample.txt, line 1'
+        $f = New-Fixture 'preflight-build-path'
+        Write-FixtureFile (Join-Path $f.Build 'bin/resources/sample.txt') ("copied from "+$f.Repo)
+        Assert-PreflightRefuses $f 'in resources/sample.txt, line 1'
+        $f = New-Fixture 'preflight-game-file'
+        Write-FixtureFile (Join-Path $f.Build 'bin/resources/synthetic.iso') 'synthetic stand-in; no game content'
+        Assert-PreflightRefuses $f 'game, firmware, key or archive file in the package: resources/synthetic.iso'
     }
     Test-Case 'missing four-EXE provenance' {
         $f=New-Fixture 'missing-provenance'

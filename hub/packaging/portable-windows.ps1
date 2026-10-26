@@ -140,5 +140,7 @@ foreach ($binary in @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe')) 
     if ((Get-FileHash (Join-Path $OutputDir $binary)).Hash -ne (Get-FileHash (Join-Path $BuildDir "bin/$binary")).Hash) { throw 'Staged shipping binary differs from its input.' }
 }
 Assert-PortableBuildReceipt -BuildDir $BuildDir -Revision $buildRevision -ProductFile (Join-Path $RepoRoot 'data/product.json') -Binaries @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe')
+# Last gate: every runtime file is there, and no private path or player file is in the payload.
+Assert-PortablePayload -Root $OutputDir -HubProgram $hubProgram -ShortId $product.short_id -PrivateMarkers @($RepoRoot,$BuildDir,$QtDir,$env:USERPROFILE)
 Compress-Archive -LiteralPath $OutputDir -DestinationPath $zip
 Write-Output $zip

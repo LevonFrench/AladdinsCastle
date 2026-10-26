@@ -190,6 +190,8 @@ private:
     QStringList localArtFolders_;bool localArtScanned_=false;std::shared_ptr<std::atomic_bool> localArtCancel_;
     // The running Game library search's stop flag (Stop on its card).
     std::shared_ptr<std::atomic_bool> libraryCancel_;
+    // The running Set-up folder check or suggestion (a newer one ends it).
+    std::shared_ptr<std::atomic_bool> folderCancel_;
     QString model2StopFile_;quint64 model2Session_=0;
     QString ps1StopFile_;
 };

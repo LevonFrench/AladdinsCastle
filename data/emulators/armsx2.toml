@@ -16,6 +16,8 @@ tag = "linuxv0.0.1"
 asset = "ARMSX2-linux-Qt-arm64-appimage-sha.47229e4ff3.zip"
 version = "linuxv0.0.1"
 archive = "zip"
+sha256 = "021fb260307c1c5fab4841ca106115b5957f03a6beb65a4bb8de5e19718db7b8"
+bytes = 59190409
 note = "Published 2026-07-06 (verified asset name). The zip holds an ARM64 AppImage; its inner file name is not verified. The sha in the asset name is the build commit. The repo was pushed 2026-10-08, so re-check the tag before each update."
 
 [portable]

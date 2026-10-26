@@ -13,6 +13,7 @@
 #include <QFileInfo>
 #include <QSet>
 #include <algorithm>
+#include <iterator>
 namespace ac::library {
 namespace {
 int regionRank(const QString &region) {
@@ -46,11 +47,133 @@ auto rank(const QString &system, const QVariantMap &copy) {
                          hinted(system, file) ? 0 : 1, regionRank(copy.value("region").toString()), formatRank(system, file),
                          file.size(), file);
 }
+// Why a copy was not the one kept, in the order the rule looks: the first thing in which it falls behind.
+QString whyNot(const QString &system, const QVariantMap &kept, const QVariantMap &other) {
+  const auto keptFile = kept.value("file").toString(), otherFile = other.value("file").toString();
+  if (kept.value("verified").toBool() && !other.value("verified").toBool())
+    return "It is known only by its set name; the kept copy was read from the disc itself.";
+  if (kept.value("profile").toBool() && !other.value("profile").toBool())
+    return "It has no VR profile; the kept copy has one.";
+  if (hinted(system, keptFile) && !hinted(system, otherFile))
+    return "Its folder does not name the system; the kept copy's does.";
+  const auto keptRegion = kept.value("region").toString(), otherRegion = other.value("region").toString();
+  if (regionRank(keptRegion) != regionRank(otherRegion))
+    return QString("It is the %1 release; the kept copy is the %2 one.").arg(otherRegion.isEmpty() ? QString("unknown-region") : otherRegion,
+                                                                              keptRegion.isEmpty() ? QString("unknown-region") : keptRegion);
+  if (formatRank(system, keptFile) != formatRank(system, otherFile))
+    return QString("It is a .%1 file; the kept copy is the plainer .%2.").arg(QFileInfo(otherFile).suffix().toLower(), QFileInfo(keptFile).suffix().toLower());
+  if (otherFile.size() != keptFile.size())
+    return "The same copy in a longer path.";
+  return "It is the same in every way; the first by path was kept.";
+}
+// A playlist that sits beside another copy of the same game only points at it, so it is not a second copy.
+bool playlistOfAnother(const QVariantMap &copy, const QVariantList &group) {
+  const auto file = copy.value("file").toString();
+  if (QFileInfo(file).suffix().compare("m3u", Qt::CaseInsensitive) != 0)
+    return false;
+  const auto folder = QFileInfo(file).absolutePath();
+  for (const auto &value : group) {
+    const auto other = value.toMap().value("file").toString();
+    if (other != file && QFileInfo(other).absolutePath() == folder && QFileInfo(other).suffix().compare("m3u", Qt::CaseInsensitive) != 0)
+      return true;
+  }
+  return false;
+}
+// The games found more than once: same game and disc number, found in more than one file (the files ranked by the rule,
+// the first kept). Known by the disc's own identity, never the name; different releases of a game count as copies of it.
+QVariantList duplicatesOf(const QHash<QString, QHash<QString, QVariantList>> &found, const QHash<QString, qint64> &sizes,
+                          const QHash<QString, QString> &titles) {
+  QVariantList groups;
+  for (auto system = found.cbegin(); system != found.cend(); ++system)
+    for (auto game = system.value().cbegin(); game != system.value().cend(); ++game) {
+      QMap<int, QVariantList> discs;
+      for (const auto &value : game.value())
+        discs[value.toMap().value("disc", 1).toInt()] << value;
+      for (auto disc = discs.cbegin(); disc != discs.cend(); ++disc) {
+        auto list = disc.value();
+        const auto key = system.key();
+        std::sort(list.begin(), list.end(), [&](const QVariant &a, const QVariant &b) { return rank(key, a.toMap()) < rank(key, b.toMap()); });
+        QVariantList real;
+        for (const auto &value : list)
+          if (!playlistOfAnother(value.toMap(), list))
+            real << value;
+        if (real.size() < 2)
+          continue;
+        const auto kept = real.first().toMap();
+        QVariantList rows;
+        bool same = true;
+        for (const auto &value : real) {
+          const auto copy = value.toMap();
+          const auto file = copy.value("file").toString();
+          const bool first = file == kept.value("file").toString();
+          same = same && copy.value("identity") == kept.value("identity");
+          rows << QVariantMap{{"file", file}, {"name", QFileInfo(file).fileName()}, {"folder", QFileInfo(file).absolutePath()}, {"size", sizes.value(file)},
+                              {"region", copy.value("region")}, {"identity", copy.value("identity")}, {"kept", first},
+                              {"why", first ? QString("The copy kept: %1").arg(rule()) : whyNot(key, kept, copy)}};
+        }
+        const auto title = kept.value("title").toString();
+        groups << QVariantMap{{"system", key}, {"game", game.key()}, {"title", !title.isEmpty() ? title : titles.value(key + "/" + game.key(), game.key())},
+                              {"disc", disc.key()}, {"count", int(rows.size())}, {"sameDisc", same}, {"kept", kept.value("file")}, {"copies", rows}};
+      }
+    }
+  std::sort(groups.begin(), groups.end(), [](const QVariant &a, const QVariant &b) {
+    const auto x = a.toMap(), y = b.toMap();
+    return std::make_tuple(x.value("system").toString(), x.value("game").toString(), x.value("disc").toInt()) <
+           std::make_tuple(y.value("system").toString(), y.value("game").toString(), y.value("disc").toInt());
+  });
+  return groups;
+}
+// A system as it is said in a reason.
+QString systemName(const QString &system) {
+  static const QHash<QString, QString> names{{"ps1", "PlayStation"}, {"ps2", "PlayStation 2"}, {"wii", "Wii"}, {"gamecube", "GameCube"}, {"dreamcast", "Dreamcast"}, {"saturn", "Saturn"}};
+  return names.value(system, system);
+}
+// One file the Hub looked at and matched to nothing, with why, from what the reader said (so nothing is read again).
+QVariantMap unrecognisedEntry(const QString &path, const QString &ext, qint64 size, const QVariantMap &outcome) {
+  QVariantMap entry{{"file", path}, {"name", QFileInfo(path).fileName()}, {"folder", QDir::fromNativeSeparators(QFileInfo(path).absolutePath())}, {"size", size}};
+  if (outcome.value("unknown") == "archive") {
+    entry.insert("kind", "archive");
+    entry.insert("code", "unknownArchive");
+    entry.insert("reason", "A zip that is not one of the arcade games the Hub plays. Arcade games are known by the name of their set.");
+    return entry;
+  }
+  if (outcome.value("unknown") == "disc") {
+    const auto why = scan::unreadReason(ext, outcome.value("error").toString());
+    entry.insert("kind", "disc");
+    entry.insert("code", why.code);
+    entry.insert("reason", why.reason);
+    if (!why.detail.isEmpty())
+      entry.insert("detail", why.detail);
+    return entry;
+  }
+  const auto system = outcome.value("other").toString();
+  entry.insert("kind", "other");
+  entry.insert("code", "otherSystem");
+  entry.insert("system", system);
+  entry.insert("reason", QString("A %1 disc, but not one of the games the Hub plays.").arg(systemName(system)));
+  return entry;
+}
+// The most files named in the list of those not recognised; the counts are always whole.
+constexpr int kMaxUnrecognisedListed = 500;
+// Whether a path is the folder or below it (the folder is clean, with forward slashes).
+bool within(const QString &path, const QString &folder) {
+#ifdef Q_OS_WIN
+  const auto sense = Qt::CaseInsensitive;
+#else
+  const auto sense = Qt::CaseSensitive;
+#endif
+  const auto clean = QDir::cleanPath(QDir::fromNativeSeparators(path));
+  return clean.compare(folder, sense) == 0 || clean.startsWith(folder.endsWith('/') ? folder : folder + "/", sense);
+}
 } // namespace
 
 QString rule() {
   return "Read from the disc itself first, then the release with a VR profile, then USA, World, Europe, "
          "Japan, then the plainest format, then the shortest path.";
+}
+QString duplicateRule() {
+  return "The same game found in more than one file is grouped by what is inside the files, never by their names, with a "
+         "set's later discs counted apart. One copy is kept: " + rule();
 }
 namespace {
 // Raised whenever what a disc reader makes of a file changes, so every saved reading is read again. It is the only
@@ -127,7 +250,10 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
   QHash<QString, QHash<QString, QVariantList>> copies; // system -> game -> copies
   QHash<QString, int> other;
   QHash<QString, int> tables;
-  int unknownDiscs = 0, unknownArchives = 0;
+  QHash<QString, qint64> sizes;
+  // The first files by path that matched nothing, kept to a fixed number however many there are.
+  QMap<QString, QVariantMap> unread;
+  int unreadTotal = 0, unknownDiscs = 0, unknownArchives = 0;
   // A .bin that is a track of a .cue or .gdi is read through that sheet, not on its own.
   QSet<QString> tracks;
   for (const auto &file : files) {
@@ -197,6 +323,15 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
       ++unknownDiscs;
     else if (outcome.value("unknown") == "archive")
       ++unknownArchives;
+    if (outcome.contains("unknown") || outcome.contains("other")) {
+      ++unreadTotal;
+      if (unread.size() < kMaxUnrecognisedListed || path < std::prev(unread.cend()).key()) {
+        unread.insert(path, unrecognisedEntry(path, ext, size, outcome));
+        if (unread.size() > kMaxUnrecognisedListed)
+          unread.erase(std::prev(unread.end()));
+      }
+    }
+    sizes.insert(path, size);
     // The index is handed over every ten seconds while new readings come in, so a crash or a shut-down part-way
     // keeps what was read.
     if (checkpoint && index && unsaved > 0 && sinceSave.elapsed() >= 10000) {
@@ -209,6 +344,18 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
     // Stopped part-way: the files not reached keep their last reading for next time.
     *index = cancel ? indexOf(after, before) : QVariantMap{{"stamp", stamp}, {"files", after}};
   }
+  QHash<QString, QString> titles;
+  for (const auto &game : model3::games())
+    titles.insert("model3/" + game.toMap().value("id").toString(), game.toMap().value("title").toString());
+  for (const auto &game : model2::games())
+    titles.insert("model2/" + game.toMap().value("id").toString(), game.toMap().value("title").toString());
+  const auto duplicates = duplicatesOf(copies, sizes, titles);
+  QHash<QString, int> duplicateGames;
+  for (const auto &group : duplicates)
+    ++duplicateGames[group.toMap().value("system").toString()];
+  QVariantList listed;
+  for (auto it = unread.cbegin(); it != unread.cend(); ++it)
+    listed << it.value();
   QVariantMap systems;
   for (auto it = copies.cbegin(); it != copies.cend(); ++it) {
     QVariantMap byGame;
@@ -217,7 +364,7 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
       std::sort(list.begin(), list.end(), [&](const QVariant &a, const QVariant &b) { return rank(it.key(), a.toMap()) < rank(it.key(), b.toMap()); });
       byGame.insert(game.key(), list);
     }
-    systems.insert(it.key(), QVariantMap{{"copies", byGame}, {"games", byGame.size()}, {"other", other.value(it.key())}});
+    systems.insert(it.key(), QVariantMap{{"copies", byGame}, {"games", byGame.size()}, {"other", other.value(it.key())}, {"duplicateGames", duplicateGames.value(it.key())}});
   }
   for (auto it = other.cbegin(); it != other.cend(); ++it)
     if (!systems.contains(it.key()))
@@ -228,7 +375,24 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
   std::sort(folders.begin(), folders.end(), [](const QVariant &a, const QVariant &b) { return a.toMap().value("tables").toInt() > b.toMap().value("tables").toInt(); });
   return {{"roots", cleanRoots}, {"scanned", QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")}, {"seconds", clock.elapsed() / 1000.0},
           {"files", files.size()}, {"reused", reused}, {"depth", depth}, {"cancelled", bool(cancel)}, {"systems", systems}, {"pinballFolders", folders},
-          {"unrecognised", QVariantMap{{"discs", unknownDiscs}, {"archives", unknownArchives}}}};
+          {"unrecognised", QVariantMap{{"discs", unknownDiscs}, {"archives", unknownArchives}, {"files", listed}, {"total", unreadTotal}, {"more", unreadTotal - int(listed.size())}}},
+          {"duplicates", duplicates}};
+}
+QVariantList unrecognisedIn(const QVariantMap &library, const QString &folder) {
+  QVariantList found;
+  const auto where = QDir::cleanPath(QDir::fromNativeSeparators(folder));
+  for (const auto &value : library.value("unrecognised").toMap().value("files").toList())
+    if (folder.isEmpty() || within(value.toMap().value("file").toString(), where))
+      found << value;
+  return found;
+}
+bool covers(const QVariantMap &library, const QString &folder) {
+  if (folder.isEmpty() || !library.contains("files"))
+    return false;
+  for (const auto &root : library.value("roots").toStringList())
+    if (within(folder, QDir::cleanPath(QDir::fromNativeSeparators(root))))
+      return true;
+  return false;
 }
 QVariantList copies(const QVariantMap &library, const QString &system, const QString &game) {
   return library.value("systems").toMap().value(system).toMap().value("copies").toMap().value(game).toList();

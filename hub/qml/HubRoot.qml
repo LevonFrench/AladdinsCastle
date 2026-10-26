@@ -85,14 +85,17 @@ FocusScope {
    // How the last game ended, until dismissed or the next one starts: closed, stopped, or why it crashed.
    Rectangle {id:ended;objectName:"lastSession";z:850;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:root.vrOverlayMode?20:24;anchors.leftMargin:root.vrOverlayMode?28:40;anchors.rightMargin:root.vrOverlayMode?28:40
     property var session:uiController.lastSession;property bool trouble:session.outcome==="crashed"||session.outcome==="failed"
-    visible:session.text!==undefined&&uiController.nowPlaying.gameId===undefined;height:visible?Math.max(endedText.implicitHeight+32,root.vrOverlayMode?80:68):0;radius:Theme.get("radius.card")
+    visible:session.text!==undefined&&uiController.nowPlaying.gameId===undefined;height:visible?Math.max(Math.max(endedText.implicitHeight,endedButtons.height)+32,root.vrOverlayMode?80:68):0;radius:Theme.get("radius.card")
     color:Theme.get("color.surface.pill");border.width:0;clip:true
     // How it ended, at a glance: amber when it went wrong.
     Rectangle {width:6;height:parent.height;color:ended.trouble?Theme.get("color.state.needs_neon"):Theme.get("color.text.dim")}
-    RowLayout {anchors.fill:parent;anchors.margins:16;anchors.leftMargin:24;spacing:14
-     UiText {id:endedText;objectName:"lastSessionText";Layout.fillWidth:true;font.pixelSize:root.vrOverlayMode?18:14;color:ended.trouble?Theme.get("color.state.needs_neon"):Theme.get("color.text.primary")
+    // Anchored, not a RowLayout: a hidden layout keeps its buttons at the height they had when it was last shown.
+    Item {anchors.fill:parent;anchors.margins:16;anchors.leftMargin:24
+     UiText {id:endedText;objectName:"lastSessionText";anchors.left:parent.left;anchors.verticalCenter:parent.verticalCenter;width:parent.width-endedButtons.width-14;font.pixelSize:root.vrOverlayMode?18:14;color:ended.trouble?Theme.get("color.state.needs_neon"):Theme.get("color.text.primary")
       text:(ended.session.text||"")+(ended.session.details?"\n"+ended.session.details:"")}
-     PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}
+     Row {id:endedButtons;anchors.right:parent.right;anchors.verticalCenter:parent.verticalCenter;spacing:14
+     PillButton {objectName:"lastSessionAction";visible:!!uiController.nowPlayingNotice.action;text:uiController.nowPlayingNotice.actionLabel||"";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.noticeAction(uiController.nowPlayingNotice.action)}
+     PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}}
     }
    }
    Loader {id:pinballLoader;objectName:"pinballLoader";anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
@@ -141,10 +144,19 @@ FocusScope {
   background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
  }
  Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else if(kind==="media")scanDialog.open();else if(kind==="steam-shortcut"&&typeof hubServices!=="undefined"){hubServices.beginSteam(uiController.detail.gameId,uiController.detail.variantId);steamDialog.open()}}}
+ Connections {target:uiController;function onPageRequested(page){root.navigate(page)}}
  Dialog {id:toolDialog;objectName:"toolDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;focus:true;title:"Emulators";standardButtons:Dialog.Close
   footer:DialogButtonBox{standardButtons:toolDialog.standardButtons;delegate:PillButton{vrOverlayMode:root.vrOverlayMode}}
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;text:"Locate your existing MAME or PCSX2 folder with Find my files. Supermodel can be installed from its pinned official release.";wrapMode:Text.Wrap}
+   // Only a note per tool that has a newer release; nothing is installed from here.
+   PillButton {objectName:"toolUpdatesCheck";vrOverlayMode:root.vrOverlayMode;text:uiController.toolUpdatesChecking?"Checking…":"Check for updates";enabled:!uiController.toolUpdatesChecking;onClicked:uiController.checkToolUpdates()}
+   UiText {objectName:"toolUpdatesSummary";width:parent.width;wrapMode:Text.Wrap;visible:uiController.toolUpdates.length>0&&!uiController.toolUpdatesChecking
+    text:uiController.emulatorUpdateCount>0?"A newer version is out for "+uiController.emulatorUpdateCount+(uiController.emulatorUpdateCount===1?" tool.":" tools."):"Every tool the Hub could check is up to date."}
+   Repeater {model:uiController.toolUpdates.filter(r=>r.state==="available")
+    Row {required property var modelData;width:parent.width;spacing:10
+     UiText {objectName:"toolUpdateNote";width:parent.width-whatsNew.width-10;text:modelData.text}
+     PillButton {id:whatsNew;vrOverlayMode:root.vrOverlayMode;text:"See what is new";visible:!!modelData.url;onClicked:uiController.openLink(modelData.url)}}}
    PillButton {vrOverlayMode:root.vrOverlayMode;text:"Find my files / emulator folders";onClicked:{toolDialog.close();scanDialog.open()}}
    ScrollView {width:parent.width;height:180;TextArea {text:typeof hubServices!=="undefined"?hubServices.toolPlan:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.pixelSize:12}}
    PillButton {vrOverlayMode:root.vrOverlayMode;text:"Install Supermodel";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.installSupermodel();toolDialog.close()}}

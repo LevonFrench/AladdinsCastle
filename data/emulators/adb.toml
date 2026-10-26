@@ -17,6 +17,10 @@ version = "37.0.1 (July 2026, per the page; the URL is rolling latest)"
 archive = "zip"
 note = "The rolling latest URL is verified on the official page. Google publishes no checksum on that page, so the Hub records sha256 at first download and shows it. The page does not state the CPU architecture."
 
+[unpinned.windows-x64]
+reason = "dl.google.com is not on the Hub download allow-list and Google publishes no checksum for the rolling latest URL; owner decision, see docs/emulator-manifests.md section 6 item 4"
+checked = "2026-10-25"
+
 [install.linux-x64]
 do = "download"
 url = "https://dl.google.com/android/repository/platform-tools-latest-linux.zip"
@@ -24,6 +28,10 @@ sha256 = "?"
 version = "37.0.1 (July 2026, per the page; the URL is rolling latest)"
 archive = "zip"
 note = "Linux package (verified URL). The page does not list an aarch64 or arm64 build, so do not offer it on ARM64 Linux."
+
+[unpinned.linux-x64]
+reason = "dl.google.com is not on the Hub download allow-list and Google publishes no checksum for the rolling latest URL; owner decision, see docs/emulator-manifests.md section 6 item 4"
+checked = "2026-10-25"
 
 [portable]
 marker = "none"

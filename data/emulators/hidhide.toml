@@ -20,6 +20,10 @@ run_installer = true
 elevation = "admin"
 note = "Installer (verified asset name, published 2024-05-11). Repo pushed 2026-07-05. The maintainer says there is little capacity for major work. Requires Windows 10 or later and KMDF 1.13 or later (README)."
 
+[unpinned.windows-x64]
+reason = "the release metadata has no sha256 digest for this asset"
+checked = "2026-10-25"
+
 [portable]
 marker = "none"
 note = "System driver. Not portable. The Hub records the install and offers an uninstall step."

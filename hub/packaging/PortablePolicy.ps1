@@ -126,3 +126,60 @@ function Get-OptionalPortableRoomInputs {
     if (-not @($assets.Keys | Where-Object { $_ -cmatch '^assets/guns/[a-z0-9-]+\.glb$' }).Count) { throw 'Tracked authored gun models are required.' }
     return @{Executable=$executablePath;Receipt=$receiptPath;Assets=$assets;SourceCommit=$SourceCommit;Sha256=$Sha256}
 }
+# Preflight for the staged portable folder. It runs before the ZIP is made and reports every problem at once,
+# by the file's place inside the package (never an absolute path). No application is started.
+function Get-PortableQtRuntimeFiles {
+    # What windeployqt must have put beside the Hub for it to start on a PC with no Qt. Qt Concurrent is not
+    # listed: the Hub uses only its header templates, so windeployqt rightly leaves the DLL out.
+    return @('Qt6Core.dll','Qt6Gui.dll','Qt6Network.dll','Qt6Qml.dll','Qt6Quick.dll','Qt6QuickControls2.dll','Qt6OpenGL.dll',
+        'platforms/qwindows.dll','qml/QtQuick/Controls/qmldir','qml/QtQuick/Layouts/qmldir')
+}
+function Get-PortableRequiredFiles {
+    param([Parameter(Mandatory)][string]$HubProgram,[Parameter(Mandatory)][string]$ShortId)
+    return @($HubProgram,'hubtool.exe','arttool.exe','steamtool.exe','openvr_api.dll',
+        'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll') + @(Get-PortableQtRuntimeFiles) + @(
+        'data/product.json',"resources/$ShortId.vrmanifest",'resources/overlay-thumbnail.png','resources/hub-actions.json',
+        'resources/hub-bindings-oculus_touch.json','resources/hub-bindings-knuckles.json',
+        'LICENSE-GPL-3.0.txt','THIRD-PARTY-NOTICES.md','BUILD-INFO.txt')
+}
+function Assert-PortablePayload {
+    param([Parameter(Mandatory)][string]$Root,[Parameter(Mandatory)][string]$HubProgram,[Parameter(Mandatory)][string]$ShortId,
+          [string[]]$PrivateMarkers=@())
+    $rootPath = (Assert-PlainPortablePath $Root).TrimEnd('\','/')
+    $problems = New-Object 'Collections.Generic.List[string]'
+    foreach ($relative in Get-PortableRequiredFiles -HubProgram $HubProgram -ShortId $ShortId) {
+        $item = Get-Item -LiteralPath (Join-Path $rootPath ($relative.Replace('/','\'))) -ErrorAction SilentlyContinue
+        if ($null -eq $item -or $item.PSIsContainer) { $problems.Add("missing runtime file: $relative") }
+        elseif ($item.Length -le 0) { $problems.Add("empty runtime file: $relative") }
+    }
+    # Games, firmware and keys are the player's own and never travel in a package.
+    $gameExtensions = @('.iso','.bin','.cue','.img','.chd','.gdi','.cdi','.cso','.ciso','.pbp','.wbfs','.wad','.rvz','.gcm','.gcz','.nrg','.mdf','.mds','.ecm',
+        '.z64','.n64','.v64','.nes','.sfc','.smc','.gba','.gb','.gbc','.nds','.3ds','.cia','.xci','.nsp','.rom','.vpx','.vpt','.directb2s','.pup',
+        '.sav','.srm','.mcr','.mcd','.state','.keys','.key','.zip','.7z','.rar')
+    $privatePath = [regex]'(?<![A-Za-z0-9])[A-Za-z]:[\\/](?![\\/])|[\\/]Users[\\/][^\\/\s"'']+[\\/]'
+    $textExtensions = @('.txt','.md','.json','.toml','.ini','.csv','.tsv','.vrmanifest','.xml','.ps1','.cmd','.bat','.qml','.js','.log','.cfg','.yml','.yaml')
+    $markers = @($PrivateMarkers | Where-Object { $_ -and $_.Length -ge 5 } | ForEach-Object { $_.TrimEnd('\','/') } | Sort-Object -Unique)
+    $prefix = $rootPath + '\'
+    foreach ($file in Get-PlainPortableFiles $rootPath) {
+        $relative = $file.FullName.Substring($prefix.Length).Replace('\','/')
+        $extension = $file.Extension.ToLowerInvariant()
+        $name = $file.Name.ToLowerInvariant()
+        if ($extension -in $gameExtensions) { $problems.Add("game, firmware, key or archive file in the package: $relative"); continue }
+        if ($name -match 'bios' -or $name -match '^scph\d' -or $name -match '^dc_(boot|flash)') { $problems.Add("BIOS or firmware file in the package: $relative"); continue }
+        if ($relative -match '^user/') { $problems.Add("personal data in the package's user folder: $relative"); continue }
+        # Third-party notices and the Qt SBOM are not ours to edit, so they are not read for paths.
+        if ($extension -notin $textExtensions -or $relative.StartsWith('licenses/') -or $file.Length -gt 64MB) { continue }
+        $text = [IO.File]::ReadAllText($file.FullName)
+        $line = 0; $found = ''
+        foreach ($row in ($text -split "`n")) {
+            ++$line
+            if ($privatePath.IsMatch($row)) { $found = "private path (a drive or user folder) in $relative, line $line"; break }
+            foreach ($marker in $markers) {
+                if ($row.IndexOf($marker,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or $row.IndexOf($marker.Replace('\','/'),[StringComparison]::OrdinalIgnoreCase) -ge 0) { $found = "this PC's build path in $relative, line $line"; break }
+            }
+            if ($found) { break }
+        }
+        if ($found) { $problems.Add($found) }
+    }
+    if ($problems.Count) { throw ("Portable package preflight failed, so no ZIP was made:`n - " + ($problems -join "`n - ")) }
+}

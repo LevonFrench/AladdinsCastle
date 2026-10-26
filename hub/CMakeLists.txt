@@ -52,6 +52,8 @@ add_library(hubcore STATIC
     src/core/app/LaunchOptions.h
     src/core/app/LaunchFailure.cpp
     src/core/app/LaunchFailure.h
+    src/core/app/LogBundle.cpp
+    src/core/app/LogBundle.h
     src/core/app/NetworkPolicy.cpp
     src/core/app/NetworkPolicy.h
     src/core/config/Config.h
@@ -73,6 +75,8 @@ add_library(hubcore STATIC
     src/core/pinball/Roms.h
     src/core/pinball/Identity.cpp
     src/core/pinball/Identity.h
+    src/core/match/TitleMatch.cpp
+    src/core/match/TitleMatch.h
     src/core/model3/Model3.cpp
     src/core/model3/Model3.h
     src/core/ps2/Ps2.cpp
@@ -103,12 +107,15 @@ add_library(hubcore STATIC
     src/core/install/Install.cpp
     src/core/install/Support.cpp
     src/core/install/Support.h
+    src/core/install/ErrorText.cpp
+    src/core/install/ErrorText.h
     src/core/install/Archive.cpp
     src/core/install/ConfigEdit.cpp
     src/core/install/ArtifactStore.cpp
     src/core/install/ArtifactStore.h
     src/core/install/FlatLaunch.cpp
     src/core/update/Update.h
+    src/core/update/Update.cpp
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
     src/core/launch/ProcessTree.cpp
@@ -300,11 +307,26 @@ if(BUILD_TESTING)
     ac_project_warnings(watchdog-tests)
     set_target_properties(watchdog-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-watchdog COMMAND watchdog-tests -o -,txt)
+    qt_add_executable(log-bundle-tests tests/LogBundleTest.cpp)
+    target_link_libraries(log-bundle-tests PRIVATE hubcore Qt6::Test zlibstatic)
+    ac_project_warnings(log-bundle-tests)
+    set_target_properties(log-bundle-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-log-bundle COMMAND log-bundle-tests -o -,txt)
     qt_add_executable(art-download-tests tests/ArtDownloadTest.cpp)
     target_link_libraries(art-download-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(art-download-tests)
     set_target_properties(art-download-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-art-download COMMAND art-download-tests -o -,txt)
+    qt_add_executable(update-tests tests/UpdateTest.cpp)
+    target_link_libraries(update-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(update-tests)
+    set_target_properties(update-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-update COMMAND update-tests -o -,txt)
+    qt_add_executable(title-match-tests tests/TitleMatchTest.cpp)
+    target_link_libraries(title-match-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(title-match-tests)
+    set_target_properties(title-match-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-title-match COMMAND title-match-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)
@@ -321,7 +343,11 @@ if(BUILD_TESTING)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-pinball-cache PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME emulator-pin-tool COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/pin_artifact.py --test)
+    add_test(NAME emulator-manifest-lint COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_emulator_manifests.py --test)
+    add_test(NAME emulator-manifests COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_emulator_manifests.py)
     add_test(NAME disc-id-survey-formats COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/disc_ids.py --test)
+    add_test(NAME hub-title-match-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/title_match_policy.py)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_script_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)

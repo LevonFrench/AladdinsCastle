@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Identity.h"
+#include "core/match/TitleMatch.h"
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QList>
@@ -114,6 +115,16 @@ void matchVps(QVariantMap &row,const QJsonArray &db){
     if(!maker.isEmpty()&&makerKey(machine.value("manufacturer").toString())!=maker)continue;
     if(year&&machine.value("year").toInt()!=year)continue;
     match=machine;if(++count>1)return;
+   }
+  }
+  // Still nothing: the same title with a numeral, "&", accent or article written another way
+  // ("Orbit 2" and "Orbit II"). Extra or missing words never match, and two machines are no match.
+  if(count==0){
+   for(const auto &value:db){const auto machine=value.toObject();
+    if(match::compareTitles(row.value("machine").toString(),machine.value("name").toString())<match::Quality::Same)continue;
+    if(!maker.isEmpty()&&makerKey(machine.value("manufacturer").toString())!=maker)continue;
+    if(year&&machine.value("year").toInt()!=year)continue;
+    match=machine;if(++count>1)break;
    }
   }
   if(count==1)exact=true;
