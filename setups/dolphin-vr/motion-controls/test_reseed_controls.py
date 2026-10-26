@@ -81,6 +81,20 @@ class MergeHotkeys(unittest.TestCase):
         self.assertEqual(text.count('\n'), text.count('\r\n'))
         self.assertTrue(text.endswith('\r\n'))
 
+    def test_mixed_line_endings_each_line_keeps_its_own(self):
+        # The owner's Dolphin.ini mixes LF lines with CRLF lines.
+        old = '[General]\nISOPaths = 0\n[SDL_Hints]\r\nA = 0\r\n\r\n[Input]\nBackgroundInput = True\n'
+        text, _ = rc.merge_dolphin_text(old)
+        for original in old.splitlines(keepends=True):
+            self.assertIn(original, text)
+        self.assertIn('ISOPaths = 0\nHotkeysRequireFocus = False\n', text)
+        self.assertTrue(text.endswith('[Interface]\nConfirmStop = False\n'))
+        self.assertNotIn('\r\n[Interface]', text)
+
+    def test_appended_section_takes_the_ending_of_the_last_line(self):
+        text, _ = rc.merge_dolphin_text('[Input]\r\nBackgroundInput = True\r\n')
+        self.assertEqual(text.count('\n'), text.count('\r\n'))
+
     def test_file_without_a_final_newline_stays_without_one(self):
         text, _ = rc.merge_hotkeys_text('[Hotkeys]\nDevice = DInput/0/Keyboard Mouse')
         self.assertFalse(text.endswith('\n'))

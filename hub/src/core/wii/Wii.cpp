@@ -16,27 +16,52 @@ const QString kResetChord = QString::fromUtf8(R"x(pulse(!`OpenXR/0/OpenXR Contro
 const QString kResetChordOld = QString::fromUtf8(R"x(pulse(!`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & !`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.1) & pulse(pulse(`OpenXR/0/OpenXR Controller:Left Button Thumbstick`, 0.25) & pulse(`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.25) & `OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 1.0))x");
 const QString kExitChord = QString::fromUtf8(R"x(hold(`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 3.0))x");
 const QString kBackup = QStringLiteral(".before-universal-controls");
+// A file as lines that each keep their own line ending (one file can mix CRLF and LF).
 struct Ini {
-  QStringList lines;
-  QString eol = "\n";
-  bool trailing = true;
+  QStringList lines, ends;
+  QString fallback = "\n";
 };
 Ini splitIni(const QString &text) {
   Ini ini;
-  ini.eol = text.contains("\r\n") ? "\r\n" : "\n";
-  QString norm = text;
-  norm.replace("\r\n", "\n");
-  if (norm.isEmpty())
-    return ini;
-  ini.trailing = norm.endsWith('\n');
-  ini.lines = norm.split('\n');
-  if (ini.trailing)
-    ini.lines.removeLast();
+  int pos = 0;
+  const int size = int(text.size());
+  while (pos < size) {
+    const int newline = int(text.indexOf('\n', pos));
+    const int stop = newline < 0 ? size : newline;
+    auto line = text.mid(pos, stop - pos);
+    QString end;
+    if (newline >= 0) {
+      end = "\n";
+      if (line.endsWith('\r')) {
+        line.chop(1);
+        end = "\r\n";
+      }
+    }
+    ini.lines << line;
+    ini.ends << end;
+    pos = newline < 0 ? size : newline + 1;
+  }
+  ini.fallback = text.count("\r\n") * 2 > text.count('\n') ? "\r\n" : "\n";
   return ini;
 }
 QString joinIni(const Ini &ini) {
-  const auto out = ini.lines.join(ini.eol);
-  return ini.trailing && !ini.lines.isEmpty() ? out + ini.eol : out;
+  QString out;
+  for (int i = 0; i < ini.lines.size(); ++i)
+    out += ini.lines[i] + ini.ends[i];
+  return out;
+}
+void insertLine(Ini &ini, int at, const QString &line) {
+  if (at >= ini.lines.size()) {
+    // Appending: a last line without an ending gets one; the new last line takes its place.
+    const auto tail = ini.ends.isEmpty() ? ini.fallback : ini.ends.last();
+    if (!ini.ends.isEmpty() && tail.isEmpty())
+      ini.ends.last() = ini.fallback;
+    ini.lines << line;
+    ini.ends << tail;
+  } else {
+    ini.lines.insert(at, line);
+    ini.ends.insert(at, at > 0 && !ini.ends[at - 1].isEmpty() ? ini.ends[at - 1] : ini.fallback);
+  }
 }
 bool sectionBounds(const Ini &ini, const QString &section, int &start, int &end) {
   start = -1;
@@ -78,7 +103,8 @@ void putValue(Ini &ini, const QString &section, const QString &key, const QStrin
   const auto line = key + " = " + value;
   int start = 0, end = 0;
   if (!sectionBounds(ini, section, start, end)) {
-    ini.lines << "[" + section + "]" << line;
+    insertLine(ini, int(ini.lines.size()), "[" + section + "]");
+    insertLine(ini, int(ini.lines.size()), line);
     return;
   }
   const auto at = findKey(ini, start, end, key);
@@ -89,7 +115,7 @@ void putValue(Ini &ini, const QString &section, const QString &key, const QStrin
   auto insert = end;
   while (insert > start + 1 && ini.lines[insert - 1].trimmed().isEmpty())
     --insert;
-  ini.lines.insert(insert, line);
+  insertLine(ini, insert, line);
 }
 // The new value for one hotkey; an empty string when the existing one is already right.
 QString mergeHotkey(const QString &existing, const QString &base, const QString &chord, const QString &oldChord) {

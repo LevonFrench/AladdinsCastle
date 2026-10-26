@@ -28,6 +28,7 @@ USER_DIR is a Dolphin user folder (the one that holds Config/). GameSettings, GC
 WiimoteNew.ini are never opened.
 """
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -52,71 +53,74 @@ STALE_RESET_CHORDS = (
 )
 
 
-def _split_lines(text):
-    """Return (lines, eol, trailing_newline). Keeps the file's own line ending."""
-    eol = '\r\n' if '\r\n' in text else '\n'
-    norm = text.replace('\r\n', '\n')
-    if not norm:
-        return [], eol, True
-    trailing = norm.endswith('\n')
-    lines = norm.split('\n')
-    if trailing:
-        lines.pop()
-    return lines, eol, trailing
+class Ini:
+    """A file as lines, each keeping its own line ending (a file can mix CRLF and LF)."""
 
+    def __init__(self, text):
+        self.lines, self.ends = [], []
+        for part in re.findall(r'[^\n]*\n|[^\n]+', text):
+            end = '\r\n' if part.endswith('\r\n') else '\n' if part.endswith('\n') else ''
+            self.lines.append(part[:len(part) - len(end)])
+            self.ends.append(end)
+        self.default = '\r\n' if text.count('\r\n') * 2 > text.count('\n') else '\n'
 
-def _join_lines(lines, eol, trailing):
-    out = eol.join(lines)
-    return out + eol if trailing and lines else out
+    def text(self):
+        return ''.join(a + b for a, b in zip(self.lines, self.ends))
 
+    def bounds(self, section):
+        """(start, end) of the lines belonging to [section]; start is the header index. None if absent."""
+        start = None
+        for i, line in enumerate(self.lines):
+            stripped = line.strip()
+            if stripped.startswith('[') and stripped.endswith(']'):
+                if start is not None:
+                    return start, i
+                if stripped == f'[{section}]':
+                    start = i
+        return (start, len(self.lines)) if start is not None else None
 
-def _section_bounds(lines, section):
-    """(start, end) of the lines belonging to [section]; start is the header index. None if absent."""
-    start = None
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped.startswith('[') and stripped.endswith(']'):
-            if start is not None:
-                return start, i
-            if stripped == f'[{section}]':
-                start = i
-    return (start, len(lines)) if start is not None else None
-
-
-def _find_key(lines, bounds, key):
-    start, end = bounds
-    for i in range(start + 1, end):
-        left, eq, _ = lines[i].partition('=')
-        if eq and left.strip() == key:
-            return i
-    return None
-
-
-def _get(lines, section, key):
-    bounds = _section_bounds(lines, section)
-    if bounds is None:
+    def _find(self, bounds, key):
+        for i in range(bounds[0] + 1, bounds[1]):
+            left, eq, _ = self.lines[i].partition('=')
+            if eq and left.strip() == key:
+                return i
         return None
-    i = _find_key(lines, bounds, key)
-    return None if i is None else lines[i].partition('=')[2].strip()
 
+    def get(self, section, key):
+        """The value, or None when the section or the key is missing."""
+        bounds = self.bounds(section)
+        i = None if bounds is None else self._find(bounds, key)
+        return None if i is None else self.lines[i].partition('=')[2].strip()
 
-def _put(lines, section, key, value):
-    """Set key in section (adding the section or key when missing). Other lines are untouched."""
-    bounds = _section_bounds(lines, section)
-    if bounds is None:
-        lines.append(f'[{section}]')
-        lines.append(f'{key} = {value}')
-        return
-    i = _find_key(lines, bounds, key)
-    if i is not None:
-        lines[i] = f'{key} = {value}'
-        return
-    # Insert after the last non-blank line of the section, before any trailing blank lines.
-    start, end = bounds
-    at = end
-    while at > start + 1 and not lines[at - 1].strip():
-        at -= 1
-    lines.insert(at, f'{key} = {value}')
+    def _insert(self, at, line):
+        if at >= len(self.lines):
+            # Appending: a last line without an ending gets one; the new last line takes its place.
+            tail = self.ends[-1] if self.ends else ''
+            if self.ends and not tail:
+                self.ends[-1] = self.default
+            self.lines.append(line)
+            self.ends.append(tail if self.ends else self.default)
+        else:
+            self.lines.insert(at, line)
+            self.ends.insert(at, self.ends[at - 1] if at > 0 and self.ends[at - 1] else self.default)
+
+    def put(self, section, key, value):
+        """Set key in section (adding the section or key when missing). Other lines are untouched."""
+        line = f'{key} = {value}'
+        bounds = self.bounds(section)
+        if bounds is None:
+            self._insert(len(self.lines), f'[{section}]')
+            self._insert(len(self.lines), line)
+            return
+        i = self._find(bounds, key)
+        if i is not None:
+            self.lines[i] = line
+            return
+        start, end = bounds
+        at = end
+        while at > start + 1 and not self.lines[at - 1].strip():
+            at -= 1   # after the last non-blank line of the section
+        self._insert(at, line)
 
 
 def merge_hotkey(existing, base, chord, stale_chords=()):
@@ -137,34 +141,34 @@ def merge_hotkey(existing, base, chord, stale_chords=()):
 def merge_hotkeys_text(text):
     """Return (new_text, changes). changes is a list of (key, 'added'|'upgraded'|'chord added')."""
     changes = []
-    lines, eol, trailing = _split_lines(text)
-    if _get(lines, 'Hotkeys', 'Device') in (None, ''):
-        _put(lines, 'Hotkeys', 'Device', HOTKEY_DEVICE)
+    ini = Ini(text)
+    if ini.get('Hotkeys', 'Device') in (None, ''):
+        ini.put('Hotkeys', 'Device', HOTKEY_DEVICE)
         changes.append(('Device', 'added'))
     for key, base, chord, stale in (('VR/Reset VR Position', RESET_BASE, RESET_CHORD, STALE_RESET_CHORDS),
                                     ('General/Exit', None, EXIT_CHORD, ())):
-        existing = _get(lines, 'Hotkeys', key)
+        existing = ini.get('Hotkeys', key)
         new = merge_hotkey(existing, base, chord, stale)
         if new is None:
             continue
         kind = ('added' if not (existing or '').strip()
                 else 'upgraded' if any(s in existing for s in stale) else 'chord added')
-        _put(lines, 'Hotkeys', key, new)
+        ini.put('Hotkeys', key, new)
         changes.append((key, kind))
-    return (_join_lines(lines, eol, trailing) if changes else text), changes
+    return (ini.text() if changes else text), changes
 
 
 def merge_dolphin_text(text):
     changes = []
-    lines, eol, trailing = _split_lines(text)
-    if (_get(lines, 'Interface', 'ConfirmStop') or '').lower() != 'false':
-        was = _get(lines, 'Interface', 'ConfirmStop')
-        _put(lines, 'Interface', 'ConfirmStop', 'False')
+    ini = Ini(text)
+    if (ini.get('Interface', 'ConfirmStop') or '').lower() != 'false':
+        was = ini.get('Interface', 'ConfirmStop')
+        ini.put('Interface', 'ConfirmStop', 'False')
         changes.append(('Interface/ConfirmStop', 'added' if was is None else 'set to False'))
-    if _get(lines, 'General', 'HotkeysRequireFocus') is None:
-        _put(lines, 'General', 'HotkeysRequireFocus', 'False')
+    if ini.get('General', 'HotkeysRequireFocus') is None:
+        ini.put('General', 'HotkeysRequireFocus', 'False')
         changes.append(('General/HotkeysRequireFocus', 'added'))
-    return (_join_lines(lines, eol, trailing) if changes else text), changes
+    return (ini.text() if changes else text), changes
 
 
 def _decode(raw):

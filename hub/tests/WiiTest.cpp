@@ -123,6 +123,11 @@ private slots:
     write(user + "/Config/Hotkeys.ini", "[Hotkeys]\nDevice = DInput/0/Keyboard Mouse\nGeneral/Exit = @(Alt+F4)\n");
     QCOMPARE(ac::wii::refreshUniversalControls(user).size(), 2);
     QVERIFY(text(user + "/Config/Hotkeys.ini").contains("General/Exit = (@(Alt+F4)) | (hold("));
+    // A file that mixes LF and CRLF lines keeps each line's own ending; new lines follow their neighbour.
+    write(user + "/Config/Dolphin.ini", "[General]\nISOPaths = 0\n[Input]\r\nBackgroundInput = True\r\n");
+    QCOMPARE(ac::wii::refreshUniversalControls(user).size(), 2);
+    QCOMPARE(text(user + "/Config/Dolphin.ini"),
+             QString("[General]\nISOPaths = 0\nHotkeysRequireFocus = False\n[Input]\r\nBackgroundInput = True\r\n[Interface]\r\nConfirmStop = False\r\n"));
     // A folder with no Config folder is left alone, and none is invented.
     QVERIFY(ac::wii::refreshUniversalControls(t.filePath("empty/User")).isEmpty());
     QVERIFY(!QFileInfo::exists(t.filePath("empty/User")));
