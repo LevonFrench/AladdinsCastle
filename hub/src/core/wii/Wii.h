@@ -30,4 +30,11 @@ QStringList missing(const QString &game, const QString &discId, const QString &e
 // with the build's own User folder, OpenXR on, and Dolphin's stop confirmation off so Exit game
 // closes it. Throws install::Error.
 QVariantMap launchPlan(const QString &file, const QString &executable);
+// Brings an existing DolphinXR User folder up to the universal controls: the both-click recentre
+// and 3 s quit hotkeys in Config/Hotkeys.ini and the stop setting in Config/Dolphin.ini. Only
+// missing or older universal values change; the user's own bindings and every other line stay.
+// A file that changes is copied first to <name>.before-universal-controls (once, never replaced).
+// Returns what changed ("Hotkeys.ini General/Exit added"), empty when nothing did. A folder with
+// no Config folder is left alone. Same rules as setups/dolphin-vr/motion-controls/reseed_controls.py.
+QStringList refreshUniversalControls(const QString &userFolder);
 } // namespace ac::wii

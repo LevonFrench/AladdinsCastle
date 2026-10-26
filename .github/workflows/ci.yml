@@ -55,7 +55,7 @@ jobs:
       - name: Universal controls, Wii and GameCube expressions (synthetic CPU only)
         working-directory: setups/dolphin-vr/motion-controls
         timeout-minutes: 2
-        run: python -B -m unittest -v test_universal_controls
+        run: python -B -m unittest -v test_universal_controls test_reseed_controls
       - name: Universal controls, Python checks (control data, cards, pinball, System 22, cabinets)
         timeout-minutes: 5
         run: |
