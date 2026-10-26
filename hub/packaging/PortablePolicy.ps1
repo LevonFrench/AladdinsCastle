@@ -129,8 +129,9 @@ function Get-OptionalPortableRoomInputs {
 # Preflight for the staged portable folder. It runs before the ZIP is made and reports every problem at once,
 # by the file's place inside the package (never an absolute path). No application is started.
 function Get-PortableQtRuntimeFiles {
-    # What windeployqt must have put beside the Hub for it to start on a PC with no Qt.
-    return @('Qt6Core.dll','Qt6Gui.dll','Qt6Network.dll','Qt6Concurrent.dll','Qt6Qml.dll','Qt6Quick.dll','Qt6QuickControls2.dll','Qt6OpenGL.dll',
+    # What windeployqt must have put beside the Hub for it to start on a PC with no Qt. Qt Concurrent is not
+    # listed: the Hub uses only its header templates, so windeployqt rightly leaves the DLL out.
+    return @('Qt6Core.dll','Qt6Gui.dll','Qt6Network.dll','Qt6Qml.dll','Qt6Quick.dll','Qt6QuickControls2.dll','Qt6OpenGL.dll',
         'platforms/qwindows.dll','qml/QtQuick/Controls/qmldir','qml/QtQuick/Layouts/qmldir')
 }
 function Get-PortableRequiredFiles {
