@@ -6,7 +6,8 @@
   "licence": "GPL-3.0-or-later",
   "openxr_headers": "Khronos OpenXR SDK 1.1.43 (headers only; openxr_loader.dll beside the built program)",
   "checked_on": "2026-10-16",
-  "check": "apply_acvr.py on a fresh clone at this commit gives files byte-identical to the maintained build",
+  "check": "apply_acvr.py applies to a fresh clone at this commit: every edit asserts its anchor, and the patch-apply CI workflow runs it on a fresh clone. As of 2026-10-16 the result was byte-identical to the owner's private build.",
+  "private_build_note": "That byte-identical claim is no longer true. After 2026-10-16 the patch changed (stick-click chords in patch/ACVRChord.h, controls and pointing changes in patch/acvr_main_block.cpp, patch/ACVRXR.cpp, patch/ACVRStereo.h and patch/apply_acvr.py; universal controls commit 58a4414b, 2026-10-25). The owner's private build predates those changes and has not been rebuilt from the current patch, so no byte comparison with it is claimed and none is recorded here.",
   "openxr_header_pin": {
     "version": "1.1.43",
     "upstream_source_reference": "https://github.com/KhronosGroup/OpenXR-SDK/tree/release-1.1.43/include/openxr",

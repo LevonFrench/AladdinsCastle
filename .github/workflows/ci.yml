@@ -244,6 +244,32 @@ jobs:
             }
           }
           if (-not (Test-Path (Join-Path $out 'acvr-ps1.exe'))) { throw 'acvr-ps1.exe was not produced' }
+      - name: Presenter tests, compile and link only (MinGW g++, no window, no XR; the injected shared policy test runs)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          # theatre_test and both presenter_test.cpp files open hidden GL windows and need a real GL context, so they are built but never run here.
+          # shared_test.cpp only uses injected callbacks (no window, loader or runtime), so it is built and run. The compile flags follow setups/mame-model2-vr/test-presenter.ps1.
+          $root = @("$env:SystemDrive\msys64", "$env:SystemDrive\") | Where-Object { Test-Path (Join-Path $_ 'mingw64\bin\g++.exe') } | Select-Object -First 1
+          if (-not $root) { throw 'Existing MinGW g++ required on the runner for the presenter test builds.' }
+          $env:PATH = (Join-Path $root 'mingw64\bin') + ';' + $env:PATH
+          $xr = "$env:GITHUB_WORKSPACE/build-openxr/include"
+          $out = Join-Path $env:RUNNER_TEMP 'presenter-tests'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $libs = '-lopengl32', '-lgdi32', '-luser32'
+          $shared = 'libacvr/publish-presenter'
+          g++ -std=c++17 -O1 -I $shared -I $xr "$shared/shared_test.cpp" @libs -o "$out/shared_test.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'shared_test build failed' }
+          g++ -std=c++17 -O1 -I $shared -I $xr "$shared/theatre_test.cpp" @libs -o "$out/theatre_test.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'theatre_test build failed' }
+          foreach ($flavour in 'setups/mame-model2-vr/presenter', 'setups/mame-model2-vr/presenter/legacy') {
+            $name = 'presenter_test_' + ($flavour -replace '[^A-Za-z0-9]+', '_')
+            g++ -std=c++17 -O1 -I $flavour -I $xr "$flavour/presenter_test.cpp" @libs -o "$out/$name.exe"
+            if ($LASTEXITCODE -ne 0) { throw "$flavour presenter_test build failed" }
+          }
+          & "$out/shared_test.exe"
+          if ($LASTEXITCODE -ne 0) { throw "shared_test exit $LASTEXITCODE" }
       - name: Gun room build and CPU-only checks (no XR, graphics or window)
         if: runner.os == 'Windows'
         timeout-minutes: 30
