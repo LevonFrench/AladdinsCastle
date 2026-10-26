@@ -11,8 +11,8 @@ same strips the Namco System 22 open frame fills with game geometry. Reported:
                  page's open-frame measure counts it)
   side_level     mean brightness of the side strips over the 4:3 picture's mean
   edge_step      how hard the picture's outer left/right edge is: mean brightness
-                 change across it (3 px in, 3 px out) over the inside brightness;
-                 1 is a hard edge into the dark room, near 0 is no visible edge
+                 change across it (3 px in, 3 px out) over the 4:3 picture's mean
+                 brightness; near 0 is no visible edge (a dark game edge is soft too)
 
 `plain` is the same frame drawn without soft edges. Soft-edge fill is the game's own
 edge carried outwards, not new game picture; the report keeps the two apart.
@@ -57,7 +57,7 @@ def measure(image, meta):
     rows = slice(top + 4, bottom - 4)
     inner = np.concatenate([luma[rows, left + 2:left + 5].mean(axis=1), luma[rows, right - 5:right - 2].mean(axis=1)])
     outer = np.concatenate([luma[rows, left - 5:left - 2].mean(axis=1), luma[rows, right + 2:right + 5].mean(axis=1)])
-    step = float(np.abs(inner - outer).mean() / max(inner.mean(), 1.0))
+    step = float(np.abs(inner - outer).mean() / max(centre, 1.0))
     return dict(side_fill=round(float(side.mean()), 4), side_level=round(float(side_luma.mean() / max(centre, 1.0)), 4),
                 edge_step=round(step, 4)), (top, bottom, strips)
 
