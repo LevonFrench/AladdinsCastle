@@ -3,6 +3,7 @@
 #include "core/steam/Steam.h"
 #include "AuthoredSteamFixture.h"
 #include <optional>
+#include <algorithm>
 #include "ui/Theme.h"
 #include "ui/UiController.h"
 #include "ui/UiSettings.h"
@@ -185,6 +186,8 @@ public:
  int keyboards=0;
  Q_INVOKABLE void requestKeyboard(QQuickItem *){++keyboards;}
  Q_INVOKABLE void dismissKeyboard(){}
+ QStringList backOutcomes; // What each Back did, as the panel's input log has it.
+ Q_INVOKABLE void noteBack(const QString &outcome){backOutcomes<<outcome;}
 signals:
  void backRequested();
 };
@@ -1479,9 +1482,11 @@ class UiTest:public QObject {
  }
  void sendWheel(QPointF at,int dy){QWheelEvent event(at,window->mapToGlobal(at),{},QPoint(0,dy),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&event);}
  private slots:
- // The SteamVR panel: one grid that scrolls as one surface, a row at a time, with a dead zone and no jitter.
- void panelGridScrollsByRowsWithDeadZone(){
-  const auto cleanup=qScopeGuard([&]{leavePanel();});
+ // The SteamVR panel: one grid that scrolls as one surface. A held stick glides it smoothly, never faster than the
+ // cap, at a speed set by the push; let go, it coasts on and comes to rest on a row. Noise and a resting thumb never move it.
+ void panelGridGlidesWithCapAndRestsOnRows(){
+  QObject *scroller=nullptr;
+  const auto cleanup=qScopeGuard([&]{if(scroller)scroller->setProperty("manualClock",false);leavePanel();});
   auto panel=enterPanel(syntheticPanelRows(70));QVERIFY(panel);
   // No split: no hero over the grid; the grid takes the panel below the slim bar.
   QVERIFY(namedItems(window->contentItem(),"model3Hero").isEmpty());QVERIFY(!visibleNamed("brand"));
@@ -1491,49 +1496,88 @@ class UiTest:public QObject {
   QVERIFY(!visibleNamed("panelTab-n64"));QVERIFY(visibleNamed("panelBackHint"));
   // Large laser targets.
   auto tile=visibleNamed("panelTile");QVERIFY(tile);QVERIFY(tile->width()>=200);QVERIFY(tile->height()>=110);
-  auto scroller=panel->findChild<QObject *>("panelScroller");QVERIFY(scroller);
+  scroller=panel->findChild<QObject *>("panelScroller");QVERIFY(scroller);QVERIFY(scroller->setProperty("manualClock",true));
   const double row=grid->property("cellHeight").toDouble(),minY=grid->property("originY").toDouble()-grid->property("topMargin").toDouble();
   const auto maxY=[&]{return grid->property("originY").toDouble()+grid->property("contentHeight").toDouble()+grid->property("bottomMargin").toDouble()-grid->height();};
   const auto y=[&]{return grid->property("contentY").toDouble();};
   const auto aligned=[&]{const double r=(y()-minY)/row;return std::abs(r-std::round(r))<0.01||std::abs(y()-maxY())<0.5;};
-  const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
+  const auto num=[&](const char *name){return scroller->property(name).toDouble();};
+  const auto phase=[&]{return scroller->property("phase").toString();};
   const auto wheelAt=[&](int dy,qint64 now){QVariant moved;return QMetaObject::invokeMethod(scroller,"wheel",Q_RETURN_ARG(QVariant,moved),Q_ARG(QVariant,QVariant(dy)),Q_ARG(QVariant,QVariant(double(now))));};
+  const auto tickAt=[&](qint64 now){return QMetaObject::invokeMethod(scroller,"tick",Q_ARG(QVariant,QVariant(double(now))));};
+  const auto settle=[&](qint64 &now){for(int i=0;i<200&&phase()!="idle";++i,now+=16)if(!tickAt(now))return false;return phase()=="idle";};
+  const double cap=num("maxSpeed"),ramp=cap/num("rampSeconds");
+  QVERIFY(cap>=row*3&&cap<=row*8); // A screen in well under a second, never a blur.
   QCOMPARE(y(),minY);
   qint64 clock=1000;
-  // Exact packet spacing uses the component's clock, independent of host scheduling.
-  for(int i=0;i<40;++i,clock+=8)QVERIFY(wheelAt(-10,clock));
-  QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);
+  // Stick noise flipping up and down never moves the page.
   for(int i=0;i<40;++i,clock+=8)QVERIFY(wheelAt(i%2?150:-150,clock));
-  QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);
-  // Held down: row targets advance only forward; repeat intervals accelerate.
-  QList<qint64> stepTimes;int steps=0,previousRow=scroller->property("targetRow").toInt();double lastY=y();
-  for(int i=0;i<82;++i,clock+=16){
-   QVERIFY(wheelAt(-150,clock));
-   const int target=scroller->property("targetRow").toInt(),now=scroller->property("steps").toInt();
-   QVERIFY(target>=previousRow);previousRow=target;
-   QVERIFY(y()>=lastY-0.5);lastY=y();
-   if(now>steps){QCOMPARE(now,steps+1);steps=now;stepTimes<<clock;}
+  for(int i=0;i<20;++i,clock+=16)QVERIFY(tickAt(clock));
+  QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);QCOMPARE(phase(),QString("idle"));
+  // Held down, the way SteamVR sends it (a packet a headset frame, two now and then in one Hub tick): it glides.
+  // The speed rises smoothly to the cap and never past it; the page moves every frame, not in row jumps.
+  double lastY=y(),lastV=0;int partRows=0;
+  for(int i=0;i<110;++i,clock+=11){
+   QVERIFY(wheelAt(-150,clock));if(i%3==0)QVERIFY(wheelAt(-150,clock));
+   const double v=num("velocity");
+   QVERIFY2(v<=cap+0.01,qPrintable(QString("speed %1 over the cap %2").arg(v).arg(cap)));
+   QVERIFY2(v-lastV<=ramp*0.011+0.5,qPrintable(QString("jerk: %1 to %2").arg(lastV).arg(v)));
+   QVERIFY(y()>=lastY-0.01);QVERIFY(y()-lastY<=cap*0.011+0.5);
+   if(!aligned())++partRows;
+   lastY=y();lastV=v;
   }
-  QVERIFY2(stepTimes.size()>=5,qPrintable(QString::number(stepTimes.size())));
-  QList<qint64> gaps;for(int i=1;i<stepTimes.size();++i)gaps<<stepTimes[i]-stepTimes[i-1];
-  QVERIFY2(gaps.last()<gaps.first(),qPrintable(QString("first gap %1 ms, last %2 ms").arg(gaps.first()).arg(gaps.last())));
-  const double heldTargetY=std::min(maxY(),minY+row*previousRow);
-  QVERIFY(heldTargetY>minY+row*4-0.5);
-  QTRY_VERIFY_WITH_TIMEOUT(std::abs(y()-heldTargetY)<0.5&&aligned(),15000);
-  // A real wheel event still reaches this scroller through the panel's MouseArea.
-  const double before=y();const int stepsBefore=scroller->property("steps").toInt();
-  sendWheel(over,120);
+  QCOMPARE(phase(),QString("glide"));QVERIFY(num("peakSpeed")>cap*0.95);QVERIFY(partRows>20);
+  // Let go: it coasts on, slowing, never backwards, and comes to rest on a row past where it was let go.
+  const double letGo=y();double previousV=num("velocity");
+  for(int i=0;i<200&&phase()!="idle";++i,clock+=16){
+   QVERIFY(tickAt(clock));QVERIFY(y()>=lastY-0.01);lastY=y();
+   if(phase()=="settle"){QVERIFY(std::abs(num("velocity"))<=std::abs(previousV)+0.5);previousV=num("velocity");}
+  }
+  QCOMPARE(phase(),QString("idle"));QVERIFY(aligned());QVERIFY(y()>letGo+1);QCOMPARE(num("velocity"),0.0);
+  QVERIFY(y()>=minY+row*4-0.5);
+  // A light push (after the full ones above) glides slower; a resting thumb (far weaker packets) does nothing.
+  clock+=1000;for(int i=0;i<90;++i,clock+=11)QVERIFY(wheelAt(-45,clock));
+  QVERIFY(num("peakSpeed")>0);QVERIFY2(num("peakSpeed")<cap*0.6,qPrintable(QString::number(num("peakSpeed"))));
+  QVERIFY(settle(clock));QVERIFY(aligned());
+  const double rested=y();clock+=1000;
+  for(int i=0;i<60;++i,clock+=11)QVERIFY(wheelAt(-10,clock));
+  for(int i=0;i<20;++i,clock+=16)QVERIFY(tickAt(clock));
+  QCOMPARE(y(),rested);
+  // A nudge (two packets) moves exactly one row.
+  clock+=1000;const int before=scroller->property("targetRow").toInt();
+  QVERIFY(wheelAt(-150,clock));clock+=11;QVERIFY(wheelAt(-150,clock));
+  QVERIFY(settle(clock));
+  QCOMPARE(scroller->property("targetRow").toInt(),before+1);QVERIFY(std::abs(y()-(rested+row))<0.5);
+  // Reversing while it glides: the speed passes through zero without a jump, then the page goes back up.
+  clock+=1000;for(int i=0;i<40;++i,clock+=11)QVERIFY(wheelAt(-150,clock));
+  lastV=num("velocity");QVERIFY(lastV>0);double lowest=lastV;
+  for(int i=0;i<80;++i,clock+=11){
+   QVERIFY(wheelAt(150,clock));const double v=num("velocity");
+   QVERIFY2(std::abs(v-lastV)<=ramp*0.011+cap*0.25,qPrintable(QString("%1 to %2").arg(lastV).arg(v)));lastV=v;lowest=std::min(lowest,v);
+  }
+  QVERIFY(lowest<0);QVERIFY(settle(clock));QVERIFY(aligned());
+  // The ends: held past the bottom it stops there, on the last row; past the top, at the top.
+  for(int i=0;i<900&&y()<maxY()-0.5;++i,clock+=11)QVERIFY(wheelAt(-150,clock));
+  QVERIFY(settle(clock));QVERIFY(std::abs(y()-maxY())<0.5);
+  clock+=1000;for(int i=0;i<900&&y()>minY+0.5;++i,clock+=11)QVERIFY(wheelAt(150,clock));
+  QVERIFY(settle(clock));QCOMPARE(y(),minY);
+  // A real wheel event still reaches this scroller through the panel's MouseArea: one notch, one row, on the wall clock.
+  QVERIFY(scroller->setProperty("manualClock",false));QVERIFY(scroller->setProperty("lastEvent",-100000.0));
+  const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
+  const int stepsBefore=scroller->property("steps").toInt();
+  sendWheel(over,-120);
   QCOMPARE(scroller->property("steps").toInt(),stepsBefore+1);
-  QTRY_VERIFY_WITH_TIMEOUT(std::abs(y()-(before-row))<0.5&&aligned(),15000);
+  QTRY_VERIFY_WITH_TIMEOUT(phase()=="idle"&&std::abs(y()-(minY+row))<0.5,15000);
   // Scrolling opened nothing.
   QCOMPARE(panel->property("selectedId").toString(),QString());
-  // The keyboard moves the highlight a row at a time and keeps it in view, still on row boundaries.
+  // The keyboard moves the highlight a row at a time and keeps it in view, still resting on rows.
   const int columns=grid->property("columns").toInt(),firstIndex=panel->property("currentIndex").toInt();
   panel->forceActiveFocus();for(int i=0;i<12;++i)QTest::keyClick(window,Qt::Key_Down);
   const int expectedIndex=std::min(int(panel->property("shown").toList().size())-1,firstIndex+12*columns);
   QTRY_VERIFY_WITH_TIMEOUT(panel->property("currentIndex").toInt()==expectedIndex,15000);
-  const double keyboardTargetY=std::min(maxY(),minY+row*scroller->property("targetRow").toInt());
-  QTRY_VERIFY_WITH_TIMEOUT(std::abs(y()-keyboardTargetY)<0.5&&aligned(),15000);
+  QTRY_VERIFY_WITH_TIMEOUT(phase()=="idle"&&aligned(),15000);
+  const int visibleRows=int(std::floor((grid->height()+0.5)/row)),indexRow=expectedIndex/columns,topRow=int(std::round((y()-minY)/row));
+  QVERIFY2((indexRow>=topRow&&indexRow<=topRow+visibleRows-1)||std::abs(y()-maxY())<0.5,qPrintable(QString("row %1 not in %2..%3").arg(indexRow).arg(topRow).arg(topRow+visibleRows-1)));
   QCOMPARE(panel->property("selectedId").toString(),QString());
  }
  // B goes back exactly one level per press: menu, game page, tab, page; never two at once and never out of the Hub.
@@ -1647,7 +1691,8 @@ class UiTest:public QObject {
   auto scroller=panel->findChild<QObject *>("panelScroller");QVERIFY(scroller);
   const double row=grid->property("cellHeight").toDouble(),minY=grid->property("originY").toDouble()-grid->property("topMargin").toDouble();
   const double maxY=grid->property("originY").toDouble()+grid->property("contentHeight").toDouble()+grid->property("bottomMargin").toDouble()-grid->height();
-  QTRY_VERIFY_WITH_TIMEOUT(std::abs(grid->property("contentY").toDouble()-std::min(maxY,minY+row*scroller->property("targetRow").toInt()))<0.5,15000);
+  QTest::qWait(150); // Past the let-go.
+  QTRY_VERIFY_WITH_TIMEOUT(scroller->property("phase").isValid()?scroller->property("phase").toString()=="idle":std::abs(grid->property("contentY").toDouble()-std::min(maxY,minY+row*scroller->property("targetRow").toInt()))<0.5,15000);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-2-grid-scrolled.png")));
   panel->setProperty("selectedId","scud");QTRY_VERIFY_WITH_TIMEOUT(visibleNamed("panelGamePage"),15000);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-3-game-page.png")));
@@ -1676,6 +1721,153 @@ class UiTest:public QObject {
   for(int i=0;i<5;++i){QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,playAt);QTest::qWait(30);} // Deliberate duplicate-click cadence.
   QCOMPARE(plays,1);save("panel-12-play-spammed-starting-card.png");
   ui->playGame("scud","screen");QCOMPARE(plays,1);save("panel-13-second-launch-refused-message.png");
+ }
+ // Back goes up exactly one level from every page and level the panel has, the same from B and from the panel's
+ // Back button; Home goes to the main library's top from anywhere; nothing ever goes sideways or round in circles.
+ void panelBackGoesUpOneLevelFromEveryPage(){
+  const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());leavePanel();});
+  auto panel=enterPanel(syntheticPanelRows(30));QVERIFY(panel);
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  const auto click=[&](QQuickItem *item){QVERIFY(item);QVERIFY(root->setProperty("clickGuardUntil",0.0));QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));};
+  const auto view=[&]{return root->property("view").toString();};
+  const auto path=[&]{QStringList list;for(const auto &v:root->property("history").toList())list<<v.toString();return list;};
+  const auto go=[&](const QString &page){QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,page),Q_ARG(QVariant,QVariant())));};
+  // One Back, by B or by the button: it must take exactly one step.
+  bool useButton=false;
+  const auto back=[&]{
+   const int steps=root->property("backSteps").toInt();QVERIFY(root->setProperty("lastPageChange",0.0));
+   const auto noted=overlayProbe.backOutcomes.size();
+   const auto menusOpen=[&]{int open=0;for(auto *o:window->findChildren<QObject *>())if(o->inherits("QQuickPopup")&&o->property("opened").toBool())++open;return open;};
+   const int menus=menusOpen();
+   if(useButton)click(visibleNamed("panelBackHint"));else emit overlayProbe.backRequested();
+   // A press outside an open modal menu closes that menu and lands nowhere else: one step, as Back would take.
+   if(useButton&&menus>0&&root->property("backSteps").toInt()==steps){QTRY_COMPARE(menusOpen(),menus-1);useButton=!useButton;return;}
+   QVERIFY2(root->property("backSteps").toInt()==steps+1,qPrintable(QString("%1 Back on %2: %3").arg(useButton?"button":"B",view(),overlayProbe.backOutcomes.size()>noted?overlayProbe.backOutcomes.last():QString("never reached panelBack"))));
+   useButton=!useButton;
+  };
+  const auto atTop=[&]{
+   const int steps=root->property("backSteps").toInt();QVERIFY(root->setProperty("lastPageChange",0.0));emit overlayProbe.backRequested();
+   QCOMPARE(root->property("backSteps").toInt(),steps);QCOMPARE(view(),QString("Model3"));QVERIFY(path().isEmpty());
+   QVERIFY(root->setProperty("lastPageChange",0.0));click(visibleNamed("panelBackHint"));QCOMPARE(root->property("backSteps").toInt(),steps);
+  };
+  // Big targets for the laser: Back and Home, the tabs, the tiles.
+  for(const auto &name:{"panelBackHint","panelHome"}){auto item=visibleNamed(name);QVERIFY2(item,name);QVERIFY(item->height()>=72);QVERIFY(item->width()>=200);}
+  QVERIFY(visibleNamed("panelTab-all")->height()>=56);QVERIFY(visibleNamed("panelTile")->height()>=110);
+  QVERIFY(visibleNamed("panelHome")->opacity()<1); // Nothing to go home to.
+  atTop();
+  // The library: a search, then a tab, then a game, then the filter menu over the grid.
+  panel->setProperty("query","synthetic");click(visibleNamed("panelTab-ps1"));QTRY_COMPARE(panel->property("tab").toString(),QString("ps1"));
+  click(visibleNamed("panelTile"));QTRY_VERIFY(!panel->property("selectedId").toString().isEmpty());QTRY_VERIFY(visibleNamed("panelGamePage"));
+  QVERIFY(visibleNamed("panelPlay")->height()>=100);
+  back();QCOMPARE(panel->property("selectedId").toString(),QString());QCOMPARE(panel->property("tab").toString(),QString("ps1"));
+  click(visibleNamed("panelFilter"));auto menu=window->findChild<QObject *>("panelFilterMenu");QTRY_VERIFY(menu->property("opened").toBool());
+  back();QTRY_VERIFY(!menu->property("visible").toBool());QCOMPARE(panel->property("tab").toString(),QString("ps1"));
+  back();QCOMPARE(panel->property("tab").toString(),QString("all"));QCOMPARE(panel->property("query").toString(),QString());
+  atTop();
+  // Help menu over the library: Back closes it and nothing else.
+  click(visibleNamed("panelMenu"));auto help=root->findChild<QObject *>("helpPanel");QTRY_VERIFY(help->property("opened").toBool());
+  back();QTRY_VERIFY(!help->property("visible").toBool());atTop();
+  // Settings, from the help menu: one Back to the library.
+  click(visibleNamed("panelMenu"));QTRY_VERIFY(help->property("opened").toBool());click(visibleNamed("helpSettings"));QTRY_COMPARE(view(),QString("Settings"));
+  QCOMPARE(path(),QStringList{"Model3"});back();QCOMPARE(view(),QString("Model3"));atTop();
+  // Set-up: Back goes to the step before, and from the first step to the library.
+  go("Setup");QTRY_VERIFY(window->findChild<QObject *>("setupLoader")->property("item").value<QObject *>());
+  auto setup=window->findChild<QObject *>("setupLoader")->property("item").value<QObject *>();setup->setProperty("step",2);
+  back();QCOMPARE(setup->property("step").toInt(),1);back();QCOMPARE(setup->property("step").toInt(),0);
+  back();QCOMPARE(view(),QString("Model3"));atTop();
+  // Pinball: a table's page, then a filter, then the Pinball page itself.
+  QVariantList tables;for(int i=0;i<12;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"maker","Synthetic"},{"year",1970+10*(i%5)},{"vrReady",true},{"romState","needs no ROM"}};
+  click(visibleNamed("panelTab-pinball"));QTRY_COMPARE(view(),QString("Pinball"));
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",12},{"vrReady",12},{"tables",tables}}))));
+  QTRY_VERIFY(visibleNamed("pinballGrid"));visibleNamed("pinballReady")->setProperty("checked",true);
+  ui->selectPinball("3");QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
+  back();QTRY_VERIFY(namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());QCOMPARE(view(),QString("Pinball"));QVERIFY(visibleNamed("pinballReady")->property("checked").toBool());
+  back();QVERIFY(!visibleNamed("pinballReady")->property("checked").toBool());QCOMPARE(view(),QString("Pinball"));
+  back();QCOMPARE(view(),QString("Model3"));atTop();
+  // Pages reached from pages: Back retraces them; a page already on the path is gone up to, never stacked twice.
+  go("Pinball");go("Settings");QCOMPARE(path(),(QStringList{"Model3","Pinball"}));
+  go("Pinball");QCOMPARE(path(),QStringList{"Model3"});go("Pinball");QCOMPARE(path(),QStringList{"Model3"}); // The page on show adds nothing.
+  go("Settings");back();QCOMPARE(view(),QString("Pinball"));back();QCOMPARE(view(),QString("Model3"));atTop();
+  // The top bar's "VR games" from Pinball is home: nothing above it, so Back stays home instead of returning to Pinball.
+  go("Pinball");QTRY_VERIFY(visibleNamed("model3Tab"));click(visibleNamed("model3Tab"));QTRY_COMPARE(view(),QString("Model3"));QVERIFY(path().isEmpty());atTop();
+  // Home, from deep down: Pinball's table page over Settings over Pinball; then the library's game page in a tab, scrolled.
+  const auto home=[&]{const int homes=root->property("homeSteps").toInt();QVERIFY(root->setProperty("lastPageChange",0.0));click(visibleNamed("panelHome"));QCOMPARE(root->property("homeSteps").toInt(),homes+1);};
+  go("Pinball");go("Settings");go("Pinball");ui->selectPinball("2");QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
+  home();QCOMPARE(view(),QString("Model3"));QVERIFY(path().isEmpty());QCOMPARE(panel->property("tab").toString(),QString("all"));
+  click(visibleNamed("panelTab-ps2"));QTRY_COMPARE(panel->property("tab").toString(),QString("ps2"));click(visibleNamed("panelTile"));QTRY_VERIFY(visibleNamed("panelGamePage"));
+  home();QTRY_VERIFY(!visibleNamed("panelGamePage"));QCOMPARE(panel->property("tab").toString(),QString("all"));QCOMPARE(panel->property("selectedId").toString(),QString());
+  auto grid=visibleNamed("panelGrid");QTRY_VERIFY(std::abs(grid->property("contentY").toDouble()-(grid->property("originY").toDouble()-grid->property("topMargin").toDouble()))<0.5);
+  QTRY_VERIFY(visibleNamed("panelHome")->opacity()<1);atTop();
+  {const int homes=root->property("homeSteps").toInt();click(visibleNamed("panelHome"));QCOMPARE(root->property("homeSteps").toInt(),homes);}
+  // While a game runs its card is the page: Home leaves it alone, as B does.
+  go("Settings");ui->launchQueued("synthetic-game","flat",QString());
+  {const int homes=root->property("homeSteps").toInt();QVERIFY(QMetaObject::invokeMethod(root,"panelHome"));QCOMPARE(root->property("homeSteps").toInt(),homes);QCOMPARE(view(),QString("Settings"));}
+  ui->launchFinished("synthetic-game","Launch executable or working directory missing",1);ui->dismissLastSession();
+  back();QCOMPARE(view(),QString("Model3"));
+ }
+ // Pinball on the panel is one surface too: its hero and filters ride at the top of the list and scroll away with it,
+ // and the stick rests the list on a row of tables. A table's page scrolls as one, hero included. The desktop keeps its hero still.
+ void panelPinballScrollsAsOneSurface(){
+  QObject *scroller=nullptr;
+  const auto cleanup=qScopeGuard([&]{if(scroller)scroller->setProperty("manualClock",false);ui->selectPinball(QString());leavePanel();});
+  auto panel=enterPanel(syntheticPanelRows(12));QVERIFY(panel);
+  QVariantList tables;for(int i=0;i<30;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i,2,10,QChar('0'))},{"maker","Synthetic"},{"year",1960+10*(i%6)},{"vrReady",true},{"romState","needs no ROM"}};
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));QTRY_COMPARE(root->property("view").toString(),QString("Pinball"));
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",30},{"vrReady",30},{"tables",tables}}))));
+  QTRY_VERIFY(visibleNamed("pinballGrid"));auto grid=visibleNamed("pinballGrid");QTRY_COMPARE(grid->property("count").toInt(),30);
+  const auto inside=[](QQuickItem *item,QQuickItem *ancestor){for(auto p=item;p;p=p->parentItem())if(p==ancestor)return true;return false;};
+  auto hero=namedItems(window->contentItem(),"pinballHero").value(0);QVERIFY(hero);
+  QVERIFY(inside(hero,grid)); // Part of the list, not a still block above it.
+  QVERIFY(QTest::qWaitFor([&]{return softwareFrame(window);},15000));
+  const double heroTop=hero->mapToScene(QPointF()).y();QVERIFY(std::abs(heroTop-grid->mapToScene(QPointF()).y())<1);
+  scroller=window->findChild<QObject *>("pinballScroller");QVERIFY(scroller);QVERIFY(scroller->setProperty("manualClock",true));
+  const auto phase=[&]{return scroller->property("phase").toString();};
+  const auto wheelAt=[&](int dy,qint64 now){QVariant moved;return QMetaObject::invokeMethod(scroller,"wheel",Q_RETURN_ARG(QVariant,moved),Q_ARG(QVariant,QVariant(dy)),Q_ARG(QVariant,QVariant(double(now))));};
+  const auto tickAt=[&](qint64 now){return QMetaObject::invokeMethod(scroller,"tick",Q_ARG(QVariant,QVariant(double(now))));};
+  qint64 clock=1000;for(int i=0;i<40;++i,clock+=11)QVERIFY(wheelAt(-150,clock));
+  for(int i=0;i<200&&phase()!="idle";++i,clock+=16)QVERIFY(tickAt(clock));
+  QCOMPARE(phase(),QString("idle"));QVERIFY(softwareFrame(window));
+  QVERIFY(hero->mapToScene(QPointF(0,hero->height())).y()<grid->mapToScene(QPointF()).y()+1); // Scrolled away.
+  // Resting on a row of tables: a row's heading sits at the top of the list.
+  const double y=grid->property("contentY").toDouble();QVariantList rests=scroller->property("restYs").toList();
+  {QStringList seen;for(const auto &r:rests)seen<<QString::number(r.toDouble(),'f',1);
+  QVERIFY2(std::any_of(rests.begin(),rests.end(),[&](const QVariant &r){return std::abs(r.toDouble()-y)<0.5;}),qPrintable(QString("contentY %1, originY %2, rests %3").arg(y,0,'f',1).arg(grid->property("originY").toDouble(),0,'f',1).arg(seen.join(' '))));}
+  QVERIFY(rests.size()>=4);
+  // B on the table page, and the table page as one surface.
+  ui->selectPinball("4");QTRY_VERIFY(visibleNamed("pinballDetailScroll"));
+  auto detail=visibleNamed("pinballDetailScroll");auto launch=namedItems(window->contentItem(),"pinballLaunchDesktop").value(0);QVERIFY(launch);QVERIFY(inside(launch,detail));
+  QVERIFY(launch->height()>=56);
+  ui->selectPinball("");
+  // The desktop: the hero stays above the list.
+  QVERIFY(scroller->setProperty("manualClock",false));scroller=nullptr;
+  root->setProperty("vrOverlayMode",false);root->setProperty("overlayPresentation",false);
+  QTRY_VERIFY(namedItems(window->contentItem(),"pinballHero").value(0));hero=namedItems(window->contentItem(),"pinballHero").first();
+  QTRY_VERIFY(!inside(hero,visibleNamed("pinballGrid")));
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));
+  root->setProperty("vrOverlayMode",true);root->setProperty("overlayPresentation",true);
+ }
+ // Pictures of the panel's pages for review, before and after a change; only when asked for. Works on older pages too.
+ void panelNavigationPictures(){
+  const auto output=qEnvironmentVariable("AC_UI_PANEL_PICTURES");if(output.isEmpty())QSKIP("Panel pictures are taken only when AC_UI_PANEL_PICTURES names a folder.");
+  const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());leavePanel();});
+  QVariantList rows=ui->model3Games();for(auto &value:rows){auto row=value.toMap();row["problem"]=QString();row["found"]=true;value=row;}
+  rows.append(syntheticPanelRows(40).mid(1));
+  auto panel=enterPanel(rows);QVERIFY(panel);QDir().mkpath(output);
+  const auto save=[&](const QString &name){QTest::qWait(400);QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath(name)));};
+  // Held stick over an item, at SteamVR's cadence, then let go and wait for the page to rest.
+  const auto hold=[&](QQuickItem *over,int dy,int ms){const QPointF at=over->mapToScene(QPointF(over->width()/2,over->height()/2));QElapsedTimer held;held.start();while(held.elapsed()<ms){sendWheel(at,dy);QTest::qWait(11);}QTest::qWait(900);};
+  save("nav-1-library.png");
+  hold(visibleNamed("panelGrid"),-150,500);save("nav-2-library-scrolled.png");
+  QVariantList tables;for(int i=0;i<30;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture table %1").arg(i,2,10,QChar('0'))},{"maker","Synthetic"},{"year",1960+10*(i%6)},{"vrReady",i%7!=0},{"romState","needs no ROM"}};
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));QTRY_COMPARE(root->property("view").toString(),QString("Pinball"));
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",30},{"vrReady",26},{"tables",tables}}))));
+  QTRY_VERIFY(visibleNamed("pinballGrid"));save("nav-3-pinball.png");
+  hold(visibleNamed("pinballGrid"),-150,700);save("nav-4-pinball-scrolled.png");
+  ui->selectPinball("3");QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());save("nav-5-pinball-table.png");
+  QQuickItem *detail=visibleNamed("pinballDetailScroll");if(!detail)for(auto *item:namedItems(window->contentItem(),"pinballAccepted"))detail=item->parentItem();
+  if(detail){hold(detail,-150,700);save("nav-6-pinball-table-scrolled.png");}
+  ui->selectPinball("");
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Settings"),Q_ARG(QVariant,QVariant())));QTRY_COMPARE(root->property("view").toString(),QString("Settings"));save("nav-7-settings.png");
  }
  void sceneWarnings(){QTest::qWait(100); // Deliberate negative-observation window for queued QML warnings.
   QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
