@@ -20,7 +20,11 @@ QVariantList gamepadLayout();
 QByteArray gamepadSettings(const QByteArray &settings,const QVariantList &pads);
 // Where VPX keeps the user's own settings: its preferences folder, else beside the program.
 QString userSettingsFile(const QString &executable);
-// For headset launches: a single tap of the left VR controller's Y no longer exits the table;
-// Exit stays on Y with the left stick click held together. Holding Y in the Hub closes it gracefully.
+// For headset launches: the universal layer on VPX's VR controller bindings. Left stick click is Start, right is Coin,
+// A is the plunger button, both clicks held is VPX's "Align VR view using controllers" (scale, turn and move the table),
+// the menu buttons and the stick clicks are bound to nothing else, and Y no longer exits. Exit stays on the keyboard; the Hub's own
+// hold of both stick clicks for 3 s closes the table. Made again from its own output, nothing changes.
+QByteArray headsetControls(const QByteArray &settings);
+// The same call under its earlier name.
 QByteArray exitOnChord(const QByteArray &settings);
 }

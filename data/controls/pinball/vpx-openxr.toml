@@ -1,9 +1,9 @@
-# Source-backed controller policy; execution awaits the Hub's reviewed bridge.
+# Source-backed controller policy under the universal controls contract v1 (2026-10-25); execution awaits live acceptance.
 version = "pinball-controls/1"
 id = "vpx-openxr"
 title = "Pinball controls — VPX OpenXR"
 source_commit = "af26b2d9392b4c9ec3e3edff4bbd69562085a44c"
-sources = ["src/input/XRInputHandler.h:54", "src/input/XRInputHandler.h:125", "src/core/VPXPluginAPIImpl.cpp:135", "src/core/VPXPluginAPIImpl.cpp:558", "plugins/plugins/VPXPlugin.h:243"]
+sources = ["src/input/XRInputHandler.h:54", "src/input/XRInputHandler.h:125", "src/core/VPXPluginAPIImpl.cpp:135", "src/core/VPXPluginAPIImpl.cpp:558", "plugins/plugins/VPXPlugin.h:243", "VPinballX 10.8 BGFX build: Mapping.VRControllerCalibration (Align VR view using controllers), Mapping.VRCenter, ControllerLockbarScale"]
 runtime_bridge = "planned"
 
 [[action]]
@@ -40,18 +40,25 @@ control="grip"
 target="RightMagnaSave"
 [[action]]
 id="start"
-part="A"
-label="Start"
-hand="right"
-control="primary"
+part="Left stick click"
+label="Start (U1)"
+hand="left"
+control="click"
 target="StartGame"
 [[action]]
 id="coin"
-part="B"
-label="Insert coin"
+part="Right stick click"
+label="Insert coin (U2)"
 hand="right"
-control="secondary"
+control="click"
 target="AddCredit"
+[[action]]
+id="launch"
+part="A"
+label="Launch ball (plunger button)"
+hand="right"
+control="primary"
+target="LaunchBall"
 [[action]]
 id="menu"
 part="X"
@@ -61,12 +68,13 @@ control="primary"
 target="OpenInGameUI"
 [[action]]
 id="exit"
-part="Y — EXIT"
-label="WARNING: exits the current table"
+part="Both stick clicks, held 3 s"
+label="Quit and save (U4): the Hub closes the table the ordinary way"
 hand="left"
-control="secondary"
+control="click"
 target="ExitGame"
 warning=true
+reason="Not a VPX binding: VPX exits on press and cannot time a hold. The Hub's own SteamVR input holds both clicks for 3 s, cancelled by over 5 cm of hand travel, then closes VPX normally."
 [[action]]
 id="nudge"
 part="Left stick"
@@ -77,13 +85,20 @@ target="nudgeDisplacementX/nudgeDisplacementY"
 reason="Native XR nudge sensors are mapped; this tag clears plugin stateMask. Host analog bridge pending."
 [[action]]
 id="recenter"
-part="Left stick click"
-label="Recenter — unavailable"
+part="Both stick clicks"
+label="Recentre the table (U3)"
 hand="left"
 control="click"
-target="VRRecenter"
-state="unavailable"
-reason="Enum exists, but this tag comments out the plugin action map. No callable recenter bridge."
+target="VRControllerCalibration"
+reason="VPX's own Align VR view using controllers. It seats the table at the hands, not in front of the head; no timing window, so Start and Coin can fire before the second click."
+[[action]]
+id="table-adjust"
+part="Both stick clicks, held"
+label="Scale, turn and move the table (U3p): hands apart or together, turn the pair, move both; release to keep"
+hand="right"
+control="click"
+target="VRControllerCalibration"
+reason="Same VPX action as Recentre, while both clicks stay held. Scale uses ControllerLockbarScale; Hub passes it unchanged."
 [[action]]
 id="plunger"
 part="Right stick"
@@ -93,10 +108,3 @@ control="thumbstick"
 target="plungerPosition"
 reason="Native XR plunger sensor is mapped; this tag clears plugin stateMask. Host analog bridge pending."
 scale=-1.0
-[[action]]
-id="launch"
-part="Right stick click"
-label="Launch ball"
-hand="right"
-control="click"
-target="LaunchBall"

@@ -116,36 +116,77 @@ QByteArray gamepadSettings(const QByteArray &settings,const QVariantList &pads){
  }
  return lines.join(QString::fromLatin1(eol)).toUtf8()+eol;
 }
-QByteArray exitOnChord(const QByteArray &settings){
+QByteArray headsetControls(const QByteArray &settings){
  const auto eol=eolOf(settings);
  QStringList lines=QString::fromUtf8(settings).split('\n');
  for(auto &line:lines)if(line.endsWith('\r'))line.chop(1);
  if(!lines.isEmpty()&&lines.last().isEmpty())lines.removeLast();
  qsizetype start=-1,end=lines.size();
  for(qsizetype i=0;i<lines.size();++i){const auto text=lines[i].trimmed();if(text.startsWith('[')){if(start>=0){end=i;break;}if(text.compare("[Input]",Qt::CaseInsensitive)==0)start=i;}}
- if(start<0)return settings;
- // The VR controller's own numbers for Y and the left stick click, as VPX listed them.
- QString y="9",stick="12";bool openXr=false;
+ if(start<0){if(!lines.isEmpty()&&!lines.last().trimmed().isEmpty())lines<<QString();lines<<"[Input]";start=lines.size()-1;end=lines.size();}
+ // The VR controller's own numbers for its stick clicks, A and the menu buttons, as VPX listed them; else the ones of VPX 10.8.
+ QString left="12",right="13",a="10",leftMenu="2",rightMenu="3";
  for(qsizetype i=start+1;i<end;++i){
   const auto key=keyOf(lines[i]),text=value(lines[i]);
-  if(key.compare("Devices",Qt::CaseInsensitive)==0)openXr=text.split(';').contains("OpenXR");
   if(!key.startsWith("Device.OpenXR.Element",Qt::CaseInsensitive))continue;
-  if(text.endsWith("_left_input_y_click"))y=text.section(';',0,0).trimmed();
-  if(text.endsWith("_left_input_thumbstick_click"))stick=text.section(';',0,0).trimmed();
+  const auto number=text.section(';',0,0).trimmed();
+  if(text.endsWith("_left_input_thumbstick_click"))left=number;
+  else if(text.endsWith("_right_input_thumbstick_click"))right=number;
+  else if(text.endsWith("_right_input_a_click"))a=number;
+  else if(text.endsWith("_left_input_menu_click"))leftMenu=number;
+  else if(text.endsWith("_right_input_menu_click"))rightMenu=number;
  }
- const QString single="OpenXR;"+y,chord=single+" & OpenXR;"+stick;
+ const QStringList reserved{left,right,leftMenu,rightMenu};
+ const auto touches=[](const QString &alternative,const QStringList &numbers){
+  for(const auto &piece:alternative.split('&')){const auto text=piece.trimmed();if(text.startsWith("OpenXR;")&&numbers.contains(text.section(';',1,1).trimmed()))return true;}
+  return false;};
+ while(end-1>start&&lines[end-1].trimmed().isEmpty())--end; // New keys go before the blank lines ending the section.
+ const auto find=[&](const QString &name)->qsizetype{for(qsizetype i=start+1;i<end;++i)if(keyOf(lines[i]).compare(name,Qt::CaseInsensitive)==0)return i;return -1;};
+ const auto get=[&](const QString &name){const auto at=find(name);return at<0?QString():value(lines[at]);};
+ const auto set=[&](const QString &name,const QString &text){
+  const auto line=name+" = "+text;const auto at=find(name);
+  if(at>=0)lines[at]=line;else{lines.insert(end,line);++end;}
+ };
+ const auto alternatives=[](const QString &text){QStringList result;for(const auto &part:text.split('|',Qt::SkipEmptyParts)){const auto one=part.trimmed();if(!one.isEmpty())result<<one;}return result;};
+ // The stick clicks and the menu buttons belong to the universal layer or to nobody: no other action keeps them.
+ // The actions below get the layer's own bindings; the user's keyboard and other bindings for them stay.
+ struct Owned { const char *action; const char *keys; QStringList controller; };
+ const QList<Owned> owned{
+  {"Start","Key;30",{"OpenXR;"+left}},
+  {"Credit1","Key;34",{"OpenXR;"+right}},
+  {"LaunchBall","Key;40",{"OpenXR;"+a}},
+  // Exit is the Hub's: both stick clicks held for 3 s, so the table closes the ordinary way and saves.
+  {"ExitGame","Key;41",{}},
+  // VPX's own "Align VR view using controllers": with both held the table follows the hands, apart or together scales it,
+  // turning the pair turns it, moving both moves it; letting go keeps it. A tap re-seats it at the hands.
+  {"VRControllerCalibration","",{"OpenXR;"+left+" & OpenXR;"+right}},
+  // The head-based alignment stays on its keyboard key.
+  {"VRCenter","Key;93",{}}};
+ QStringList ownedNames;for(const auto &o:owned)ownedNames<<QString::fromLatin1(o.action);
  for(qsizetype i=start+1;i<end;++i){
-  if(keyOf(lines[i]).compare("Mapping.ExitGame",Qt::CaseInsensitive)!=0)continue;
-  QStringList alternatives;for(const auto &part:value(lines[i]).split('|',Qt::SkipEmptyParts))alternatives<<(part.trimmed()==single?chord:part.trimmed());
-  lines[i]="Mapping.ExitGame = "+alternatives.join(" | ");
-  return lines.join(QString::fromLatin1(eol)).toUtf8()+eol;
+  const auto key=keyOf(lines[i]);
+  if(!key.startsWith("Mapping.",Qt::CaseInsensitive)||ownedNames.contains(key.mid(8),Qt::CaseInsensitive))continue;
+  QStringList kept;bool changed=false;
+  for(const auto &one:alternatives(value(lines[i])))if(touches(one,reserved))changed=true;else kept<<one;
+  if(changed)lines[i]=key+" = "+kept.join(" | ");
  }
- // No mapping of the user's own: VPX's default would exit on a single Y, so the chord is written with Escape.
- if(!openXr)return settings;
- while(end-1>start&&lines[end-1].trimmed().isEmpty())--end;
- lines.insert(end,"Mapping.ExitGame = Key;41 | "+chord);
+ for(const auto &o:owned){
+  const QString name=QString("Mapping.")+o.action;const bool present=find(name)>=0;
+  QStringList mine;
+  if(present){for(const auto &one:alternatives(get(name)))if(!one.contains("OpenXR;"))mine<<one;}
+  else if(*o.keys)mine<<QString::fromLatin1(o.keys);
+  set(name,(mine+o.controller).join(" | "));
+ }
+ // VPX would otherwise offer its own VR controller layout over this one.
+ auto devices=get("Devices").split(';',Qt::SkipEmptyParts);for(auto &d:devices)d=d.trimmed();
+ if(devices.isEmpty())devices<<"Key";
+ if(!devices.contains("OpenXR"))devices<<"OpenXR";
+ set("Devices",devices.join(';'));
+ if(get("Device.OpenXR.Type").isEmpty())set("Device.OpenXR.Type","4");
+ set("Device.OpenXR.NoAutoLayout","1");
  return lines.join(QString::fromLatin1(eol)).toUtf8()+eol;
 }
+QByteArray exitOnChord(const QByteArray &settings){return headsetControls(settings);}
 QString userSettingsFile(const QString &executable){
  // %APPDATA%\VPinballX\<major.minor>\VPinballX.ini, the newest version folder, else beside the program.
  const QDir base(QDir(qEnvironmentVariable("APPDATA")).filePath("VPinballX"));
