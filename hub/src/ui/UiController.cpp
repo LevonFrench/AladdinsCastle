@@ -349,7 +349,7 @@ void UiController::scanStarted(){m_scanning=true;emit scanChanged();message("Sca
 void UiController::scanProgress(const QVariantMap &p){message(p.value("text").toString());}
 void UiController::scanFinished(bool success){m_scanning=false;emit scanChanged();if(success)m_filter->setScanComplete(true);message(success?"Scan complete.":"Scan stopped. Existing results were kept.");}
 void UiController::installStarted(){m_installing=true;m_recovery.clear();emit installChanged();message("Preparing install.");}
-void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]=eventText(e);if(e.value("kind")=="fail"){const auto plain=plainError(e.value("code").toString());if(!plain.isEmpty())e["plain"]=plain;}m_events<<e;if(e.value("kind")=="step"){m_installing=true;m_recovery.clear();}if(e.value("kind")=="fail"){m_installing=false;m_recovery=e;}emit installChanged();}
+void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]=eventText(e);if(e.value("kind")=="fail"){const auto plain=plainError(e.value("code").toString());if(!plain.isEmpty()&&e.value("plain").toString().isEmpty())e["plain"]=plain;}m_events<<e;if(e.value("kind")=="step"){m_installing=true;m_recovery.clear();}if(e.value("kind")=="fail"){m_installing=false;m_recovery=e;}emit installChanged();}
 void UiController::installFinished(bool success,const QString &text){m_installing=false;if(success)m_recovery.clear();else if(m_recovery.isEmpty())m_recovery={{"text",text},{"kind","fail"}};emit installChanged();message(text);}
 void UiController::launchPreparing(const QString &id,const QString &text){message("Preparing "+game(id).value("title").toString()+": "+text);}
 void UiController::pinballLoaded(const QVariantMap &data){

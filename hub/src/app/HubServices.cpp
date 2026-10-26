@@ -10,6 +10,12 @@
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
 #include "core/app/LogBundle.h"
+#include "core/install/ErrorText.h"
+#include "core/update/Update.h"
+#include <QEventLoop>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
@@ -88,6 +94,21 @@ Json readJson(const QString &path,const QString &root) {
 }
 QString text(const Json &j,const char *key){return install::string(j,key);}
 QStringList strings(const Json &j,const char *key){QStringList out;for(const auto &v:j.value(key,Json::array()))if(v.is_string())out<<QString::fromStdString(v.get<std::string>());return out;}
+}
+// One GET for the update check (a GitHub release listing): run on a worker thread, it waits for the answer and throws on any failure.
+static QByteArray githubGet(const QString &url){
+    QNetworkAccessManager manager;QNetworkRequest request{QUrl(url)};
+    request.setRawHeader("Accept","application/vnd.github+json");
+    request.setHeader(QNetworkRequest::UserAgentHeader,art::Downloader::userAgent());
+    request.setTransferTimeout(15000);
+    QEventLoop wait;QNetworkReply *reply=manager.get(request);
+    QObject::connect(reply,&QNetworkReply::finished,&wait,&QEventLoop::quit);
+    wait.exec();
+    const int status=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const auto body=reply->readAll();const auto failed=reply->error()!=QNetworkReply::NoError||status!=200;const auto why=reply->errorString();
+    reply->deleteLater();
+    if(failed)throw std::runtime_error(("The release list could not be read: "+why).toStdString());
+    return body;
 }
 HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiController *ui,
                         UiSettings *settings,QString root,QObject *parent,std::function<QString()> steamRootSource,std::function<bool()> steamRunningProbe)
@@ -411,6 +432,15 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::locationRequested,this,[this](const QString &kind){
         QString path;if(kind=="log")path=root_+"/user/logs/install";else if(kind=="install")path=root_+"/emulators";else if(kind=="downloads")path=root_+"/user/cache";else if(kind=="reports")path=root_+"/user/reports";else return;
         try{path=install::scopedPath(path,root_);QDir().mkpath(path);QDesktopServices::openUrl(QUrl::fromLocalFile(path));}catch(const std::exception &e){report(e);}
+    });
+    // Install errors in plain words wherever an event does not carry them already.
+    ui_->setPlainErrors([](const QString &code){return install::hasPlainError(code)?install::plainErrorText(code):QString();});
+    // "Check for updates": asks GitHub, only when pressed, which installed tools have a newer release. Nothing is installed.
+    connect(ui_,&UiController::toolUpdatesCheckRequested,this,[this]{
+        QList<Json> manifests;for(const auto &item:games_->catalog().emulators.items())manifests<<item.value();
+        auto *watcher=new QFutureWatcher<QVariantList>(this);
+        connect(watcher,&QFutureWatcher<QVariantList>::finished,this,[this,watcher]{const auto reports=watcher->result();watcher->deleteLater();ui_->setToolUpdates(reports);});
+        watcher->setFuture(QtConcurrent::run([manifests]{QVariantList out;for(const auto &report:ac::update::checkAll(manifests,"windows-x64",githubGet))out<<ac::update::toMap(report);return out;}));
     });
     // The problem report: the Hub's logs and the last launch's, made plain of names and keys, in one ZIP.
     connect(ui_,&UiController::reportRequested,this,[this]{
