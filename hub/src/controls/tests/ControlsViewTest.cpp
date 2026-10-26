@@ -92,12 +92,19 @@ private slots:
         QFile file(QDir(AC_CONTROLS_ROOT).filePath("data/controls/system22/view-catalog.json")); QVERIFY(file.open(QIODevice::ReadOnly));
         const auto catalog=file.readAll(); ac::ControlsViewModel model;
         QVERIFY(model.loadCatalogGame(catalog,"timecris"));
-        QVERIFY(!model.twoGunsSupported()); QCOMPARE(rowWithId(model,"coin").value("bindingLabel").toString(),QString("A (right)"));
+        QVERIFY(!model.twoGunsSupported()); // Universal layer: Start and Coin are the stick clicks (a press, never a hold) on a fixed hand; recentre has no row.
+        QCOMPARE(rowWithId(model,"coin").value("bindingLabel").toString(),QString("Right thumbstick click"));
+        QCOMPARE(rowWithId(model,"start").value("bindingLabel").toString(),QString("Left thumbstick click"));
+        QVERIFY(rowWithId(model,"recenter").isEmpty());
         QCOMPARE(rowWithId(model,"laser").value("bindingLabel").toString(),QString("B (right)"));
-        model.setPrimaryHand("left"); QCOMPARE(rowWithId(model,"coin").value("bindingLabel").toString(),QString("X (left)"));
+        QCOMPARE(rowWithId(model,"pause").value("bindingLabel").toString(),QString("X (left)")); // the hand that does not hold the gun
+        QCOMPARE(rowWithId(model,"gun-angle-reset").value("bindingLabel").toString(),QString("A (right)"));
+        model.setPrimaryHand("left"); QCOMPARE(rowWithId(model,"coin").value("bindingLabel").toString(),QString("Right thumbstick click"));
+        QCOMPARE(rowWithId(model,"start").value("bindingLabel").toString(),QString("Left thumbstick click"));
         QCOMPARE(rowWithId(model,"laser").value("bindingLabel").toString(),QString("Y (left)"));
-        QCOMPARE(rowWithId(model,"recenter").value("bindingLabel").toString(),QString("A (right)"));
-        QCOMPARE(rowWithId(model,"pause").value("hand").toString(),QString("left"));
+        QCOMPARE(rowWithId(model,"pause").value("hand").toString(),QString("right"));
+        QCOMPARE(rowWithId(model,"pause").value("bindingLabel").toString(),QString("A (right)"));
+        QCOMPARE(rowWithId(model,"gun-angle-reset").value("bindingLabel").toString(),QString("X (left)"));
         QCOMPARE(rowWithId(model,"gun-angle").value("hand").toString(),QString("right"));
         for (const auto &gid:QStringList{"raverace","acedrive","dirtdash","tokyowar","propcycl","adillor"}) {
             QVERIFY2(model.loadCatalogGame(catalog,gid),qPrintable(model.lastError()));
@@ -109,11 +116,12 @@ private slots:
         ac::ControlsViewModel model;
         QVERIFY(model.loadResolved(samples["timecris"]));
         QVERIFY(rowWithId(model,"p1-cover").value("bindingLabel").toString().contains("Right grip"));
-        QVERIFY(rowWithId(model,"p1-coin").value("bindingLabel").toString().contains("B (right)"));
+        QVERIFY(rowWithId(model,"p1-coin").value("bindingLabel").toString().contains("Right thumbstick click"));
+        QVERIFY(!rowWithId(model,"p1-coin").value("bindingLabel").toString().contains("hold"));
         QVERIFY(rowWithId(model,"p1-start").isEmpty());
         model.setPrimaryHand("left");
         QVERIFY(rowWithId(model,"p1-cover").value("bindingLabel").toString().contains("Left grip"));
-        QVERIFY(rowWithId(model,"p1-coin").value("bindingLabel").toString().contains("Y (left)"));
+        QVERIFY(rowWithId(model,"p1-coin").value("bindingLabel").toString().contains("Right thumbstick click")); // the coin click stays on the right hand
         QVERIFY(model.controllerBindings("right").isEmpty());
         model.setTwoGunsActive(true); QVERIFY(!model.twoGunsActive());
     }

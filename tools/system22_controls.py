@@ -59,7 +59,7 @@ def validate(data,assignment,vocab,nodes=None):
     # Universal layer (contract v1 U1/U2): every game maps Start and Coin to the stick clicks, and nothing else may use them.
     by_sem={e['input']['semantic']:e for e in data['element'] if e['input']['kind']=='button'}
     for sem,hand in (('start','left'),('coin','right')):
-        b=by_sem.get(sem,{}).get('binding',{});require(b.get('control')=='thumbstick_click' and b.get('hand')==hand and b.get('mode')=='hold','Universal controls: '+sem+' must be the '+hand+' stick click')
+        b=by_sem.get(sem,{}).get('binding',{});require(b.get('control')=='thumbstick_click' and b.get('hand')==hand and b.get('mode')=='press','Universal controls: '+sem+' must be the '+hand+' stick click')
     require(sorted(e['id'] for e in data['element'] if e['binding']['control']=='thumbstick_click')==sorted(e['id'] for e in by_sem.values() if e['input']['semantic'] in ('start','coin')),'Stick clicks belong to the universal layer only')
     if kind=='gun':
         require(assignment['gun_model']=='arc-pistol-slide','TC route must retain the assigned existing gun')

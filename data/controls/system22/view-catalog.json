@@ -160,7 +160,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -191,7 +191,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin",
@@ -829,7 +829,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -854,7 +854,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin1",
@@ -1133,7 +1133,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -1158,7 +1158,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin1",
@@ -1436,7 +1436,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -1461,7 +1461,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin",
@@ -1693,7 +1693,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin",
@@ -1718,7 +1718,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -1967,7 +1967,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -1992,7 +1992,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin",
@@ -2164,7 +2164,7 @@
             "binding": {
               "role": "left",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "left"
             },
             "source_action": "start",
@@ -2189,7 +2189,7 @@
             "binding": {
               "role": "right",
               "control": "thumbstick_click",
-              "mode": "hold",
+              "mode": "press",
               "hand": "right"
             },
             "source_action": "coin",

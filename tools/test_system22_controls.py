@@ -41,8 +41,8 @@ class System22ControlsTests(unittest.TestCase):
         self.assertTrue(all(not e['node'] for e in r['data']['element'] if e['id'] in ('start','coin','cover-left','cover-right','pause')))
         for game in s.catalog()['games']:
             by={e['input']['semantic']:e['binding'] for e in game['data']['element'] if e['input']['kind']=='button'}
-            self.assertEqual((by['start']['hand'],by['start']['control'],by['start']['mode']),('left','thumbstick_click','hold'),game['game_id'])
-            self.assertEqual((by['coin']['hand'],by['coin']['control'],by['coin']['mode']),('right','thumbstick_click','hold'),game['game_id'])
+            self.assertEqual((by['start']['hand'],by['start']['control'],by['start']['mode']),('left','thumbstick_click','press'),game['game_id'])
+            self.assertEqual((by['coin']['hand'],by['coin']['control'],by['coin']['mode']),('right','thumbstick_click','press'),game['game_id'])
             self.assertEqual({e['id'] for e in game['data']['element'] if e['binding']['control']=='thumbstick_click'},{'start','coin'},game['game_id'])
             self.assertNotIn('recenter',{e['input']['semantic'] for e in game['data']['element']})
     def test_menu_buttons_are_never_bound(self):
