@@ -27,5 +27,5 @@ otherwise. Hub runs Windows PowerShell 5.1 from the system folder with
 `-NoProfile -ExecutionPolicy Bypass -File <launcher> <key>`, with every
 inherited `ACVR_*` variable removed and `ACVR_PS1_STOP_FILE` set to a stop file
 of its own for that launch, under `user/runtime/`. **Exit game** creates that
-file: the game saves and quits, and Hub waits for it. Holding left Y for 3
-seconds in the headset does the same.
+file: the game saves and quits, and Hub waits for it. Holding both stick clicks
+for 3 seconds in the headset does the same.

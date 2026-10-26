@@ -3,6 +3,7 @@
 #include "core/install/Install.h"
 #include <QDir>
 #include <QFileInfo>
+#include "core/launch/UniversalControls.h"
 namespace ac::libretro {
 namespace {
 struct Game {const char *id,*title;int year;const char *system,*controls;};
@@ -10,10 +11,10 @@ const QList<Game> &table(){
  static const QList<Game> games{
   {"3ds-star-fox-64-3d","Star Fox 64 3D",2011,"3ds",
    "Steer with the left stick; the right trigger fires (hold to charge a lock-on shot), right A is the 3DS Y button (bombs), the right grip is X (boost) and the left grip is B (brake). "
-   "The left trigger and right B are L and R: bank, twice for a barrel roll. Left stick click is Start. Answer no when the tutorial asks about gyro aiming. In stereo on a big theatre screen."},
+   "The left trigger and right B are L and R: bank, twice for a barrel roll. Answer no when the tutorial asks about gyro aiming. In stereo on a big theatre screen."},
   {"3ds-mario-kart-7","Mario Kart 7",2011,"3ds",
    "Steer with the left stick; the right trigger accelerates (A), the left grip brakes and reverses (B), the right grip hops and drifts (R), the left trigger or right A uses an item (L), "
-   "right B looks behind (X). Left stick click is Start. Steering is the stick only; there is no tilt steering. In stereo on a big theatre screen. Not yet checked in a headset."},
+   "right B looks behind (X). Steering is the stick only; there is no tilt steering. In stereo on a big theatre screen. Not yet checked in a headset."},
  };
  return games;
 }
@@ -25,7 +26,7 @@ QString profileName(const QString &game){return find(game)?game+".toml":QString(
 QVariantList games(){
  QVariantList result;
  for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"system",QString::fromLatin1(game.system)},
-  {"profile",profileName(QString::fromLatin1(game.id))},{"controls",QString::fromUtf8(game.controls)}};
+  {"profile",profileName(QString::fromLatin1(game.id))},{"controls",universal::with(QString::fromUtf8(game.controls))}};
  return result;
 }
 QString profilesFolder(const QString &chosen,const QString &startFrom){

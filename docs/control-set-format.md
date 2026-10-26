@@ -63,9 +63,12 @@ hand assignment; two active guns always use `slot` for fire/reload/pedal.
 `threshold` (0..1, default 0.55); `invert` is optional boolean, default false.
 Off-screen trigger reload is a composite trigger edge plus off-screen aim, not
 a second independent fire event. `primary` means A on right/X on left;
-`secondary` means B/Y. Primary press defaults to Start/join, secondary press to
-coin unless a game's actual controls override this. Do not bind coin and Start
-to the same press. Use the controller profile's actions, never the system button.
+`secondary` means B/Y. The universal layer (controls.md U1-U4) owns the stick
+clicks: Start is `hand = "left"`, `control = "thumbstick_click"`; Select or Coin is
+`hand = "right"`, `control = "thumbstick_click"`. No other element may bind a stick
+click, and the laser toggle is the gun hand's `secondary`. A second player joins
+with that hand's `primary`. Do not bind coin and Start to the same press. Use the
+controller profile's actions, never the left Menu or the right Oculus/system button.
 The OpenXR profile resolver is runtime-owned; these are logical names, not paths.
 
 For two-hand interactions, optional `fallback_binding` has the same shape and

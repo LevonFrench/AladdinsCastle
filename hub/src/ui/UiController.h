@@ -60,6 +60,8 @@ class UiController : public QObject {
  Q_PROPERTY(QVariantMap pinballSelection READ pinballSelection NOTIFY pinballChanged)
  Q_PROPERTY(QString pinballPlan READ pinballPlan NOTIFY pinballChanged)
  Q_PROPERTY(QString pinballLaunchHelp READ pinballLaunchHelp CONSTANT)
+ Q_PROPERTY(QString universalControls READ universalControls CONSTANT) // U1-U4, the one sentence every card and help text shows
+ Q_PROPERTY(QString universalMenuNote READ universalMenuNote CONSTANT)
  Q_PROPERTY(bool pinballScanning READ pinballScanning NOTIFY pinballChanged)
  Q_PROPERTY(QObject *pinballControls READ pinballControls CONSTANT)
  Q_PROPERTY(QString pinballControlsStatus READ pinballControlsStatus CONSTANT)
@@ -111,6 +113,7 @@ class UiController : public QObject {
  QVariantMap pinballSelection()const{return m_pinballSelection;}
  QString pinballPlan()const{return m_pinballPlan;}
  QString pinballLaunchHelp()const;
+ QString universalControls()const;QString universalMenuNote()const;
  bool pinballScanning()const{return m_pinballScanning;}
  QObject *pinballControls(){return &m_pinballControls;}
  QString pinballControlsStatus()const{return m_pinballControlsStatus;}

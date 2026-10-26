@@ -3,6 +3,7 @@
 #include "core/install/Install.h"
 #include <QDir>
 #include <QFileInfo>
+#include "core/launch/UniversalControls.h"
 namespace ac::model3 {
 namespace {
 // args: extra emulator arguments the game needs. folder: where the set is kept when it is not in the game folder,
@@ -77,15 +78,17 @@ bool offers(const QString &game,const QString &view){
  if(view=="sbs-monitor")return game=="srally2";
  return false;
 }
+// A headset view's own text, then U1-U4 (the keyboard keys are for the window on the monitor only).
+QString vr(const QString &own){return universal::with(own);}
 QString viewControls(const QString &game,const QString &view){
  const QString keys="Keys: 1 = start, 3 = coin, arrows = steer and pedals, Esc = quit.";
- const QString home=view.startsWith("inside")?"Home = recentre (sit how you will play first).":"Home = put the screen in front of you again.";
+ const QString sit=view.startsWith("inside")?"Sit how you will play before you recentre.":"";
  if(view=="sbs-monitor")return "Needs no headset. "+keys;
- if(view=="inside-wheel")return QString("Hold BOTH grips on the drawn %1 and turn your hands; or the left stick. Triggers = pedals, A = start, B = coin. ").arg(game=="harley"?"handlebars":"wheel")+home;
- if(view=="inside-stick")return "Point the right controller: the game's crosshair goes where the red laser ends. Right trigger = fire, right stick click = event button, A = start, B = coin. Holding the right grip still takes the old tilt stick. "+home;
- if(game=="swtrilgy")return "Point the right controller to aim, right trigger = fire, A = start, B = coin. "+home;
- if(QStringList{"vf3","fvipers2","spikeout","vs2"}.contains(game))return "VR: A = start, B = coin; the game's buttons are on the pad. "+keys+" "+home;
- return "VR: left stick = steering, right trigger = accelerator, left trigger = brake, A = start, B = coin. "+keys+" "+home;
+ if(view=="inside-wheel")return QString("Hold BOTH grips on the drawn %1 and turn your hands; or the left stick. Triggers = pedals. ").arg(game=="harley"?"handlebars":"wheel")+vr(sit);
+ if(view=="inside-stick")return "Point the right controller: the game's crosshair goes where the red laser ends. Right trigger = fire, A = event button. Holding the right grip still takes the old tilt stick. "+vr(sit);
+ if(game=="swtrilgy")return vr("Point the right controller to aim, right trigger = fire.");
+ if(QStringList{"vf3","fvipers2","spikeout","vs2"}.contains(game))return vr("VR: the game's buttons are on the pad.");
+ return vr("VR: left stick = steering, right trigger = accelerator, left trigger = brake.");
 }
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 const View *findView(const QString &id){for(const auto &view:table())if(id==QLatin1String(view.id))return &view;return nullptr;}

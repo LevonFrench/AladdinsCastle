@@ -65,8 +65,8 @@ def base_element(eid,label,kind,source,node,output,**fields):
     return dict(id=eid,label=label,type=kind,source=source,node=node,output=output,**fields)
 
 def common_buttons():
-    return [base_element('start','Start','button','right_primary','',{'button':'Start1'},binding={'mode':'press'}),
-            base_element('coin','Insert credit','button','right_secondary','',{'button':'Coin1'},binding={'mode':'press'})]
+    return [base_element('start','Start','button','left_thumbstick_click','',{'button':'Start1'},binding={'mode':'press'}),
+            base_element('coin','Insert credit','button','right_thumbstick_click','',{'button':'Coin1'},binding={'mode':'press'})]
 
 def racer(steer,shift,views=4,handbrake=False):
     modes={'grab-wheel':('both_hands','bar_roll'), 'tilt-wheel':('left_hand','grip_twist'),'thumbstick':('left_thumbstick','stick')}
@@ -113,7 +113,7 @@ def svg(title,explanation,steer,shift,theme):
     dark=theme=='dark';bg='#101d2b' if dark else '#f6f8fb';fg='#edf5fc' if dark else '#15283d';muted='#8aa4bc' if dark else '#53718b'
     steering={'grab-wheel':'Grip the rim; turn with both hands.','tilt-wheel':'Hold left grip; tilt your left hand.','thumbstick':'Move the left thumbstick left/right.'}[steer]
     shifting='Grip the knob; move through the H gate.' if shift=='lever' else 'Hold right grip + stick: up 1, down 2, right 3, left 4.'
-    texts=[('1','STEER',steering),('2','PEDALS','Right trigger = gas; left trigger = brake.'),('3','GEARS',shifting),('4','VIEWS','Release right grip; right stick selects views 1\u20134.'),('5','START / CREDIT','A = Start; B = insert credit.')]
+    texts=[('1','STEER',steering),('2','PEDALS','Right trigger = gas; left trigger = brake.'),('3','GEARS',shifting),('4','VIEWS','Release right grip; right stick selects views 1\u20134.'),('5','START / CREDIT','Left stick click = Start; right stick click = insert credit.')]
     labels=''
     for idx,(n,heading,text) in enumerate(texts):
         y=218+idx*75;labels+=f'<circle cx="496" cy="{y-8}" r="14" fill="#31c8bb"/><text x="496" y="{y-2}" text-anchor="middle" fill="#102233" font-size="18" font-weight="700">{n}</text><text x="522" y="{y-8}" font-size="24" font-weight="700">{heading}</text>'
@@ -202,10 +202,10 @@ def write_step2():
                     gear=next(e for e in rows if e['id']=='shifter');gear.update(type='shifter_seq',model='shifter-sequential',label='Shift up/down',output={'up':'GearShiftUp','down':'GearShiftDown'},range_m={'z':[-.055,.055]},gate={'spring_return':True,'pulse_on_entry':True},binding={'modifier':'right_grip','up':'thumbstick_up','down':'thumbstick_down','mode':'press'} if shift=='buttons' else {'mode':'hold'})
                 if family!='sequential-four':
                     rows=[e for e in rows if not e['id'].startswith('view-')]
-                    rows.append(base_element('view','Change view','button','right_thumbstick_click','button_view',{'button':'ViewChange'},model='panel-view-one',binding={'mode':'press','modifier':'right_grip_released'}))
+                    rows.append(base_element('view','Change view','button','right_primary','button_view',{'button':'ViewChange'},model='panel-view-one',binding={'mode':'press','modifier':'right_grip_released'}))
                 if family=='rally':
                     rows.append(base_element('handbrake','Handbrake','lever','right_hand' if shift=='lever' else 'left_primary','pivot_handbrake',{'button':'HandBrake','range':[0,1]},model='handbrake-lever',position=[.32,.53,-.20],extractor='lever_slide' if shift=='lever' else 'button',range_m=[0,.15],axes={'positive':'pull_up/back'},grab={'required':shift=='lever','button':'grip','soft_lock':True},binding={'threshold':.55,'mode':'hold'},fallback_binding={'hand':'left','control':'primary','mode':'hold'}))
-                labels=[('STEERING',{'grab-wheel':'Grip rim and turn both hands.','tilt-wheel':'Grip left controller and tilt ±45°.','thumbstick':'Left thumbstick left / right.'}[steer]),('GAS / BRAKE','Right trigger gas; left trigger brake.'),('GEARS','Grip knob and move lever.' if shift=='lever' else 'Right grip + right stick selects gear.'),('VIEW','Right stick directions, grip released.' if family=='sequential-four' else 'Click the right thumbstick.'),('START / CREDIT','A starts; B inserts credit.')]
+                labels=[('STEERING',{'grab-wheel':'Grip rim and turn both hands.','tilt-wheel':'Grip left controller and tilt ±45°.','thumbstick':'Left thumbstick left / right.'}[steer]),('GAS / BRAKE','Right trigger gas; left trigger brake.'),('GEARS','Grip knob and move lever.' if shift=='lever' else 'Right grip + right stick selects gear.'),('VIEW','Right stick directions, grip released.' if family=='sequential-four' else 'Press A with the right grip released.'),('START / CREDIT','Left stick click starts; right stick click inserts credit.')]
                 picture=diagram()+''.join(f'<circle cx="{x}" cy="{y}" r="17" fill="#31c8bb"/><text x="{x}" y="{y+7}" text-anchor="middle" font-size="22">{n}</text>' for n,x,y in [(1,92,285),(2,325,508),(3,420,379),(4,380,155)])
                 if family.startswith('sequential'):picture=picture.replace('M346 351V411M383 351V411M346 382H383','M365 351V411')
                 if family!='sequential-four':picture=picture.replace('<g fill="var(--teal)">','<g fill="var(--teal)">').replace('x="175" y="150"','x="110" y="150"').replace('x="240" y="150"','x="110" y="150"').replace('x="305" y="150"','x="110" y="150"')
@@ -224,8 +224,8 @@ def write_step2():
               base_element('throttle','Throttle','lever','right_hand' if mode=='twist-throttle' else 'right_trigger','pivot_throttle',{'axis':'Accelerator','range':[0,255],'invert':False},model='bars-motorcycle',extractor='grip_twist' if mode=='twist-throttle' else 'trigger',range_deg=60,curve={'deadzone':.04,'gamma':1.4},axes={'positive':'twist_towards_rider' if mode=='twist-throttle' else 'squeeze'}),
               base_element('front-brake','Front brake','lever','right_trigger' if mode=='twist-throttle' else 'left_trigger','pivot_front_brake',{'axis':'Brake','range':[0,255],'invert':False},model='bars-motorcycle',extractor='trigger',curve={'deadzone':.04,'gamma':1.4}),
               base_element('rear-brake','Rear brake','pedal','left_trigger' if mode=='twist-throttle' else 'right_primary','pivot_pedal',{'axis':'RearBrake','range':[0,255],'invert':False},model='pedal-single',extractor='trigger' if mode=='twist-throttle' else 'button',position=[.12,.10,-.35],curve={'deadzone':.04,'gamma':1})]
-        for eid,label,source,port in [('up','Shift up','right_thumbstick_up','GearShiftUp'),('down','Shift down','right_thumbstick_down','GearShiftDown'),('view','Change view','left_primary','ViewChange'),('music','Music select','left_secondary','MusicSelect'),('start','Start','right_thumbstick_click','Start1'),('coin','Insert credit','right_secondary','Coin1')]:rows.append(base_element(eid,label,'button',source,'',{'button':port},binding={'mode':'press'}))
-        labels=[('STEERING',{'grab-bars':'Grip both bars; turn left / right.','twist-throttle':'Grip both bars; turn left / right.','thumbstick':'Left thumbstick left / right.','body-lean':'Seated lean left / right (optional).'}[mode]),('THROTTLE','Twist right grip towards you.' if mode=='twist-throttle' else 'Right trigger.'),('FRONT BRAKE','Right trigger.' if mode=='twist-throttle' else 'Left trigger.'),('REAR BRAKE','Left trigger.' if mode=='twist-throttle' else 'Hold A.'),('SHIFT / VIEW / MUSIC','Right stick up/down; X view; Y music.'),('START / CREDIT','Right stick click starts; B inserts credit.')]
+        for eid,label,source,port in [('up','Shift up','right_thumbstick_up','GearShiftUp'),('down','Shift down','right_thumbstick_down','GearShiftDown'),('view','Change view','left_primary','ViewChange'),('music','Music select','left_secondary','MusicSelect'),('start','Start','left_thumbstick_click','Start1'),('coin','Insert credit','right_thumbstick_click','Coin1')]:rows.append(base_element(eid,label,'button',source,'',{'button':port},binding={'mode':'press'}))
+        labels=[('STEERING',{'grab-bars':'Grip both bars; turn left / right.','twist-throttle':'Grip both bars; turn left / right.','thumbstick':'Left thumbstick left / right.','body-lean':'Seated lean left / right (optional).'}[mode]),('THROTTLE','Twist right grip towards you.' if mode=='twist-throttle' else 'Right trigger.'),('FRONT BRAKE','Right trigger.' if mode=='twist-throttle' else 'Left trigger.'),('REAR BRAKE','Left trigger.' if mode=='twist-throttle' else 'Hold A.'),('SHIFT / VIEW / MUSIC','Right stick up/down; X view; Y music.'),('START / CREDIT','Left stick click starts; right stick click inserts credit.')]
         choices.append(save_choice(sid,title,explanation,rows,lambda theme:family_card(title,explanation,bike_picture(),labels,theme)))
     write_game('harley',choices)
 
@@ -258,9 +258,10 @@ def write_step3():
                     if family=='pistol':fields.update(extractor='aim_ray',aim={'projection':'original_game_view','hit':'scene_depth_or_geometry','outside':'clamp_to_edge_no_Offscreen_port','anchor':'muzzle','pose':'aim_orientation_at_grip_position','firing_hand':hand},hold={'firing_hand':hand,'offhand':'support_firing_hand' if mode=='two-hand' else 'none','attach_node':'grip'})
                     else:fields.update(extractor=extractor if mode=='two-hand' else 'stick_tilt',calibration={'centre':'before_grab','range_deg':[-40,40] if axis=='x' else [-23,23]},range_m=[-.12,.12] if axis=='y' and mode=='two-hand' else [],mount={'anchor':'seat','yaw_limit_deg':40,'pitch_limit_deg':23,'one_controller_per_mount':mode=='two-guns'})
                     rows.append(base_element('p'+str(slot+1)+'-aim-'+axis,'Aim '+('horizontal' if axis=='x' else 'vertical'),'pistol' if family=='pistol' else 'mounted_gun',source,'muzzle' if family=='pistol' else 'pivot_'+semantic,{'axis':'AnalogGun'+axis.upper()+suffix,'range':[0,255],'centre':128,'invert':False},**fields))
-                for eid,label,source,node,port in [('main-trigger','Main trigger',hand+'_trigger','pivot_trigger','AnalogTriggerLeft'+suffix),('second-trigger','Second trigger',('left_trigger' if mode=='two-hand' else hand+'_primary'),'button_special' if family=='mounted' else '', 'AnalogTriggerRight'+suffix),('start','Start',hand+'_thumbstick_click','','Start'+str(slot+1)),('coin','Insert credit',hand+'_secondary','','Coin'+str(slot+1))]:
+                for eid,label,source,node,port in [('main-trigger','Main trigger',hand+'_trigger','pivot_trigger','AnalogTriggerLeft'+suffix),('second-trigger','Second trigger',('left_trigger' if mode=='two-hand' else hand+'_primary'),'button_special' if family=='mounted' else '', 'AnalogTriggerRight'+suffix),('start','Start','left_thumbstick_click' if slot==0 else 'left_secondary','','Start'+str(slot+1)),('coin','Insert credit','right_thumbstick_click','','Coin'+str(slot+1))]:
+                    if eid=='coin' and slot:continue
                     rows.append(base_element('p'+str(slot+1)+'-'+eid,label,'button',source,node,{'button':port,'range':[0,1]},player=slot,slot=slot,model=model,binding={'mode':'hold' if 'trigger' in eid else 'press','threshold':.55},game_action_question='Confirm each trigger switch caption in the game instructions.' if 'trigger' in eid else ''))
-            labels=[('AIM','Point your gun at the target.' if family=='pistol' else 'Grip the handles and aim within the mount.'),('MAIN TRIGGER','Firing-hand trigger for each active player.'),('SECOND TRIGGER','Other-hand trigger with two hands; A/X otherwise.'),('START / CREDIT','Each gun: stick click starts; B/Y inserts credit.'),('PLAYERS','Two independent gun slots.' if mode=='two-guns' else 'Player 1 only; player 2 stays inactive.')]
+            labels=[('AIM','Point your gun at the target.' if family=='pistol' else 'Grip the handles and aim within the mount.'),('MAIN TRIGGER','Firing-hand trigger for each active player.'),('SECOND TRIGGER','Other-hand trigger with two hands; A/X otherwise.'),('START / CREDIT','Left stick click starts; right stick click inserts credit. Player 2 starts with left Y; credits are shared.'),('PLAYERS','Two independent gun slots.' if mode=='two-guns' else 'Player 1 only; player 2 stays inactive.')]
             choices.append(save_choice(sid,title,explanation,rows,lambda theme:family_card(title,explanation,gun_picture(family=='mounted'),labels,theme)))
         for gid in gids:write_game(gid,choices)
 
@@ -294,8 +295,8 @@ def write_step4():
             rows.append(base_element('ski-'+axis,'Swing left/right' if axis=='x' else 'Edge forward/back','lean_body' if mode=='body-controls' else 'stick','head' if mode=='body-controls' else 'left_thumbstick',node,{'axis':port,'range':[0,255],'centre':128,'invert':axis=='x' or mode=='thumbstick'},model='platform-ski',position=[0,0,-.20],extractor=('body_lean' if axis=='x' else 'body_rock') if mode=='body-controls' else 'stick',axes={'component':axis if mode=='thumbstick' else ('x' if axis=='x' else 'z'),'positive':'right' if axis=='x' else ('back' if mode=='body-controls' else 'forward')},calibration={'range_m':[-.18,.18],'centre':'before_launch'},curve={'deadzone':.06,'gamma':1},tracking_loss='neutral'))
         for i,hand in enumerate(('left','right'),1):rows.append(base_element('pole-'+hand,'Jab '+hand+' pole','button',hand+'_trigger','button_pole_'+str(i),{'button':'SkiPoll'+hand.title(),'range':[0,1]},model='platform-ski',binding={'threshold':.55,'mode':'hold'}))
         for i,source in enumerate(('right_primary','right_secondary','left_primary'),1):rows.append(base_element('select-'+str(i),'Select '+str(i),'button',source,'button_select_'+str(i),{'button':'SkiSelect'+str(i),'range':[0,1]},model='panel-select-three',binding={'mode':'press'}))
-        for eid,label,source,port in [('start','Start','right_thumbstick_click','Start1'),('coin','Insert credit','left_secondary','Coin1')]:rows.append(base_element(eid,label,'button',source,'',{'button':port,'range':[0,1]},binding={'mode':'press'}))
-        labels=[('SWING','Left stick left/right.' if mode=='thumbstick' else 'Lean left/right from calibrated centre.'),('EDGE','Left stick forward/back.' if mode=='thumbstick' else 'Rock forward/back from centre.'),('POLES','Left/right triggers jab matching poles.'),('SELECT 1 / 2 / 3','A / B / X, respectively.'),('START / CREDIT','Right stick click starts; Y inserts credit.')]
+        for eid,label,source,port in [('start','Start','left_thumbstick_click','Start1'),('coin','Insert credit','right_thumbstick_click','Coin1')]:rows.append(base_element(eid,label,'button',source,'',{'button':port,'range':[0,1]},binding={'mode':'press'}))
+        labels=[('SWING','Left stick left/right.' if mode=='thumbstick' else 'Lean left/right from calibrated centre.'),('EDGE','Left stick forward/back.' if mode=='thumbstick' else 'Rock forward/back from centre.'),('POLES','Left/right triggers jab matching poles.'),('SELECT 1 / 2 / 3','A / B / X, respectively.'),('START / CREDIT','Left stick click starts; right stick click inserts credit.')]
         choices.append(save_choice(sid,title,explanation,rows,lambda theme:family_card(title,explanation,ski_picture(),labels,theme)))
     write_game('skichamp',choices)
     choices=[]
@@ -307,8 +308,8 @@ def write_step4():
             i=slot+1
             rows.append(base_element('pump-'+str(i),'Player '+str(i)+' pump','pump',hand+'_hand' if mode=='grab-pump' else hand+'_thumbstick','pivot_pump_'+str(i),{'axis':'MagicalLever'+str(i),'range':[0,255],'centre':128,'invert':False},model='pump-handcar',player=slot,extractor='bar_lift' if mode=='grab-pump' else 'stick',axes={'component':'y','positive':'up'},range_m=[-.16,.16],grab={'required':mode=='grab-pump','button':'grip','radius_m':.06,'soft_lock':True},calibration={'centre':'before_grab'},tracking_loss='neutral'))
             rows.append(base_element('pedal-'+str(i),'Player '+str(i)+' pedal','pedal',hand+'_trigger','button_pedal_'+str(i),{'button':'MagicalPedal'+str(i),'range':[0,1]},model='pump-handcar',player=slot,extractor='trigger',binding={'threshold':.55,'mode':'hold'}))
-            for eid,label,source,port in [('start','Start',hand+'_primary','Start'+str(i)),('coin','Insert credit',hand+'_secondary','Coin'+str(i))]:rows.append(base_element('p'+str(i)+'-'+eid,label,'button',source,'',{'button':port,'range':[0,1]},player=slot,binding={'mode':'press'}))
-        labels=[('PLAYER 1 PUMP','Grip right handle; move up/down.' if mode=='grab-pump' else 'Right thumbstick up/down.'),('PLAYER 2 PUMP','Grip left handle; move up/down.' if mode=='grab-pump' else 'Left thumbstick up/down.'),('PEDALS','Right/left trigger = P1/P2 pedal.'),('START / CREDIT','A/B = P1 start/credit; X/Y = P2.'),('HANDOFF','Two independent players; no invented wheel.')]
+            for eid,label,source,port in [('start','Start','left_thumbstick_click' if slot==0 else hand+'_primary','Start'+str(i)),('coin','Insert credit','right_thumbstick_click' if slot==0 else hand+'_secondary','Coin'+str(i))]:rows.append(base_element('p'+str(i)+'-'+eid,label,'button',source,'',{'button':port,'range':[0,1]},player=slot,binding={'mode':'press'}))
+        labels=[('PLAYER 1 PUMP','Grip right handle; move up/down.' if mode=='grab-pump' else 'Right thumbstick up/down.'),('PLAYER 2 PUMP','Grip left handle; move up/down.' if mode=='grab-pump' else 'Left thumbstick up/down.'),('PEDALS','Right/left trigger = P1/P2 pedal.'),('START / CREDIT','Left/right stick click = P1 start/credit; X/Y = P2 start/credit.'),('HANDOFF','Two independent players; no invented wheel.')]
         choices.append(save_choice(sid,title,explanation,rows,lambda theme:family_card(title,explanation,pump_picture(),labels,theme)))
     write_game('magtruck',choices)
 
@@ -332,7 +333,7 @@ def arcade_picture(count):
     return '''<g transform="translate(12,100)"><rect x="44" y="292" width="381" height="162" rx="25" fill="var(--plate)" stroke="url(#metal)" stroke-width="6"/>
     <ellipse cx="113" cy="351" rx="43" ry="13" fill="var(--rubber)"/><path d="M113 349V267" stroke="url(#metal)" stroke-width="15"/>
     <circle cx="113" cy="258" r="29" fill="#31c8bb"/><text x="113" y="266" font-size="23" text-anchor="middle">1</text>'''+caps+'''<path d="M191 374H394" stroke="url(#metal)" stroke-width="4"/>
-    <text x="195" y="409" font-size="19">Separate Start: stick click</text></g>'''
+    <text x="195" y="409" font-size="19">Start: left stick click</text></g>'''
 
 def write_added_games():
     choices=[]
@@ -352,9 +353,9 @@ def write_added_games():
         rows.extend([
             base_element('fire','Fire','button','right_trigger','pivot_trigger',{'button':'AnalogJoyTrigger','range':[0,1]},model='stick-flight',binding={'threshold':.55,'mode':'hold'}),
             base_element('event','Event','button','right_primary','button_event',{'button':'AnalogJoyEvent','range':[0,1]},model='stick-flight',binding={'mode':'hold'}),
-            base_element('start','Start','button','right_thumbstick_click','',{'button':'Start1','range':[0,1]},binding={'mode':'press'}),
-            base_element('coin','Insert credit','button','right_secondary','',{'button':'Coin1','range':[0,1]},binding={'mode':'press'})])
-        labels=[('AIM','Grip and tilt right hand +/-20 degrees.' if mode=='grab-stick' else 'Left thumbstick: left/right and up/down.'),('TRIGGER / FIRE','Right trigger = AnalogJoyTrigger.'),('EVENT BUTTON','A = AnalogJoyEvent.'),('START / CREDIT','Right stick click starts; B inserts credit.')]
+            base_element('start','Start','button','left_thumbstick_click','',{'button':'Start1','range':[0,1]},binding={'mode':'press'}),
+            base_element('coin','Insert credit','button','right_thumbstick_click','',{'button':'Coin1','range':[0,1]},binding={'mode':'press'})])
+        labels=[('AIM','Grip and tilt right hand +/-20 degrees.' if mode=='grab-stick' else 'Left thumbstick: left/right and up/down.'),('TRIGGER / FIRE','Right trigger = AnalogJoyTrigger.'),('EVENT BUTTON','A = AnalogJoyEvent.'),('START / CREDIT','Left stick click starts; right stick click inserts credit.')]
         choices.append(save_choice(sid,title,explanation,rows,lambda theme:family_card(title,explanation,flight_picture(),labels,theme)))
     write_game('swtrilgy',choices)
     for gid,actions in [('vf3',[('Punch','right_trigger'),('Kick','right_primary'),('Guard','left_trigger'),('Escape','right_secondary')]),
@@ -382,9 +383,9 @@ def write_added_games():
                 rows.append(base_element('action-'+str(i),port,'button',source,'button_action_'+str(i),{'button':port,'range':[0,1]},
                     model=panel,position=[.09,.63,-.36],binding={'mode':'hold','threshold':.55}))
                 labels.append((port.upper(),button_names[source]+'.'))
-            rows.extend([base_element('start','Start / first-person view' if gid=='vf3' else 'Start','button','right_thumbstick_click','',{'button':'Start1','range':[0,1]},binding={'mode':'press'}),
-                         base_element('coin','Insert credit','button','left_secondary','',{'button':'Coin1','range':[0,1]},binding={'mode':'press'})])
-            labels.append(('START / CREDIT','Right stick click = Start; Y = credit. Start during a fight switches to first-person view; it never shares an attack button.' if gid=='vf3' else 'Right stick click starts; Y inserts credit.'))
+            rows.extend([base_element('start','Start / first-person view' if gid=='vf3' else 'Start','button','left_thumbstick_click','',{'button':'Start1','range':[0,1]},binding={'mode':'press'}),
+                         base_element('coin','Insert credit','button','right_thumbstick_click','',{'button':'Coin1','range':[0,1]},binding={'mode':'press'})])
+            labels.append(('START / CREDIT','Left stick click = Start; right stick click = credit. Start during a fight switches to first-person view; it never shares an attack button.' if gid=='vf3' else 'Left stick click starts; right stick click inserts credit.'))
             choices.append(save_choice(sid,title,explanation,rows,lambda theme:family_card(title,explanation,arcade_picture(len(actions)),labels,theme)))
         write_game(gid,choices)
 

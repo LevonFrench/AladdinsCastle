@@ -72,7 +72,7 @@ label_node = "label_event"
 id = "start"
 label = "Start"
 type = "button"
-source = "right_thumbstick_click"
+source = "left_thumbstick_click"
 node = ""
 output = { button = "Start1", range = [0, 1] }
 binding = { mode = "press" }
@@ -81,7 +81,7 @@ binding = { mode = "press" }
 id = "coin"
 label = "Insert credit"
 type = "button"
-source = "right_secondary"
+source = "right_thumbstick_click"
 node = ""
 output = { button = "Coin1", range = [0, 1] }
 binding = { mode = "press" }

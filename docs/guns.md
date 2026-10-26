@@ -20,13 +20,13 @@ A cabinet with three or four guns (Beast Busters, Laser Ghost, Crypt Killer, Dea
 | Rule | Default | Options |
 |---|---|---|
 | Hands | Right hand = player 1, left hand = player 2 | `p1_hand = "left"` (also what a left-handed profile sets) |
-| When the second gun appears | **When player 2 joins.** Until then the off hand shows a faint copy of its gun. Pressing that hand's Start button joins, as it would on the cabinet, and the gun turns solid. When player 2 is out of the game, it goes faint again. | `two_guns = "on_join"` (default), `"always"` (player 2 joins as soon as the game allows), `"off"` |
+| When the second gun appears | **When player 2 joins.** Until then the off hand shows a faint copy of its gun. Pressing that hand's primary button (A or X) joins, as it would on the cabinet, and the gun turns solid. When player 2 is out of the game, it goes faint again. | `two_guns = "on_join"` (default), `"always"` (player 2 joins as soon as the game allows), `"off"` |
 | One gun, switching hands | With one gun out, pulling the other hand's trigger moves the gun to that hand | `hand_switch = "trigger"` (default), `"off"` |
 | Fire, reload | Each hand's trigger fires its own gun. Each gun reloads by itself with the game's own rule (off-screen shot, or point down / flick) | Per hand |
 | Cover pedal (two-player cover games on one screen) | Each hand's grip button is that player's pedal | As [controls.md](controls.md) §1.3 |
 | Laser and aim dot | One per gun, in the player's colour | Off, laser, dot, per game |
 | Gun angle | Set per hand; the left hand starts as a mirror of the right | Control Mapping mode |
-| Credits | Player 2 joining uses a credit, as on the cabinet. Free play is the suggested setting. | Coin on each hand's coin button |
+| Credits | Player 2 joining uses a credit, as on the cabinet. Free play is the suggested setting. | One credit button for both players: the right stick click (U2) |
 
 - **Joining is a button, never a hand pose.** A review of one VR shooter that wakes the second gun with a grip pose calls that fiddly.
 - **Reloads that need the other hand are off while both hands hold guns.** Racking a slide or pumping a fore-end with the free hand only works with one gun. With two, a pump shotgun reloads by the game's off-screen rule or a flick.

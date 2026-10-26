@@ -17,6 +17,7 @@
 #include "core/system22/System22.h"
 #include "core/pinball/Gamepad.h"
 #include "core/art/Download.h"
+#include "core/launch/UniversalControls.h"
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -31,6 +32,8 @@
 #include <QScopeGuard>
 #include <algorithm>
 namespace ac {
+QString UiController::universalControls()const{return universal::controls();}
+QString UiController::universalMenuNote()const{return universal::menuNote();}
 QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().value("help").toString();}
 namespace {
 QString str(const Json &j,const char *key){return j.contains(key)&&j[key].is_string()?QString::fromStdString(j[key].get<std::string>()):QString();}
@@ -298,7 +301,7 @@ void UiController::launchPinballQueued(const QVariantMap &row,const QString &clo
  m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");m_nowPlaying["view"]=view;
  const bool headset=view!="desktop";
  const QString pad=gamepad.isEmpty()?QString():" Gamepad ("+gamepad+"): LB/RB or the triggers are the flippers, pull the right stick down for the plunger, Start and Back together exit.";
- if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu."+pad;
+ if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table: "+universal::pinballControls()+" X opens the menu."+pad;
  else m_nowPlaying["hint"]="On the desktop, with VR off."+(pad.isEmpty()?QString(" No gamepad was found; the keyboard plays as Visual Pinball is set."):pad);
  emit nowPlayingChanged();
 }
@@ -604,7 +607,7 @@ void UiController::playModel3(const QString &id){
 void UiController::launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable){
  queueSession("model3-"+id,view,closeUnavailable);
  for(const auto &value:model3::games())if(value.toMap().value("id")==id)m_nowPlaying["title"]=value.toMap().value("title").toString()+" · "+model3::viewLabel(view);
- m_nowPlaying["hint"]="Home = set straight ahead. 1 = start, 3 = coin, Esc = quit. The picture is also on the PC monitor.";
+ m_nowPlaying["hint"]=universal::withHint("The picture is also on the PC monitor; on the keyboard 1 = start, 3 = coin, Esc = quit.");
  emit nowPlayingChanged();
 }
 void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){queueSession(id,variant,closeUnavailable);emit nowPlayingChanged();}

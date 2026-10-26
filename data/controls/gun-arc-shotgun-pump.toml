@@ -45,7 +45,7 @@ node = ""
 slot = 0
 player = 0
 input = { kind = "button", semantic = "coin" }
-binding = { hand = "slot", control = "secondary", mode = "press" }
+binding = { hand = "right", control = "thumbstick_click", mode = "press" }
 
 [[element]]
 id = "p1-laser"
@@ -55,7 +55,7 @@ node = "fx_laser"
 slot = 0
 player = 0
 input = { kind = "runtime", semantic = "laser_toggle" }
-binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+binding = { hand = "slot", control = "secondary", mode = "toggle" }
 
 [[element]]
 id = "p2-trigger"
@@ -79,16 +79,6 @@ binding = { hand = "slot", control = "pump", mode = "press" }
 fallback_binding = { hand = "slot", control = "flick_up", mode = "press" }
 
 [[element]]
-id = "p2-coin"
-label = "Insert credit"
-part = "coin-button"
-node = ""
-slot = 1
-player = 1
-input = { kind = "button", semantic = "coin" }
-binding = { hand = "slot", control = "secondary", mode = "press" }
-
-[[element]]
 id = "p2-laser"
 label = "Toggle laser"
 part = "laser"
@@ -96,7 +86,7 @@ node = "fx_laser"
 slot = 1
 player = 1
 input = { kind = "runtime", semantic = "laser_toggle" }
-binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+binding = { hand = "slot", control = "secondary", mode = "toggle" }
 
 [[unmapped_part]]
 id = "p1-fore-grip"

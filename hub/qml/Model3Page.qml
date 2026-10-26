@@ -191,7 +191,7 @@ Item {
   ColumnLayout {Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:18;spacing:8
    UiText {objectName:"model3Problem";Layout.fillWidth:true;visible:!!page.selected.problem;text:page.selected.problem||"";font.pixelSize:page.vrOverlayMode?18:16;color:page.needsColour}
    UiText {objectName:"model3Warning";Layout.fillWidth:true;visible:!!page.selected.warning;text:"Before you start: "+(page.selected.warning||"");font.pixelSize:page.vrOverlayMode?18:16;color:page.needsColour}
-   UiText {Layout.fillWidth:true;visible:!page.selected.system;text:"In the game: Home = set straight ahead · 1 = start · 3 = coin · Esc = quit";font.pixelSize:page.vrOverlayMode?18:16;color:Theme.get("color.text.body")}
+   UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;visible:!page.selected.system;text:"In the headset: "+uiController.universalControls+" "+uiController.universalMenuNote+" On the PC keyboard: 1 = start, 3 = coin, Esc = quit.";font.pixelSize:page.vrOverlayMode?18:16;color:Theme.get("color.text.body")}
    // The four facts kept apart: listed, how to start it, found here, accepted by the owner.
    UiText {objectName:"model3Status";Layout.fillWidth:true;font.pixelSize:page.vrOverlayMode?16:14;color:Theme.get("color.text.muted_detail")
     text:"In the Hub's list: yes   ·   How to start it: known   ·   On this PC: "+(page.selected.found?"found":"not ready")+"   ·   In the headset: "+(page.selected.accepted?"accepted by you ("+page.selected.accepted+")":"not yet accepted by you")}
