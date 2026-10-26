@@ -13,24 +13,24 @@ No game screens or content are shipped.
 | Remote B trigger | Firing trigger |
 | Remote A | Firing primary face button |
 | Remote d-pad | Firing thumbstick directions |
-| Remote plus / minus | Firing grip + primary / secondary |
+| Remote plus / minus | Left / right stick click alone on the native route (universal U1/U2); shell alias: firing grip + primary / secondary |
 | Remote 1 / 2 | Firing grip + thumbstick up / down |
-| Remote Home | Firing grip + thumbstick click |
-| Remote shake / swing | Physical shell motion, plus secondary / stick click |
+| Remote Home | Firing grip + thumbstick left |
+| Remote shake / swing | Physical shell motion, plus secondary / grip + thumbstick right |
 | Stick controller analog stick | Off-hand thumbstick |
 | Stick controller Z / C | Off-hand trigger / grip |
 | Stick controller shake / swing | Physical off-hand motion, plus primary / secondary |
 
 Extra Remote bindings suppress the ordinary action while the modifier is held.
-Both thumbstick clicks reserve recenter and suppress game buttons/fallbacks.
+Both thumbstick clicks reserve recenter and suppress game buttons/fallbacks; no action uses a click as a modifier (universal controls contract v1). Holding both for 3 s quits through the Dolphin Exit hotkey (`setups/dolphin-vr/templates/Hotkeys.ini`).
 Handedness swaps the two physical hands. Native aim additionally requires its
 matching `Android/QuestLeftHanded` companion setting; native dual-player export
 is rejected because the pinned native aiming hand is global.
 
 Holds are split (default), docked at shell `grip_two`, and two-remotes (two shells,
 no accessory). Dock thresholds and grab modes are data for runtime integration.
-In DSU dual mode each hand controls its own stick/C/Z; click is the Remote extra
-button/d-pad layer. Generated DSU data remain **planned** in the controls page
+In DSU dual mode each hand controls its own stick/C/Z; the secondary button is the Remote
+extra button/d-pad layer. Generated DSU data remain **planned** in the controls page
 until the lead's bridge and ordinary-Dolphin profile consumers use these bytes.
 Generation does not prove effective fallback bindings or independent native aim.
 

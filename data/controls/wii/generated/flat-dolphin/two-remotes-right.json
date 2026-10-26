@@ -13,7 +13,7 @@
           "id": "fire",
           "role": "remote",
           "wire": "R2",
-          "expression": "trigger & !click",
+          "expression": "trigger & !secondary",
           "hand": "right",
           "supported": true
         },
@@ -21,7 +21,7 @@
           "id": "interact",
           "role": "remote",
           "wire": "Cross",
-          "expression": "primary & !click",
+          "expression": "primary & !secondary & !grip",
           "hand": "right",
           "supported": true
         },
@@ -29,7 +29,7 @@
           "id": "dpad-up",
           "role": "remote",
           "wire": "Pad N",
-          "expression": "click & up & !grip & !primary",
+          "expression": "secondary & up & !primary",
           "hand": "right",
           "supported": true
         },
@@ -37,7 +37,7 @@
           "id": "dpad-down",
           "role": "remote",
           "wire": "Pad S",
-          "expression": "click & down & !grip & !primary",
+          "expression": "secondary & down & !primary",
           "hand": "right",
           "supported": true
         },
@@ -45,7 +45,7 @@
           "id": "dpad-left",
           "role": "remote",
           "wire": "Pad W",
-          "expression": "click & left & !grip & !primary",
+          "expression": "secondary & left & !primary",
           "hand": "right",
           "supported": true
         },
@@ -53,7 +53,7 @@
           "id": "dpad-right",
           "role": "remote",
           "wire": "Pad E",
-          "expression": "click & right & !grip & !primary",
+          "expression": "secondary & right & !primary",
           "hand": "right",
           "supported": true
         },
@@ -61,7 +61,7 @@
           "id": "menu",
           "role": "remote",
           "wire": "Options",
-          "expression": "click & primary & !grip & !secondary & !up & !down",
+          "expression": "secondary & primary & right",
           "hand": "right",
           "supported": true
         },
@@ -69,7 +69,7 @@
           "id": "minus",
           "role": "remote",
           "wire": "Share",
-          "expression": "click & secondary & !grip & !primary",
+          "expression": "secondary & primary & left",
           "hand": "right",
           "supported": true
         },
@@ -77,7 +77,7 @@
           "id": "one",
           "role": "remote",
           "wire": "Square",
-          "expression": "click & primary & up & !grip & !secondary",
+          "expression": "secondary & primary & up",
           "hand": "right",
           "supported": true
         },
@@ -85,7 +85,7 @@
           "id": "two",
           "role": "remote",
           "wire": "Triangle",
-          "expression": "click & primary & down & !grip & !secondary",
+          "expression": "secondary & primary & down",
           "hand": "right",
           "supported": true
         },
@@ -93,7 +93,7 @@
           "id": "home",
           "role": "remote",
           "wire": "PS",
-          "expression": "click & grip & primary & !secondary",
+          "expression": "secondary & grip & !primary & !trigger",
           "hand": "right",
           "supported": false
         },
@@ -101,7 +101,7 @@
           "id": "z",
           "role": "nunchuk",
           "wire": "L2",
-          "expression": "grip & !click",
+          "expression": "grip & !secondary & !primary",
           "hand": "right",
           "supported": true
         },
@@ -109,7 +109,7 @@
           "id": "c",
           "role": "nunchuk",
           "wire": "Circle",
-          "expression": "secondary & !click",
+          "expression": "grip & primary & !secondary",
           "hand": "right",
           "supported": true
         },
@@ -117,7 +117,7 @@
           "id": "stick-up",
           "role": "nunchuk",
           "wire": "Left Y+",
-          "expression": "up & !click",
+          "expression": "up & !secondary",
           "hand": "right",
           "supported": true
         },
@@ -125,7 +125,7 @@
           "id": "stick-down",
           "role": "nunchuk",
           "wire": "Left Y-",
-          "expression": "down & !click",
+          "expression": "down & !secondary",
           "hand": "right",
           "supported": true
         },
@@ -133,7 +133,7 @@
           "id": "stick-left",
           "role": "nunchuk",
           "wire": "Left X-",
-          "expression": "left & !click",
+          "expression": "left & !secondary",
           "hand": "right",
           "supported": true
         },
@@ -141,7 +141,7 @@
           "id": "stick-right",
           "role": "nunchuk",
           "wire": "Left X+",
-          "expression": "right & !click",
+          "expression": "right & !secondary",
           "hand": "right",
           "supported": true
         },
@@ -149,7 +149,7 @@
           "id": "remote-shake",
           "role": "remote",
           "wire": "R1",
-          "expression": "click & trigger & !grip",
+          "expression": "secondary & trigger & !grip",
           "hand": "right",
           "supported": true
         },
@@ -157,7 +157,7 @@
           "id": "remote-swing",
           "role": "remote",
           "wire": "L1",
-          "expression": "click & primary & secondary & !grip",
+          "expression": "secondary & trigger & grip",
           "hand": "right",
           "supported": true
         },
@@ -165,7 +165,7 @@
           "id": "stick-shake",
           "role": "nunchuk",
           "wire": "R3",
-          "expression": "click & grip & trigger",
+          "expression": "secondary & primary & trigger",
           "hand": "right",
           "supported": true
         },
@@ -173,7 +173,7 @@
           "id": "stick-swing",
           "role": "nunchuk",
           "wire": "L3",
-          "expression": "click & grip & secondary & !primary",
+          "expression": "secondary & primary & grip & !trigger",
           "hand": "right",
           "supported": true
         }
@@ -188,7 +188,7 @@
           "id": "fire",
           "role": "remote",
           "wire": "R2",
-          "expression": "trigger & !click",
+          "expression": "trigger & !secondary",
           "hand": "left",
           "supported": true
         },
@@ -196,7 +196,7 @@
           "id": "interact",
           "role": "remote",
           "wire": "Cross",
-          "expression": "primary & !click",
+          "expression": "primary & !secondary & !grip",
           "hand": "left",
           "supported": true
         },
@@ -204,7 +204,7 @@
           "id": "dpad-up",
           "role": "remote",
           "wire": "Pad N",
-          "expression": "click & up & !grip & !primary",
+          "expression": "secondary & up & !primary",
           "hand": "left",
           "supported": true
         },
@@ -212,7 +212,7 @@
           "id": "dpad-down",
           "role": "remote",
           "wire": "Pad S",
-          "expression": "click & down & !grip & !primary",
+          "expression": "secondary & down & !primary",
           "hand": "left",
           "supported": true
         },
@@ -220,7 +220,7 @@
           "id": "dpad-left",
           "role": "remote",
           "wire": "Pad W",
-          "expression": "click & left & !grip & !primary",
+          "expression": "secondary & left & !primary",
           "hand": "left",
           "supported": true
         },
@@ -228,7 +228,7 @@
           "id": "dpad-right",
           "role": "remote",
           "wire": "Pad E",
-          "expression": "click & right & !grip & !primary",
+          "expression": "secondary & right & !primary",
           "hand": "left",
           "supported": true
         },
@@ -236,7 +236,7 @@
           "id": "menu",
           "role": "remote",
           "wire": "Options",
-          "expression": "click & primary & !grip & !secondary & !up & !down",
+          "expression": "secondary & primary & right",
           "hand": "left",
           "supported": true
         },
@@ -244,7 +244,7 @@
           "id": "minus",
           "role": "remote",
           "wire": "Share",
-          "expression": "click & secondary & !grip & !primary",
+          "expression": "secondary & primary & left",
           "hand": "left",
           "supported": true
         },
@@ -252,7 +252,7 @@
           "id": "one",
           "role": "remote",
           "wire": "Square",
-          "expression": "click & primary & up & !grip & !secondary",
+          "expression": "secondary & primary & up",
           "hand": "left",
           "supported": true
         },
@@ -260,7 +260,7 @@
           "id": "two",
           "role": "remote",
           "wire": "Triangle",
-          "expression": "click & primary & down & !grip & !secondary",
+          "expression": "secondary & primary & down",
           "hand": "left",
           "supported": true
         },
@@ -268,7 +268,7 @@
           "id": "home",
           "role": "remote",
           "wire": "PS",
-          "expression": "click & grip & primary & !secondary",
+          "expression": "secondary & grip & !primary & !trigger",
           "hand": "left",
           "supported": false
         },
@@ -276,7 +276,7 @@
           "id": "z",
           "role": "nunchuk",
           "wire": "L2",
-          "expression": "grip & !click",
+          "expression": "grip & !secondary & !primary",
           "hand": "left",
           "supported": true
         },
@@ -284,7 +284,7 @@
           "id": "c",
           "role": "nunchuk",
           "wire": "Circle",
-          "expression": "secondary & !click",
+          "expression": "grip & primary & !secondary",
           "hand": "left",
           "supported": true
         },
@@ -292,7 +292,7 @@
           "id": "stick-up",
           "role": "nunchuk",
           "wire": "Left Y+",
-          "expression": "up & !click",
+          "expression": "up & !secondary",
           "hand": "left",
           "supported": true
         },
@@ -300,7 +300,7 @@
           "id": "stick-down",
           "role": "nunchuk",
           "wire": "Left Y-",
-          "expression": "down & !click",
+          "expression": "down & !secondary",
           "hand": "left",
           "supported": true
         },
@@ -308,7 +308,7 @@
           "id": "stick-left",
           "role": "nunchuk",
           "wire": "Left X-",
-          "expression": "left & !click",
+          "expression": "left & !secondary",
           "hand": "left",
           "supported": true
         },
@@ -316,7 +316,7 @@
           "id": "stick-right",
           "role": "nunchuk",
           "wire": "Left X+",
-          "expression": "right & !click",
+          "expression": "right & !secondary",
           "hand": "left",
           "supported": true
         },
@@ -324,7 +324,7 @@
           "id": "remote-shake",
           "role": "remote",
           "wire": "R1",
-          "expression": "click & trigger & !grip",
+          "expression": "secondary & trigger & !grip",
           "hand": "left",
           "supported": true
         },
@@ -332,7 +332,7 @@
           "id": "remote-swing",
           "role": "remote",
           "wire": "L1",
-          "expression": "click & primary & secondary & !grip",
+          "expression": "secondary & trigger & grip",
           "hand": "left",
           "supported": true
         },
@@ -340,7 +340,7 @@
           "id": "stick-shake",
           "role": "nunchuk",
           "wire": "R3",
-          "expression": "click & grip & trigger",
+          "expression": "secondary & primary & trigger",
           "hand": "left",
           "supported": true
         },
@@ -348,7 +348,7 @@
           "id": "stick-swing",
           "role": "nunchuk",
           "wire": "L3",
-          "expression": "click & grip & secondary & !primary",
+          "expression": "secondary & primary & grip & !trigger",
           "hand": "left",
           "supported": true
         }

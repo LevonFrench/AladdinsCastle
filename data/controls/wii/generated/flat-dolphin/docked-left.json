@@ -93,7 +93,7 @@
           "id": "home",
           "role": "remote",
           "wire": "PS",
-          "expression": "grip & click",
+          "expression": "grip & left",
           "hand": "left",
           "supported": false
         },
@@ -157,7 +157,7 @@
           "id": "remote-swing",
           "role": "remote",
           "wire": "L1",
-          "expression": "click & !grip",
+          "expression": "grip & right",
           "hand": "left",
           "supported": true
         },

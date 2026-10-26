@@ -106,11 +106,23 @@ class ShellProfilesTests(unittest.TestCase):
             inputs={'primary':1,'grip':int(modifier)}
             self.assertEqual(evaluate(actions['interact']['split'],inputs),not modifier)
             self.assertEqual(evaluate(actions['menu']['split'],inputs),modifier)
-        inputs={'primary':1,'click':1,'up':1}
+        inputs={'primary':1,'secondary':1,'up':1}
         self.assertEqual(evaluate(actions['interact']['dual'],inputs),0)
         self.assertEqual(evaluate(actions['menu']['dual'],inputs),0)
         self.assertEqual(evaluate(actions['one']['dual'],inputs),1)
         self.assertEqual(evaluate(actions['dpad-up']['dual'],inputs),0)
+    def test_universal_layer_no_game_action_uses_a_stick_click(self):
+        # Universal controls contract v1: the clicks are Start, Select, recentre and quit only.
+        import universal_controls
+        for a in source()['action']:
+            for mode in ('split','dual'):self.assertNotIn('click',a[mode].replace('!',' ').split(),a['id'])
+        for mode,hand in itertools.product(('split','docked'),('right','left')):
+            r=profile('dolphinxr',mode,hand)['Wiimote1']
+            self.assertIn(universal_controls.START,r['Buttons/+'])
+            self.assertIn(universal_controls.SELECT,r['Buttons/-'])
+            for a in source()['action']:
+                if a['id'] in ('menu','minus'):continue
+                self.assertNotIn('Button Thumbstick',r[a['ini']].replace(' & !(`Right Button Thumbstick` & `Left Button Thumbstick`)',''),a['id'])
     def test_motion_physical_and_button_fallback_coexist(self):
         for route in ('dolphinxr','flat-dolphin'):
             r=profile(route,'split','right')['Wiimote1']

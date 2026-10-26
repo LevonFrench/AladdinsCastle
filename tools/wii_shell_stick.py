@@ -7,12 +7,17 @@ import json
 import math
 from pathlib import Path
 import re
+import sys
 import tomllib
 
 ROOT=Path(__file__).resolve().parents[1]
 MODES=('split','docked','two-remotes')
 ROUTES=('dolphinxr','flat-dolphin')
 TOKENS={'trigger','grip','click','primary','secondary','up','down','left','right'}
+# Universal controls contract v1 (U1/U2): Start and Select are the stick clicks, written once.
+sys.path.insert(0,str(ROOT/'setups/dolphin-vr/motion-controls'))
+import universal_controls
+UNIVERSAL_NATIVE={'menu':universal_controls.START,'minus':universal_controls.SELECT}
 CANONICAL_LIVE_SOURCE_TESTED=True # Lead's 18 CPU/loopback checks and independent source review.
 
 def aim_calibration(value):
@@ -92,6 +97,12 @@ def native_expression(expr,hand,data):
     result=' & '.join(('!' if neg else '')+token(n) for n,neg in terms(expr))
     return '('+result+') & !(`Right Button Thumbstick` & `Left Button Thumbstick`)'
 
+def native_profile_expression(action,mode,hand,data):
+    # Plus and Minus keep their shell-layer alias and gain the universal stick-click binding.
+    value=native_expression(expression(action,mode),hand,data)
+    if action['id'] in UNIVERSAL_NATIVE:value='('+value+') | ('+UNIVERSAL_NATIVE[action['id']]+')'
+    return value
+
 def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT,calibration=None,provisional_native_aim=False):
     if route not in ROUTES: raise ValueError('Unknown input route')
     if route=='dolphinxr' and mode=='two-remotes': raise ValueError('Native two-remotes unsupported: aim routing is global, not per slot')
@@ -115,7 +126,7 @@ def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT
         for a in data['action']:
             hand=firing if a['role']=='remote' else other
             device=remote if a['role']=='remote' else stick
-            profile[a['ini']]=native_expression(expression(a,mode),hand,data) if route=='dolphinxr' else dsu(a['wire'],device) if dsu_action_supported(a,data) else ''
+            profile[a['ini']]=native_profile_expression(a,mode,hand,data) if route=='dolphinxr' else dsu(a['wire'],device) if dsu_action_supported(a,data) else ''
         for direction in ('Up','Down','Left','Right','Forward','Backward'):
             for prefix,hand,device in (('',firing,remote),('Nunchuk/',other,stick)):
                 name=data['native']['accel'].format(hand=hand.title(),direction=direction)
