@@ -122,7 +122,9 @@ private slots:
         model.setPrimaryHand("left");
         QVERIFY(rowWithId(model,"p1-cover").value("bindingLabel").toString().contains("Left grip"));
         QVERIFY(rowWithId(model,"p1-coin").value("bindingLabel").toString().contains("Right thumbstick click")); // the coin click stays on the right hand
-        QVERIFY(model.controllerBindings("right").isEmpty());
+        // Left-handed play moves everything to the left hand except the universal stick click (coin on the right click).
+        const auto right=model.controllerBindings("right"); QVERIFY(!right.isEmpty());
+        for (const auto &binding:right) QCOMPARE(binding.toMap().value("control").toString(),QString("thumbstick_click"));
         model.setTwoGunsActive(true); QVERIFY(!model.twoGunsActive());
     }
     void replacementDefaultsHandAndClearsHostPreviewOverride() {

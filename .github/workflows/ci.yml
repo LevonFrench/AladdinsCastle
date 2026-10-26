@@ -52,7 +52,7 @@ jobs:
         timeout-minutes: 5
         run: |
           python -B -m unittest -v test_pinball_controls test_system22_controls test_wii_profile_audit test_wii_controls test_cabinet_motion
-          python -I hub/tests/universal_controls_text.py
+          python -I ../hub/tests/universal_controls_text.py
         working-directory: tools
       - name: Universal controls, host profile and binding checks (retro host, PCSX2 patch, Flycast copies)
         timeout-minutes: 5
