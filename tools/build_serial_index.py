@@ -14,8 +14,11 @@ No YAML code execution or emulator settings are copied.
 """
 import argparse
 import json
+import os
 import pathlib
 import re
+import sys
+import tempfile
 import tomllib
 import unicodedata
 
@@ -74,7 +77,8 @@ def extract(source_text, titles, source=SOURCE):
     for serial, names in records.items():
         if any(nonretail(title) for title in names):
             continue
-        matches = [(title, titles.get(key(title), set())) for title in names]
+        # A title with nothing to compare (all punctuation) has an empty key and never matches.
+        matches = [(title, titles.get(key(title), set()) if key(title) else set()) for title in names]
         ids = set().union(*(ids for _, ids in matches))
         if len(ids) == 1:
             title = next(title for title, matched in reversed(matches) if matched)
@@ -94,6 +98,43 @@ def merge(existing, extracted):
             # Refresh the facts, keep fields the generator does not know (for example "profile").
             merged[serial] = {**old, **row}
     return dict(sorted(merged.items()))
+
+
+def catalog_titles(root):
+    """Map key(title) to the PS2 catalog game ids that carry it, plus the game files that could not be read.
+
+    A game file that is broken or has no usable title is skipped and reported, not fatal: one bad
+    entry must not stop a refresh, and it can only lose a mapping, never add a wrong one.
+    """
+    titles, skipped = {}, []
+    for path in sorted((root / "games").glob("*/game.toml")):
+        try:
+            game = tomllib.loads(path.read_text(encoding="utf-8"))
+            if game.get("hardware") != "sony-ps2":
+                continue
+            names = [game["title"], *game.get("alt_titles", [])]
+            if not all(isinstance(name, str) for name in names) or not isinstance(game["id"], str):
+                raise TypeError("title, alt_titles and id must be text")
+        except (OSError, ValueError, KeyError, TypeError):
+            skipped.append(path.parent.name)
+            continue
+        for name in names:
+            if key(name):
+                titles.setdefault(key(name), set()).add(game["id"])
+    return titles, skipped
+
+
+def write_atomic(path, text):
+    """Write beside the target, then replace it: an interrupted run never leaves a half-written index."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(text)
+        os.replace(temporary, path)
+    except BaseException:
+        pathlib.Path(temporary).unlink(missing_ok=True)
+        raise
 
 
 def self_test():
@@ -119,6 +160,45 @@ def self_test():
             self.assertIn("SYNTH-00003", extract(source, {key("Test Drive"): {"ps2-synthetic"}}))
             source = 'SYNTH-00004:\n  name: "Synthetic [本体同梱版]"\n'
             self.assertIn("SYNTH-00004", extract(source, {key("Synthetic"): {"ps2-synthetic"}}))
+
+        def test_crlf_source_and_empty_keys(self):
+            source = 'SYNTH-00007:\r\n  name: "Synthetic"\r\n  region: "PAL"\r\n'
+            self.assertEqual(extract(source, {key("Synthetic"): {"ps2-synthetic"}})["SYNTH-00007"]["region"], "PAL")
+            # Nothing to compare: never a match, even when the catalog has an equally empty title.
+            self.assertEqual(key("?!"), "")
+            self.assertEqual(extract('SYNTH-00008:\n  name: "!!!"\n', {"": {"ps2-synthetic"}}), {})
+            # Neighbouring titles stay apart: a different number or an extra word is another game.
+            titles = {key("Synthetic 2"): {"ps2-two"}}
+            self.assertEqual(extract('SYNTH-00009:\n  name: "Synthetic"\n', titles), {})
+            self.assertEqual(extract('SYNTH-00010:\n  name: "Synthetic 3"\n', titles), {})
+            self.assertEqual(extract('SYNTH-00011:\n  name: "Synthetic II"\n', titles)["SYNTH-00011"]["gameId"], "ps2-two")
+
+        def test_catalog_titles_skip_unreadable_games(self):
+            import tempfile as temporary
+            with temporary.TemporaryDirectory() as folder:
+                root = pathlib.Path(folder)
+                for name, text in {
+                    "good": 'id = "ps2-good"\ntitle = "Good Game"\nalt_titles = ["Good Alias"]\nhardware = "sony-ps2"\n',
+                    "other": 'id = "ps1-other"\ntitle = "Other"\nhardware = "sony-ps1"\n',
+                    "broken": "title = [\n",
+                    "notitle": 'id = "ps2-notitle"\nhardware = "sony-ps2"\n',
+                    "badalt": 'id = "ps2-badalt"\ntitle = "Bad"\nalt_titles = [1]\nhardware = "sony-ps2"\n',
+                    "empty": 'id = "ps2-empty"\ntitle = "?!"\nhardware = "sony-ps2"\n',
+                }.items():
+                    (root / "games" / name).mkdir(parents=True)
+                    (root / "games" / name / "game.toml").write_text(text, encoding="utf-8")
+                titles, skipped = catalog_titles(root)
+                self.assertEqual(titles, {key("Good Game"): {"ps2-good"}, key("Good Alias"): {"ps2-good"}})
+                self.assertEqual(skipped, ["badalt", "broken", "notitle"])
+
+        def test_atomic_write_replaces_the_whole_file(self):
+            import tempfile as temporary
+            with temporary.TemporaryDirectory() as folder:
+                target = pathlib.Path(folder) / "out" / "index.json"
+                write_atomic(target, "first\n")
+                write_atomic(target, "second\n")
+                self.assertEqual(target.read_text(encoding="utf-8"), "second\n")
+                self.assertEqual([item.name for item in target.parent.iterdir()], ["index.json"])
 
         def test_live_schema_and_merge(self):
             commit = "0123456789abcdef0123456789abcdef01234567"
@@ -149,24 +229,28 @@ def main():
     p.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
     p.add_argument("--output", type=pathlib.Path, help="default: data/serial-index.json under --root")
     args = p.parse_args()
-    titles = {}
-    for path in sorted((args.root / "games").glob("*/game.toml")):
-        game = tomllib.loads(path.read_text(encoding="utf-8"))
-        if game.get("hardware") != "sony-ps2":
-            continue
-        for title in [game["title"], *game.get("alt_titles", [])]:
-            titles.setdefault(key(title), set()).add(game["id"])
-    result = extract(args.source.read_text(encoding="utf-8"), titles, source_url(args.commit))
+    titles, skipped = catalog_titles(args.root)
+    for name in skipped:
+        print(f"skipped games/{name}/game.toml: unreadable or without a usable title", file=sys.stderr)
+    try:
+        source_text = args.source.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        p.error(f"cannot read {args.source.name}: {error}")
+    result = extract(source_text, titles, source_url(args.commit))
     output = args.output or args.root / "data/serial-index.json"
-    existing = json.loads(output.read_text(encoding="utf-8")) if output.exists() else {}
+    try:
+        existing = json.loads(output.read_text(encoding="utf-8")) if output.exists() else {}
+        if not isinstance(existing, dict):
+            raise ValueError("not an object")
+    except (OSError, ValueError) as error:
+        # Never replace an index that cannot be read: it may hold hand-curated rows.
+        p.error(f"cannot read the existing {output.name} ({error}); fix or move it first")
     merged = merge(existing, result)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_atomic(output, json.dumps(merged, indent=2, ensure_ascii=False) + "\n")
     print(f"{len(result)} verified public PS2 serial/title mappings extracted; {len(merged)} rows in {output.name}")
 
 
 if __name__ == "__main__":
-    import sys
     if sys.argv[1:] == ["--test"]:
         sys.exit(self_test())
     main()

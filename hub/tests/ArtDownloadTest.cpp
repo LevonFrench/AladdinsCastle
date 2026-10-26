@@ -47,6 +47,11 @@ private slots:
     QCOMPARE(ac::art::libretroName("Foo: The Bar?"), QString("Foo_ The Bar_"));
     QCOMPARE(ac::art::matchKey("House of the Dead 2, The (USA)"), ac::art::matchKey("The House of the Dead 2"));
     QCOMPARE(ac::art::matchKey("Ghosts & Goblins"), ac::art::matchKey("Ghosts and Goblins (World)"));
+    QCOMPARE(ac::art::matchKey("Time Crisis II (USA)"), ac::art::matchKey("Time Crisis 2"));
+    QCOMPARE(ac::art::matchKey(QString::fromUtf8("Pokémon [!]")), QString("pokemon"));
+    QVERIFY(ac::art::matchKey("(USA)") != ac::art::matchKey("Ridge Racer"));
+    QVERIFY(ac::art::matchKey("Ridge Racer") != ac::art::matchKey("Ridge Racer V"));
+    QVERIFY(ac::art::matchKey("!!").isEmpty());
     const QStringList folder{"House of the Dead 2, The (Europe)", "House of the Dead 2, The (USA) (Beta)",
                              "House of the Dead 2, The (USA)", "Confidential Mission (Japan) (En,Ja)",
                              "Confidential Mission (USA)", "Time Crisis (Japan)", "Time Crisis (World, TS2 Ver.B)",
@@ -271,6 +276,97 @@ private slots:
     // No key: SteamGridDB is never asked.
     for (const auto &request : stub->seen)
       QCOMPARE(request.url().host(), QString("thumbnails.libretro.com"));
+  }
+  // The same title written another way finds its libretro picture; another game never does.
+  // Table-driven: the folder is the wanted names' whole world, and "" means no picture.
+  void looseTitlesFindOnlyTheSameGame_data() {
+    QTest::addColumn<QStringList>("wanted");
+    QTest::addColumn<QString>("expected");
+    QTest::newRow("exact stays first") << QStringList{"Ridge Racer"} << QString("Ridge Racer (USA)");
+    QTest::newRow("roman and arabic") << QStringList{"Ridge Racer 5"} << QString("Ridge Racer V (USA)");
+    QTest::newRow("roman in the listing") << QStringList{"Time Crisis 2"} << QString("Time Crisis II (USA)");
+    QTest::newRow("roman in the title") << QStringList{"Time Crisis III"} << QString("Time Crisis 3 (Europe)");
+    QTest::newRow("usual region first") << QStringList{"time crisis 3"} << QString("Time Crisis 3 (Europe)");
+    QTest::newRow("ampersand written _") << QStringList{"Rock & Roll Racing"} << QString("Rock _ Roll Racing (USA)");
+    QTest::newRow("accents") << QStringList{QString::fromUtf8("Pokémon Red Version")} << QString("Pokemon Red Version (USA)");
+    QTest::newRow("the and tags") << QStringList{"The Legend of Zelda (Rev 1)"} << QString("Legend of Zelda, The (USA)");
+    QTest::newRow("disc tags dropped, first copy") << QStringList{"Resident Evil 2"} << QString("Resident Evil 2 (USA) (Disc 1)");
+    QTest::newRow("dash is a colon") << QStringList{"Resident Evil 2: Dual Shock Ver."} << QString("Resident Evil 2 - Dual Shock Ver. (USA)");
+    QTest::newRow("spacing") << QStringList{"MegaMan X"} << QString("Mega Man X (USA)");
+    QTest::newRow("X is not 10") << QStringList{"Mega Man 10"} << QString("Mega Man 10 (USA)");
+    QTest::newRow("disc name, then title") << QStringList{"Star Fox 64 (Japan)", "Star Fox 64"} << QString("Star Fox 64 (USA)");
+    QTest::newRow("NOT a sequel") << QStringList{"Ridge Racer VII"} << QString();
+    QTest::newRow("NOT another number") << QStringList{"Ridge Racer 2"} << QString();
+    QTest::newRow("NOT a missing number") << QStringList{"Time Crisis"} << QString();
+    QTest::newRow("NOT a missing word") << QStringList{"Star Fox"} << QString();
+    QTest::newRow("NOT an added word") << QStringList{"Star Fox 64 3D Edition"} << QString();
+    QTest::newRow("NOT X for V") << QStringList{"Mega Man V"} << QString();
+    QTest::newRow("NOT a short title") << QStringList{"Pokemon Red"} << QString();
+    QTest::newRow("NOT a subtitle guess") << QStringList{"Ridge Racer: Revolution 2"} << QString();
+    QTest::newRow("NOT nothing") << QStringList{QString(), "  ", "(USA)", "!!"} << QString();
+  }
+  void looseTitlesFindOnlyTheSameGame() {
+    QFETCH(QStringList, wanted);
+    QFETCH(QString, expected);
+    const QStringList folder{"Ridge Racer (USA)", "Ridge Racer V (USA)", "Ridge Racer 64 (USA)", "Ridge Racer Revolution (USA)",
+                             "Star Fox 64 (USA)", "Star Fox 64 3D (USA)", "Time Crisis II (USA)", "Time Crisis 3 (USA) (Beta)",
+                             "Time Crisis 3 (Japan)", "Time Crisis 3 (Europe)", "Rock _ Roll Racing (USA)", "Pokemon Red Version (USA)",
+                             "Legend of Zelda, The (USA)", "Resident Evil 2 (USA) (Disc 1)", "Resident Evil 2 (USA) (Disc 2)",
+                             "Resident Evil 2 - Dual Shock Ver. (USA)", "Mega Man X (USA)", "Mega Man 10 (USA)"};
+    QCOMPARE(ac::art::bestLibretroMatch(wanted, folder), expected);
+  }
+  // Artwork already on this PC: the same title written another way is found, another game is not.
+  void localPicturesMatchTheSameTitleOnly() {
+    QTemporaryDir t;
+    const auto save = [&](const QString &relative) -> QString {
+      QDir().mkpath(QFileInfo(t.filePath(relative)).absolutePath());
+      QImage image(30, 40, QImage::Format_RGB32);
+      image.fill(Qt::gray);
+      return image.save(t.filePath(relative)) ? QFileInfo(t.filePath(relative)).absoluteFilePath() : QString("not saved");
+    };
+    const auto tc2 = save("packs/Boxarts/Time Crisis II (USA).png");
+    const auto rr5 = save("packs/Boxarts/Ridge Racer V (USA).png");
+    const auto rock = save("packs/Boxarts/Rock _ Roll Racing (USA).png");
+    const auto pack = ac::art::LocalIndex::scan({t.filePath("packs")});
+    QCOMPARE(pack.files(), 3);
+    const QStringList box{"boxart"};
+    QCOMPARE(pack.find({"Time Crisis 2"}, box), tc2);
+    QCOMPARE(pack.find({"The Time Crisis II"}, box), tc2);
+    QCOMPARE(pack.find({"Ridge Racer 5"}, box), rr5);
+    QCOMPARE(pack.find({"Rock & Roll Racing"}, box), rock);
+    QVERIFY(pack.find({"Ridge Racer"}, box).isEmpty());
+    QVERIFY(pack.find({"Ridge Racer 7"}, box).isEmpty());
+    QVERIFY(pack.find({"Time Crisis"}, box).isEmpty());
+    QVERIFY(pack.find({"Time Crisis 3"}, box).isEmpty());
+    QVERIFY(pack.find({QString(), "(USA)"}, box).isEmpty());
+    QVERIFY(pack.find({"Time Crisis 2"}, {"snap"}).isEmpty()); // right title, wrong kind of picture
+  }
+  // libretro's folders are per system: a title is looked for in its own system's listing only.
+  void aTitleIsNeverTakenFromAnotherSystem() {
+    QTemporaryDir t;
+    auto stub = std::make_shared<Stub>();
+    stub->answer = [](const QUrl &url) -> QPair<int, QByteArray> {
+      const auto u = url.toString(QUrl::FullyDecoded);
+      if (u.startsWith("https://thumbnails.libretro.com/Nintendo - Nintendo 64/") && u.endsWith("/"))
+        return {200, listing({"Ridge Racer 64 (USA)"})};
+      if (u.startsWith("https://thumbnails.libretro.com/Sega - Saturn/") && u.endsWith("/"))
+        return {200, listing({"Daytona USA (USA)"})};
+      if (u.endsWith(".png"))
+        return {200, png(Qt::red)};
+      return {404, {}};
+    };
+    ac::art::Downloader downloader(t.path(), [] { return true; }, [] { return QString(); });
+    downloader.setFetcher(stub);
+    downloader.setInterval(0);
+    QSignalSpy done(&downloader, &ac::art::Downloader::finished);
+    QVERIFY(downloader.start({{"n64-rr64", "n64", "Ridge Racer 64", {}}, {"saturn-rr64", "saturn", "Ridge Racer 64", {}}}));
+    QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 5000);
+    const auto folder = ac::art::Downloader::downloadFolder(t.path());
+    QVERIFY(QFileInfo::exists(folder + "/n64-rr64/snap.png"));
+    QVERIFY(!QFileInfo::exists(folder + "/saturn-rr64"));
+    for (const auto &request : stub->seen)
+      if (request.url().path().endsWith(".png"))
+        QVERIFY(request.url().toString(QUrl::FullyDecoded).contains("Nintendo - Nintendo 64"));
   }
 };
 QTEST_GUILESS_MAIN(ArtDownloadTest)

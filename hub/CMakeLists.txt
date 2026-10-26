@@ -73,6 +73,8 @@ add_library(hubcore STATIC
     src/core/pinball/Roms.h
     src/core/pinball/Identity.cpp
     src/core/pinball/Identity.h
+    src/core/match/TitleMatch.cpp
+    src/core/match/TitleMatch.h
     src/core/model3/Model3.cpp
     src/core/model3/Model3.h
     src/core/ps2/Ps2.cpp
@@ -305,6 +307,11 @@ if(BUILD_TESTING)
     ac_project_warnings(art-download-tests)
     set_target_properties(art-download-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-art-download COMMAND art-download-tests -o -,txt)
+    qt_add_executable(title-match-tests tests/TitleMatchTest.cpp)
+    target_link_libraries(title-match-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(title-match-tests)
+    set_target_properties(title-match-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-title-match COMMAND title-match-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)
@@ -322,6 +329,7 @@ if(BUILD_TESTING)
     set_tests_properties(hub-pinball-cache PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME disc-id-survey-formats COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/disc_ids.py --test)
+    add_test(NAME hub-title-match-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/title_match_policy.py)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_script_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)
