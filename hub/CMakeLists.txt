@@ -327,6 +327,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_identity_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
+    add_test(NAME hub-universal-controls-text COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/universal_controls_text.py)
     add_test(NAME hub-test-runner COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/runner_fixtures.py
         ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     add_test(NAME serial-index-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/build_serial_index.py --test)

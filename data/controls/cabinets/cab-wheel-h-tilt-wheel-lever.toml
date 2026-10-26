@@ -138,7 +138,7 @@ label_node = "label_view_4"
 id = "start"
 label = "Start"
 type = "button"
-source = "right_primary"
+source = "left_thumbstick_click"
 node = ""
 output = { button = "Start1" }
 binding = { mode = "press" }
@@ -147,7 +147,7 @@ binding = { mode = "press" }
 id = "coin"
 label = "Insert credit"
 type = "button"
-source = "right_secondary"
+source = "right_thumbstick_click"
 node = ""
 output = { button = "Coin1" }
 binding = { mode = "press" }

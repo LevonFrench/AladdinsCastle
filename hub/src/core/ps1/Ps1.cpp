@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include "core/launch/UniversalControls.h"
 namespace ac::ps1 {
 namespace {
 struct Game {const char *id,*title;int year;const char *gun;bool sprites;};
@@ -45,12 +46,12 @@ QString controls(const Game &game){
  static const QStringList faceButtons{"extreme-ghostbusters","project-horned-owl","horned-owl-japan"};
  if(faceButtons.contains(id))
   return QString("Your right controller is the %1: trigger fires, point off the screen to reload; its own two buttons are on the grips. "
-                 "Pad: right A Cross, right B Circle (cancel), left X Square, left Y Triangle, left stick click Start, right stick click Select. "
+                 "Pad: right A Cross, right B Circle (cancel), left X Square, left Y Triangle. "
                  "On a big theatre screen.").arg(QString::fromLatin1(game.gun));
  QString text=QString("Your right controller is the %1: trigger fires, point off the screen to reload, A and B are its buttons").arg(QString::fromLatin1(game.gun));
  text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; the grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");
- if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, B inserts a coin, A starts.";
- if(QString::fromLatin1(game.gun)=="Justifier")text="Your right controller is the Justifier: trigger fires, point off the screen to reload, A is its Start button (menus, and it begins each mission).";
+ if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, point off the screen to reload.";
+ if(QString::fromLatin1(game.gun)=="Justifier")text="Your right controller is the Justifier: trigger fires, point off the screen to reload; Start begins each mission.";
  if(game.sprites)return text+" On a big theatre screen.";
  // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy
  // and Horned Owl read the Justifier (not in that core); Oh! Bakyuuun reads the GunCon through the light-pen
@@ -76,7 +77,7 @@ const QList<View> &viewTable(){
 }
 QVariantList games(){
  QVariantList result;
- for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",controls(game)},{"view","theatre"}};
+ for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",universal::with(controls(game))},{"view","theatre"}};
  return result;
 }
 QStringList launcherKeys(const QString &launcher){

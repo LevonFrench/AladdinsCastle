@@ -3,41 +3,44 @@
 #include "core/install/Install.h"
 #include <QDir>
 #include <QFileInfo>
+#include "core/launch/UniversalControls.h"
 namespace ac::model2 {
 namespace {
 // file: the set's zip name when it differs from the set (a clone kept in its parent's zip).
 struct Game {const char *id,*title;int year;const char *controls;const char *file=nullptr;};
 const char *const viewOnly="View only for now: no controls yet.";
-const char *const lightGun="Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload, A = Start, B = Coin.";
-const char *const racing="Controls new, untested: the left stick steers, right trigger = gas, left trigger = brake, grips = shift or the game's buttons, A = Start, B = Coin.";
+// A game with controls gets U1-U4 after its own text; a view-only game has no controls to describe.
+QString shown(const char *text){return text==viewOnly?QString::fromUtf8(text):universal::with(QString::fromUtf8(text));}
+const char *const lightGun="Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload.";
+const char *const racing="Controls new, untested: the left stick steers, right trigger = gas, left trigger = brake, grips = shift or the game's buttons.";
 const Game kGames[]={
  {"vcop2","Virtua Cop 2",1995,lightGun},
  {"vcop","Virtua Cop",1994,lightGun},
  // The usual hotd.zip holds the original revision, which MAME calls hotdo.
  {"hotdo","The House of the Dead",1997,lightGun,"hotd"},
- {"gunblade","Gunblade NY",1995,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, A = Start, B = Coin."},
- {"bel","Behind Enemy Lines",1997,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, right grip = missile, A = Start, B = Coin."},
- {"skytargt","Sky Target",1995,"Controls new, untested: point the right controller to fly, the trigger fires the gun, right grip = missile, A = Start, B = Coin."},
+ {"gunblade","Gunblade NY",1995,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires."},
+ {"bel","Behind Enemy Lines",1997,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, right grip = missile."},
+ {"skytargt","Sky Target",1995,"Controls new, untested: point the right controller to fly, the trigger fires the gun, right grip = missile."},
  {"daytona","Daytona USA",1994,racing},{"srallyc","Sega Rally Championship",1995,racing},
  {"indy500","INDY 500",1995,racing},{"motoraid","Motor Raid",1997,racing},
  {"sgt24h","Super GT 24h",1996,racing},
- {"desert","Desert Tank",1994,"Controls new, untested: the left stick steers the tank, right trigger = gas, left trigger = brake, right grip = machine gun, left grip = cannon, A = Start, B = Coin."},
- {"rchase2","Rail Chase 2",1994,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, A = Start, B = Coin."},
+ {"desert","Desert Tank",1994,"Controls new, untested: the left stick steers the tank, right trigger = gas, left trigger = brake, right grip = machine gun, left grip = cannon."},
+ {"rchase2","Rail Chase 2",1994,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires."},
  {"vf2","Virtua Fighter 2",1994,viewOnly}};
 // The extra views, with the controls the old launchers said for them. Open frame adds 93 pixels a side (16:9).
 struct Extra {const char *game,*view,*controls;};
 const Extra kExtras[]={
  {"vcop2","open-frame","Open frame 16:9 (3D world drawn past 4:3 where the game sends it). Gun as in 3D; pointing at the extra sides counts as off the screen (reload)."},
  {"vcop","open-frame","Open frame 16:9 (3D world drawn past 4:3). Gun as in 3D; pointing at the extra sides counts as off the screen (reload)."},
- {"hotdo","open-frame","Open frame 16:9 (3D ground and trees fill the sides; the 2D sky stays 4:3). Right controller = gun (aim, trigger shoots, point off the screen to reload), A = Start, B = Coin."},
- {"gunblade","open-frame","Open frame 16:9. Right controller aims the mounted gun (stops at the screen edge), trigger fires, A = Start, B = Coin."},
- {"bel","open-frame","Open frame 16:9 (world beside the 4:3 cockpit frame). Right controller aims the mounted gun, trigger fires, right grip = missile, A = Start, B = Coin."},
- {"daytona","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
- {"srallyc","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
- {"indy500","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = shift, A = Start, B = Coin (2 coins per credit)."},
- {"motoraid","open-frame","Open frame 16:9 (track fills the sides; the 2D sky stays 4:3). Left stick steers, right trigger = gas, left trigger = brake, grips = punch and kick, A = Start, B = Coin."},
- {"daytona","roll-steer","Roll the right controller like a wheel (60 degrees = full lock; a pushed left stick still wins), right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
- {"srallyc","roll-steer","Roll the right controller like a wheel (60 degrees = full lock; a pushed left stick still wins), right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
+ {"hotdo","open-frame","Open frame 16:9 (3D ground and trees fill the sides; the 2D sky stays 4:3). Right controller = gun (aim, trigger shoots, point off the screen to reload)."},
+ {"gunblade","open-frame","Open frame 16:9. Right controller aims the mounted gun (stops at the screen edge), trigger fires."},
+ {"bel","open-frame","Open frame 16:9 (world beside the 4:3 cockpit frame). Right controller aims the mounted gun, trigger fires, right grip = missile."},
+ {"daytona","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = gears."},
+ {"srallyc","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = gears."},
+ {"indy500","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = shift. The game takes 2 coins per credit."},
+ {"motoraid","open-frame","Open frame 16:9 (track fills the sides; the 2D sky stays 4:3). Left stick steers, right trigger = gas, left trigger = brake, grips = punch and kick."},
+ {"daytona","roll-steer","Roll the right controller like a wheel (60 degrees = full lock; a pushed left stick still wins), right trigger = gas, left trigger = brake, grips = gears."},
+ {"srallyc","roll-steer","Roll the right controller like a wheel (60 degrees = full lock; a pushed left stick still wins), right trigger = gas, left trigger = brake, grips = gears."},
 };
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 QString beside(const QString &program,const QString &path){return QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../"+path));}
@@ -50,7 +53,7 @@ const QList<QPair<QString,QString>> &settings(){
 }
 QVariantList games(){
  QVariantList result;
- for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"file",QString::fromLatin1(game.file?game.file:game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",QString::fromUtf8(game.controls)}};
+ for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"file",QString::fromLatin1(game.file?game.file:game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",shown(game.controls)}};
  return result;
 }
 QString viewLabel(const QString &view){
@@ -61,11 +64,11 @@ QString viewLabel(const QString &view){
 }
 QVariantList views(const QString &game){
  const auto *found=findGame(game);if(!found)return {};
- QVariantList list{QVariantMap{{"id","3d"},{"label",viewLabel("3d")},{"help","The game's 4:3 picture in stereo depth on a screen in the headset."},{"controls",QString::fromUtf8(found->controls)}}};
+ QVariantList list{QVariantMap{{"id","3d"},{"label",viewLabel("3d")},{"help","The game's 4:3 picture in stereo depth on a screen in the headset."},{"controls",shown(found->controls)}}};
  for(const auto *view:{"open-frame","roll-steer"})for(const auto &extra:kExtras)if(game==QLatin1String(extra.game)&&QLatin1String(view)==QLatin1String(extra.view))
   list<<QVariantMap{{"id",QString::fromLatin1(view)},{"label",viewLabel(QString::fromLatin1(view))},
    {"help",QLatin1String(view)==QLatin1String("open-frame")?QString("The game's 3D world drawn to 16:9 where the game sends it, in stereo."):QString("Steer by rolling your right controller like a wheel; the left stick still steers too.")},
-   {"controls",QString::fromUtf8(extra.controls)}};
+   {"controls",shown(extra.controls)}};
  return list;
 }
 QString fileName(const QString &game){const auto *found=findGame(game);return found&&found->file?QString::fromLatin1(found->file):game;}

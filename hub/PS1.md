@@ -26,5 +26,5 @@ inherited `ACVR_*` variable removed and `ACVR_PS1_STOP_FILE` set to a stop file
 of its own for that launch, under `user/runtime/`.
 
 **Exit game** creates that file: `acvr-ps1` saves the memory card and quits,
-and Hub waits for it. Holding left Y for 3 seconds in the headset does the
+and Hub waits for it. Holding both stick clicks for 3 seconds in the headset does the
 same.

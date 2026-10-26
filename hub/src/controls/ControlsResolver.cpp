@@ -367,7 +367,7 @@ bool ControlsResolver::resolveRoute(const QString &route,Map &out,QString &error
         for(const auto &value:list(data,"element")) {
             const Map row=value.toMap();const QString id=row.value("id").toString(),state=row.value("availability").toMap().value("state").toString(),hand=row.value("binding").toMap().value("hand").toString();
             check(identifier(id)&&!ids.contains(id)&&nonempty(row.value("label"))&&(hand=="left"||hand=="right")&&(state=="planned"||state=="unavailable"),"Invalid or unreviewed Pinball action");ids.insert(id);
-            if(id=="recenter") { check(state=="unavailable","Pinball recenter is not callable");recenter=true; }
+            if(id=="recenter") { check(state=="planned"||state=="unavailable","Pinball recenter is not callable");recenter=true; } // U3: VPX's own table alignment, planned until a headset run accepts it
             if(id=="exit") { check(row.value("warning").toBool(),"Pinball exit warning required");exitWarning=true; }
         }
         check(recenter&&exitWarning,"Pinball safety labels missing");out=result;error.clear();return true;

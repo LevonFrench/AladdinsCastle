@@ -45,7 +45,7 @@ FocusScope {
  // (no system) use the emulator's keys.
  readonly property string controlsText:{
   if(row.controls)return String(row.controls)
-  if(!row.system)return "Home = set straight ahead · 1 = start · 3 = coin · Esc = quit."+(row.cabinetControl?" Inside the game, the cabinet's "+row.cabinetControl+" can be shown in front of you.":"")
+  if(!row.system)return uiController.universalControls+" On the PC keyboard: 1 = start, 3 = coin, Esc = quit."+(row.cabinetControl?" Inside the game, the cabinet's "+row.cabinetControl+" can be shown in front of you.":"")
   if(catalog)return (row.card||{}).controlsLabel?"Controls: "+row.card.controlsLabel+".":""
   return warningIsControls?(row.warning||""):""
  }

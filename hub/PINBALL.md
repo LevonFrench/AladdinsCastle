@@ -41,13 +41,17 @@ For the headset, have it connected and SteamVR running first. If VPX cannot
 reach the headset it asks on the PC monitor whether to retry; answering No plays
 on the monitor. Use the VPX build with OpenXR (the BGFX build of 10.8.1).
 
-In the headset a single tap of Y on the left VR controller no longer exits the
-table. Hold Y for 3 seconds instead (B on Index controllers): Hub closes the
-table the ordinary way, so scores and settings are saved. That needs the Hub open
-as the SteamVR panel, which it is when started with SteamVR running; while the
-table runs, Hub's own SteamVR input takes that one button. Pressing Y together
-with the left stick click also exits, inside VPX itself. For headset launches Hub
-always passes its settings copy (below) with that exit change.
+In the headset the controllers follow the universal layer (docs/controls.md):
+left stick click is Start, right stick click is Coin, A is the plunger button,
+and clicking both sticks aligns the table (keep them held and move your hands to
+scale, turn and move it). The menu buttons and left Y are not bound; a tap of Y
+no longer exits. VPX cannot time a hold, and Hub cannot read the controllers while
+VPX has them (a SteamVR action of Hub's would take the stick clicks away from the
+table), so the hold-both-sticks quit is not available in a table. To leave, press
+the left Menu button (it opens the SteamVR dashboard), open the Hub panel, and
+choose Exit game: Hub closes the table the ordinary way, so scores and settings
+are saved. Esc on the keyboard also exits. For headset launches Hub always passes
+its settings copy (below) with these bindings.
 
 ## Gamepad
 

@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include "core/launch/UniversalControls.h"
 namespace ac::n64 {
 namespace {
 // How the VR controllers play the game (acvr-ps1 --controls and the launcher's map).
@@ -51,7 +52,6 @@ QString controls(const Game &game){
  case Play::Pad:text="The N64 pad on your controllers: the left stick moves, the right stick is the C buttons, right A and B are A and B, the right trigger is Z, the right grip is R.";break;
  }
  if(*game.note)text+=" "+QString::fromUtf8(game.note);
- text+=" Left stick click is Start (pause); hold left Y for 3 seconds to quit and save.";
  if(game.hudPanel)text+=" The game's HUD floats on its own steady panel.";
  return text;
 }
@@ -63,7 +63,7 @@ QString frameText(const Game &game){
 QVariantList games(){
  QVariantList result;
  for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},
-  {"controls",controls(game)},{"frame",QString::fromLatin1(game.frame)}};
+  {"controls",universal::with(controls(game))},{"frame",QString::fromLatin1(game.frame)}};
  return result;
 }
 QStringList launcherKeys(const QString &launcher){

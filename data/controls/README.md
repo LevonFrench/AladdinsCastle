@@ -9,9 +9,15 @@ separate-view exceptions. A configured second slot is not backend readiness.
 Each shared set explicitly names player/slot 0 and 1; applicable slots are
 selected from catalog eligibility and the two-gun option. Fire/reload remain
 slot-local. Pump reload includes `flick_up` as its seated, one-handed fallback.
-Laser uses the thumbstick click. Coin uses secondary (B/Y). Where the model has
-a documented Start button, its candidate binding uses primary (A/X).
-There is no universal Start input: Time Crisis's slide-pistol set has none.
+These sets follow the universal controls contract (docs/controls.md, U1-U4):
+Start is the **left stick click** and Coin the **right stick click**, on fixed
+hands (the same whichever hand holds the gun), so there is one coin binding, not
+one per player. Laser toggle is the gun hand's secondary button (right B, left Y,
+M4). The stick clicks, the menu buttons and left Y are never game or gun
+bindings in any other role. Where the model has a documented Start button, the
+`p1-start` element binds the left stick click and player 2 keeps that hand's
+primary (A/X) to join. A gun set with no Start element (Time Crisis's
+slide-pistol set has none) still gets Start from the host's universal layer.
 These are candidate bindings. Every game input is unverified until an actual
 backend declaration advertises it; unsupported inputs remain visibly unavailable.
 The resolver never sends input, writes configuration, or accesses game content.

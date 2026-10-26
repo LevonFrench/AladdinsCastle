@@ -55,8 +55,10 @@ as usual.
 
 While a game runs, the now-playing card shows its title and view. **Exit game**
 asks the emulator to close normally; the list returns when it has closed.
-**Restart** closes it and starts the same game and view again. In the game:
-Home sets straight ahead, 1 starts, 3 inserts a coin, Esc quits.
+**Restart** closes it and starts the same game and view again. In the headset:
+left stick click = Start, right stick click = Select or Coin, both stick clicks together
+put the screen in front of you again, and holding both for 3 seconds quits and saves
+(the same in every game; see `docs/controls.md`). On the PC keyboard: 1 starts, 3 inserts a coin, Esc quits.
 
 ## Not covered yet
 

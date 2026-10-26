@@ -27,6 +27,8 @@ The real Virtua Cop 2 levels around you in full 6DoF, with your motion controlle
 | Recentre | Grip |
 | Player 2 joins | A / X on the second controller |
 
+This is a third-party port with its own controls. The Hub's universal stick-click layer (left stick click = Start, right stick click = Select or Coin, both together = recentre, hold both for 3 seconds = quit) is not in it yet; to leave, press the left Menu button, open the Hub panel and choose Exit game.
+
 ## What it installs
 
 - **VC2VR v1.0 beta** by NeuralF, https://github.com/NeuralF/Rea-Virtua-Cop-2-VR (MIT)
