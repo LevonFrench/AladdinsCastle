@@ -7,6 +7,7 @@
 #include <QtTest>
 #include <stdexcept>
 namespace {
+using ac::Json;
 using ac::update::Report;
 QByteArray release(const QString &tag, const QString &published) {
   return QJsonDocument(QJsonObject{{"tag_name", tag}, {"published_at", published}}).toJson(QJsonDocument::Compact);
