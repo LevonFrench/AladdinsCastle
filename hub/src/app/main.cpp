@@ -227,9 +227,8 @@ int main(int argc,char **argv){
         ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball(qEnvironmentVariable("AC_UI_PINBALL_VIEW","desktop")); // A diagnostic's settings file chooses VR itself.
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
-    // No close gesture of the Hub's own while a game runs: left Y no longer quits (universal controls U4 is both stick clicks, held 3 seconds, in each host),
+    // The Hub binds no close gesture while a game runs: quitting is both stick clicks held 3 seconds, in each host (universal controls U4),
     // and a Hub action on the stick clicks would take them away from the game. A table is left from the SteamVR dashboard's Hub panel, Exit game.
-    QObject::connect(&overlay,&ac::OverlayHost::closeGameRequested,&ui,[&ui]{ui.stopLaunch();});
     // Diagnostic: one game started and ended through the Hub, written to AC_LAUNCH_PROOF.
     if(const auto proof=ac::launchProofOptions();!proof.output.isEmpty())ac::runLaunchProof(proof,services,ui);
     // Diagnostic, for pictures only: the now-playing screen with a sample session; nothing is started.
