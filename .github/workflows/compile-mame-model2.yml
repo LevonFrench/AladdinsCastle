@@ -103,7 +103,7 @@ jobs:
         run: |
           export PATH="/usr/lib/ccache:$PATH"
           make -j"$(nproc)" SUBTARGET=model2 SOURCES=src/mame/sega/model2.cpp REGENIE=1 OPTIMIZE=0 SYMBOLS=0 PRECOMPILE=0 \
-            NOWERROR=1 NO_USE_MIDI=1 NO_OPENGL=1 USE_QTDEBUG=0 TOOLS=0
+            NOWERROR=1 NO_USE_MIDI=1 NO_OPENGL=1 NO_USE_PORTAUDIO=1 USE_QTDEBUG=0 TOOLS=0
           ls -l model2
           ccache -s
 
