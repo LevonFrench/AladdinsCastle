@@ -11,6 +11,7 @@ ScrollView {
  signal detailRequested(string id)
  clip:true
  Column{width:root.availableWidth;spacing:18
+  StateNotice{objectName:"exploreNotice";width:parent.width;notice:uiController.exploreNotice;vrOverlayMode:root.vrOverlayMode}
   FeaturedBanner{width:parent.width;explore:true;game:uiController.featured[root.pick]||({});vrOverlayMode:root.vrOverlayMode;onShowRequested:id=>root.detailRequested(id);onShuffleRequested:root.pick=Math.floor(Math.random()*Math.max(1,uiController.featured.length))}
   Flow{width:parent.width;spacing:5;PillButton{vrOverlayMode:root.vrOverlayMode;text:"All buckets";selected:root.bucket===-1;onClicked:root.bucket=-1} Repeater{model:uiController.exploreRows;PillButton{vrOverlayMode:root.vrOverlayMode;required property var modelData;text:modelData.label;selected:root.bucket===modelData.id;onClicked:root.bucket=modelData.id}}}
   Flow{width:parent.width;spacing:5;UiText{text:"VR"} Repeater{model:gameFilter.choices("vrKeys");PillButton{vrOverlayMode:root.vrOverlayMode;required property var modelData;text:modelData.label;selected:uiController.activeFacets.length>=0&&uiController.selected("vrKeys",modelData.id);onClicked:uiController.toggleFacet("vrKeys",modelData.id)}}}

@@ -955,8 +955,211 @@ class UiTest:public QObject {
   QTRY_VERIFY(summary->property("text").toString().contains("PlayStation: 1"));
   QVERIFY(!summary->property("text").toString().contains("Nintendo GameCube"));
  }
+ // Empty and error states: each is one plain sentence with one action, and the action does the one thing it says.
+ void everyEmptyAndErrorStateHasOneSentenceAndOneAction(){
+  QTemporaryDir ownDir;QVERIFY(ownDir.isValid());ac::UiSettings own(ownDir.path());
+  const auto oneSentence=[](const QVariantMap &notice,const QString &kind,const QString &action){
+   QCOMPARE(notice.value("kind").toString(),kind);QCOMPARE(notice.value("action").toString(),action);
+   const auto text=notice.value("text").toString();QVERIFY2(text.endsWith('.')&&!text.contains(". "),qPrintable(text));
+   QVERIFY(!notice.value("actionLabel").toString().isEmpty());
+  };
+  // No games found: nothing listed and nothing asked for.
+  ac::FilterSortModel nothing;ac::UiController empty(games.get(),&nothing,&own);
+  QSignalSpy locations(&empty,&ac::UiController::locationRequested);
+  oneSentence(empty.notice("library"),"noGames","findGames");oneSentence(empty.notice("explore"),"noGames","findGames");
+  QVERIFY(empty.notice("library").value("empty").toBool());
+  empty.noticeAction("findGames");QCOMPARE(locations.size(),1);QCOMPARE(locations[0][0].toString(),QString("media"));
+  // A search or filter with no hits is a different sentence with its own action, which clears them.
+  ac::FilterSortModel searched;searched.setSourceModel(games.get());ac::UiController searching(games.get(),&searched,&own);
+  QVERIFY(searching.notice("library").isEmpty()||searching.notice("library").value("kind")!="noGames");
+  searched.setQuery("zzzzzzzzzzzz");QTRY_COMPARE(searched.visibleCount(),0);
+  oneSentence(searching.notice("library"),"noMatches","clearFilters");
+  searching.noticeAction("clearFilters");QVERIFY(searched.query().isEmpty());QVERIFY(searched.visibleCount()>0);
+  QVERIFY(searching.notice("library").value("kind").toString()!="noMatches");
+  // A scan in progress: a strip with Stop, over the games that are listed.
+  ac::UiController scanning(games.get(),&searched,&own);QSignalSpy stops(&scanning,&ac::UiController::cancelScanRequested);
+  scanning.scanStarted();oneSentence(scanning.notice("library"),"scanning","stopScan");QVERIFY(!scanning.notice("library").value("empty").toBool());
+  scanning.noticeAction("stopScan");QCOMPARE(stops.size(),1);
+  scanning.scanFinished(false);QVERIFY(scanning.notice("library").value("kind").toString()!="scanning");
+  // Offline pictures, and picture download switched off.
+  ac::UiController art(games.get(),&searched,&own);QSignalSpy pages(&art,&ac::UiController::pageRequested);QSignalSpy asked(&art,&ac::UiController::artworkRequested);
+  art.setArtwork(false,"Artwork: 2 requests failed; try again later.");
+  oneSentence(art.notice("library"),"artOffline","retryArt");QCOMPARE(art.notice("library").value("tone").toString(),QString("info"));
+  art.setArtwork(false,"Artwork: 3 new pictures.");QVERIFY(art.notice("library").isEmpty());
+  QVERIFY(!own.get("artDownload",false).toBool());art.getArtwork("system:model3");
+  oneSentence(art.notice("explore"),"artOff","openSettings");
+  art.noticeAction("openSettings");QCOMPARE(pages.size(),1);QCOMPARE(pages[0][0].toString(),QString("Settings"));
+  QVERIFY(own.set("artDownload",true));QVERIFY(art.notice("explore").isEmpty());
+  // "Try again" asks for every game's pictures, not one system's.
+  art.setArtwork(false,"1 request failed; try again later.");art.noticeAction("retryArt");
+  QCOMPARE(asked.size(),1);QVERIFY(asked[0][0].toList().size()>1);QVERIFY(art.artworkBusy());
+  own.set("artDownload",false);
+  // Launch failures: its emulator is missing, it failed some other way, or it crashed. A running game shows none of them.
+  ac::UiController launches(games.get(),&searched,&own);
+  // A game that is not waiting for an emulator or files, so only the words of its failure decide.
+  QString game;for(const auto &record:games->records()){const auto state=launches.game(record.id).value("state").toInt();if(state!=5&&state!=6){game=record.id;break;}}QVERIFY(!game.isEmpty());
+  QSignalSpy reports(&launches,&ac::UiController::reportRequested);
+  QVERIFY(launches.notice("nowPlaying").isEmpty());
+  launches.launchFinished(game,"The emulator executable was not found at the saved place.",1);
+  QCOMPARE(launches.notice("nowPlaying").value("kind").toString(),QString("emulatorMissing"));QCOMPARE(launches.notice("nowPlaying").value("action").toString(),QString("findEmulator"));
+  QCOMPARE(launches.notice("nowPlaying").value("tone").toString(),QString("trouble"));
+  QSignalSpy tool(&launches,&ac::UiController::locationRequested);launches.noticeAction("findEmulator");QCOMPARE(tool[0][0].toString(),QString("tool"));
+  launches.launchFinished(game,"The disc image could not be read.",1);
+  QCOMPARE(launches.notice("nowPlaying").value("kind").toString(),QString("launchFailed"));QCOMPARE(launches.notice("nowPlaying").value("action").toString(),QString("saveReport"));
+  QVERIFY(launches.notice("nowPlaying").value("text").toString().contains("The disc image could not be read."));
+  launches.launchFinished(game,"The game stopped unexpectedly (0xC0000005)",3);
+  QCOMPARE(launches.notice("nowPlaying").value("kind").toString(),QString("crashed"));
+  launches.launchFinished(game,{},0);QVERIFY(launches.notice("nowPlaying").isEmpty()); // Closed normally: nothing to say.
+  launches.launchFinished(game,"The disc image could not be read.",1);
+  launches.openDetail(game);QCOMPARE(launches.notice("detail").value("kind").toString(),QString("launchFailed")); // Its own page says it too.
+  launches.noticeAction("saveReport");QCOMPARE(reports.size(),1);QVERIFY(launches.reportStatus().contains("Collecting"));
+  launches.dismissLastSession();QVERIFY(launches.notice("nowPlaying").isEmpty());
+  // A game page whose emulator or files are missing says which, with the one thing to do.
+  bool sawEmulator=false,sawFiles=false;
+  for(const auto &record:games->records()){
+   launches.openDetail(record.id);const auto notice=launches.notice("detail");
+   if(notice.value("kind")=="emulatorMissing"){oneSentence(notice,"emulatorMissing","findEmulator");sawEmulator=true;}
+   else if(notice.value("kind")=="noFiles"){oneSentence(notice,"noFiles","findGames");sawFiles=true;}
+   if(sawEmulator&&sawFiles)break;
+  }
+  if(!sawEmulator&&!sawFiles)qInfo()<<"No catalog game is waiting for its emulator or its files here, so those two Detail states were not met.";
+ }
+ // The empty and scanning states in the real scenes, and the actions on them.
+ void emptyAndErrorStatesRealScene(){
+  const auto previousView=root->property("view"),previousHistory=root->property("history");
+  const auto cleanup=qScopeGuard([&]{filter.setQuery({});ui->scanFinished(false);ui->dismissLastSession();root->setProperty("history",previousHistory);root->setProperty("view",previousView);});
+  const auto visibleNamed=[&](QQuickItem *within,const QString &name){for(auto item:namedItems(within,name))if(item->isVisible())return item;return static_cast<QQuickItem *>(nullptr);};
+  const auto text=[&](const QString &place){auto notice=visibleNamed(window->contentItem(),place);if(!notice)return QString("<none>");auto line=visibleNamed(notice,"stateNoticeText");return line?line->property("text").toString():QString("<none>");};
+  const auto press=[&](const QString &place){auto notice=visibleNamed(window->contentItem(),place);if(!notice)return false;auto button=visibleNamed(notice,"stateNoticeAction");return button&&QMetaObject::invokeMethod(button,"clicked");};
+  for(const char *view:{"List","Library","Explore"}){
+   root->setProperty("view",view);QVERIFY(softwareFrame(window));
+   const QString place=QString(view)=="Explore"?"exploreNotice":"gridNotice";
+   QCOMPARE(text(place),QString("<none>")); // Games are listed: no state to show.
+   filter.setQuery("zzzzzzzzzzzz");
+   QTRY_COMPARE(text(place),QString("No games match this search or these filters."));
+   QVERIFY(press(place));QTRY_VERIFY(filter.query().isEmpty());QTRY_COMPARE(text(place),QString("<none>"));
+  }
+  root->setProperty("view","List");QVERIFY(softwareFrame(window));
+  ui->scanStarted();QTRY_VERIFY(text("gridNotice").startsWith("Looking through your folders"));
+  QSignalSpy stops(ui.get(),&ac::UiController::cancelScanRequested);QVERIFY(press("gridNotice"));QCOMPARE(stops.size(),1);
+  ui->scanFinished(false);QTRY_COMPARE(text("gridNotice"),QString("<none>"));
+  // The last game's banner gets a button for what to do next.
+  QString game;for(const auto &record:games->records()){const auto state=ui->game(record.id).value("state").toInt();if(state!=5&&state!=6){game=record.id;break;}}QVERIFY(!game.isEmpty());
+  ui->launchFinished(game,"The disc image could not be read.",1);
+  QTRY_VERIFY(visibleNamed(window->contentItem(),"lastSessionAction"));
+  QCOMPARE(visibleNamed(window->contentItem(),"lastSessionAction")->property("text").toString(),QString("Save a problem report"));
+  QSignalSpy reports(ui.get(),&ac::UiController::reportRequested);QVERIFY(QMetaObject::invokeMethod(visibleNamed(window->contentItem(),"lastSessionAction"),"clicked"));QCOMPARE(reports.size(),1);
+  ui->setReport({},"The folder could not be made.");
+  ui->launchFinished(game,"The emulator was not found.",1);
+  QTRY_COMPARE(visibleNamed(window->contentItem(),"lastSessionAction")->property("text").toString(),QString("Find the emulator"));
+  ui->dismissLastSession();QTRY_VERIFY(!visibleNamed(window->contentItem(),"lastSessionAction"));
+  // A state's action can ask for a page; the root page opens it.
+  ui->noticeAction("openSettings");QTRY_COMPARE(root->property("view").toString(),QString("Settings"));
+  // Settings holds the problem report and shows what became of it.
+  QTRY_VERIFY(visibleNamed(window->contentItem(),"reportSave"));
+  QVERIFY(!visibleNamed(window->contentItem(),"unrecognisedFiles")); // Nothing unrecognised: no list.
+  QSignalSpy asked(ui.get(),&ac::UiController::reportRequested);QVERIFY(QMetaObject::invokeMethod(visibleNamed(window->contentItem(),"reportSave"),"clicked"));QCOMPARE(asked.size(),1);
+  ui->setReport("report.zip","",4);
+  QTRY_VERIFY(visibleNamed(window->contentItem(),"reportStatus")&&visibleNamed(window->contentItem(),"reportStatus")->property("text").toString().contains("Report saved with 4 log files"));
+ }
+ // The problem report's words, and the install error that arrives with a plain sentence of its own.
+ void reportAndInstallErrorsSayWhatHappened(){
+  QTemporaryDir ownDir;QVERIFY(ownDir.isValid());ac::UiSettings own(ownDir.path());
+  ac::UiController controller(games.get(),&filter,&own);
+  QSignalSpy asked(&controller,&ac::UiController::reportRequested);QSignalSpy changed(&controller,&ac::UiController::reportChanged);
+  controller.saveReport();QCOMPARE(asked.size(),1);QCOMPARE(controller.reportStatus(),QString("Collecting the logs…"));
+  controller.setReport("one.zip","",1);QVERIFY(controller.reportStatus().startsWith("Report saved with 1 log file. Send this file: "));QVERIFY(controller.reportPath()=="one.zip");
+  controller.setReport("two.zip","",5);QVERIFY(controller.reportStatus().contains("5 log files"));
+  controller.setReport({},"Nowhere to write.");QVERIFY(controller.reportStatus().contains("could not be saved: Nowhere to write."));QVERIFY(controller.reportPath().isEmpty());
+  controller.setReport({},{});QVERIFY(controller.reportStatus().contains("no reason was given"));
+  QVERIFY(changed.size()>=5);
+  QSignalSpy folders(&controller,&ac::UiController::locationRequested);controller.showReport();QCOMPARE(folders[0][0].toString(),QString("reports"));
+  // Install errors: the provider's sentence is added when the engine sent none, and never replaces one it sent.
+  controller.installEvent({{"kind","fail"},{"code","E_ANYTHING"},{"text","Raw engine words"}});
+  QVERIFY(controller.recovery().value("plain").toString().isEmpty());QCOMPARE(controller.plainError("E_ANYTHING","kept"),QString("kept"));
+  controller.setPlainErrors([](const QString &code){return code=="E_DISK_FULL"?QString("The drive is full. Free some space, then try again."):QString();});
+  controller.installEvent({{"kind","fail"},{"code","E_DISK_FULL"},{"text","write failed"}});
+  QCOMPARE(controller.recovery().value("plain").toString(),QString("The drive is full. Free some space, then try again."));
+  QCOMPARE(controller.recovery().value("text").toString(),QString("write failed"));
+  controller.installEvent({{"kind","fail"},{"code","E_DISK_FULL"},{"text","write failed"},{"plain","The engine's own sentence."}});
+  QCOMPARE(controller.recovery().value("plain").toString(),QString("The engine's own sentence."));
+  controller.installEvent({{"kind","fail"},{"code","E_OTHER"},{"text","Raw"}});QVERIFY(controller.recovery().value("plain").toString().isEmpty());
+  QCOMPARE(controller.plainError("E_DISK_FULL").left(14),QString("The drive is f"));
+  // The panel shows the sentence first, with the engine's words under it.
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&controller);
+  controller.installEvent({{"kind","fail"},{"code","E_DISK_FULL"},{"text","write failed"}});
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/RecoveryPanel.qml"));QVERIFY2(component.isReady(),qPrintable(component.errorString()));
+  std::unique_ptr<QQuickItem> panel(qobject_cast<QQuickItem *>(component.create(&context)));QVERIFY2(panel,qPrintable(component.errorString()));
+  panel->setParentItem(window->contentItem());panel->setSize({900,400});
+  const auto line=namedItems(panel.get(),"recoveryText"),detail=namedItems(panel.get(),"recoveryDetail");QCOMPARE(line.size(),1);QCOMPARE(detail.size(),1);
+  QCOMPARE(line[0]->property("text").toString(),QString("The drive is full. Free some space, then try again."));
+  QVERIFY(detail[0]->isVisible());QVERIFY(detail[0]->property("text").toString().contains("write failed"));QVERIFY(detail[0]->property("text").toString().contains("E_DISK_FULL"));
+  controller.installEvent({{"kind","fail"},{"code","E_OTHER"},{"text","Raw only"}});
+  QTRY_COMPARE(line[0]->property("text").toString(),QString("Raw only"));QVERIFY(!detail[0]->isVisible());
+ }
+ // What the other lanes hand over: update flags, the update check, the unrecognised list and the folder help.
+ void plumbingForTheOtherLanes(){
+  QTemporaryDir ownDir;QVERIFY(ownDir.isValid());ac::UiSettings own(ownDir.path());
+  ac::UiController controller(games.get(),&filter,&own);
+  QSignalSpy updates(&controller,&ac::UiController::emulatorUpdatesChanged);QSignalSpy requests(&controller,&ac::UiController::emulatorUpdateRequested);
+  QCOMPARE(controller.emulatorUpdateCount(),0);QVERIFY(!controller.emulatorUpdateAvailable("flycast"));
+  controller.setEmulatorUpdate("flycast",true,"2.4","2.3");
+  QVERIFY(controller.emulatorUpdateAvailable("flycast"));QCOMPARE(controller.emulatorUpdateCount(),1);
+  QCOMPARE(controller.emulatorUpdates().value("flycast").toMap().value("text").toString(),QString("Version 2.4 is available (you have 2.3)."));
+  controller.setEmulatorUpdate("flycast",true,"2.4","2.3");QCOMPARE(updates.size(),1); // Nothing changed: nothing sent.
+  controller.setEmulatorUpdate("",true);controller.setEmulatorUpdate("mame",false);QCOMPARE(updates.size(),1);
+  controller.setEmulatorUpdate("pcsx2",true);QCOMPARE(controller.emulatorUpdates().value("pcsx2").toMap().value("text").toString(),QString("A newer version is available."));
+  controller.setEmulatorUpdate("pcsx2",false);controller.setEmulatorUpdate("flycast",false);QCOMPARE(controller.emulatorUpdateCount(),0);
+  controller.updateEmulator("flycast");QCOMPARE(requests.size(),1);QCOMPARE(requests[0][0].toString(),QString("flycast"));
+  // The update check: asked once, answered with one report per tool; only "available" ones become flags.
+  QSignalSpy checks(&controller,&ac::UiController::toolUpdatesCheckRequested);QSignalSpy answered(&controller,&ac::UiController::toolUpdatesChecked);
+  controller.checkToolUpdates();controller.checkToolUpdates();QCOMPARE(checks.size(),1);QVERIFY(controller.toolUpdatesChecking());
+  controller.setToolUpdates({QVariantMap{{"state","available"},{"id","supermodel"},{"pinnedTag","v1"},{"latestTag","v2"},{"url","https://example.org/r"},{"text","A newer release."}},
+                             QVariantMap{{"state","current"},{"id","mame"}},QVariantMap{{"state","unknown"},{"id","pcsx2"}}});
+  QVERIFY(!controller.toolUpdatesChecking());QCOMPARE(answered.size(),1);QCOMPARE(controller.toolUpdates().size(),3);
+  QVERIFY(controller.emulatorUpdateAvailable("supermodel"));QVERIFY(!controller.emulatorUpdateAvailable("mame"));QVERIFY(!controller.emulatorUpdateAvailable("pcsx2"));
+  QCOMPARE(controller.emulatorUpdates().value("supermodel").toMap().value("text").toString(),QString("Version v2 is available (you have v1)."));
+  controller.checkToolUpdates();QCOMPARE(checks.size(),2);controller.setToolUpdates({});
+  // The unrecognised list reads the finders' library result, and says how many there are when the list is capped.
+  QCOMPARE(controller.unrecognisedCount(),0);
+  QVariantList files;for(int i=0;i<25;++i)files<<QVariantMap{{"name","disc "+QString::number(i)},{"reason","No game number could be read."},{"size",1048576*(i+1)}};
+  controller.setLibrary({{"unrecognised",QVariantMap{{"files",files},{"total",520},{"discs",500},{"archives",20}}}});
+  QCOMPARE(controller.unrecognisedFiles().size(),25);QCOMPARE(controller.unrecognisedCount(),520);
+  controller.setLibrary({{"unrecognised",QVariantMap{{"discs",2},{"archives",0},{"files",files.mid(0,2)}}}});QCOMPARE(controller.unrecognisedCount(),2);
+  controller.setLibrary({{"unrecognised",QVariantMap{{"discs",7},{"archives",2}}}});QCOMPARE(controller.unrecognisedCount(),0); // Counts only: no list to show.
+  controller.setLibrary({{"unrecognised",QVariantMap{{"files",files},{"total",30}}}});
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&controller);
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/UnrecognisedList.qml"));QVERIFY2(component.isReady(),qPrintable(component.errorString()));
+  std::unique_ptr<QQuickItem> list(qobject_cast<QQuickItem *>(component.create(&context)));QVERIFY2(list,qPrintable(component.errorString()));
+  list->setParentItem(window->contentItem());list->setWidth(800);QVERIFY(list->isVisible());
+  QCOMPARE(namedItems(list.get(),"unrecognisedRow").size(),20);
+  QCOMPARE(namedItems(list.get(),"unrecognisedTitle")[0]->property("text").toString(),QString("30 files were not recognised"));
+  QCOMPARE(namedItems(list.get(),"unrecognisedMore")[0]->property("text").toString(),QString("and 10 more."));
+  QVERIFY(QMetaObject::invokeMethod(namedItems(list.get(),"unrecognisedShowMore")[0],"clicked"));QTRY_COMPARE(namedItems(list.get(),"unrecognisedRow").size(),25);
+  QCOMPARE(namedItems(list.get(),"unrecognisedMore")[0]->property("text").toString(),QString("and 5 more that are not listed."));
+  controller.setLibrary({});QTRY_VERIFY(!list->isVisible());
+  // Folder help: one request for a system that keeps a folder, answered by the setters; the row carries the suggestions.
+  QString system,key;for(const auto &value:controller.setupSystems()){const auto row=value.toMap();if(!row.value("folderKey").toString().isEmpty()){system=row.value("id").toString();key=row.value("folderKey").toString();break;}}
+  QVERIFY(!system.isEmpty());
+  QSignalSpy work(&controller,&ac::UiController::setupFolderWorkRequested);
+  controller.checkSetupFolder(system);QCOMPARE(work.size(),0); // No folder chosen: nothing to look at.
+  controller.suggestSetupFolders("no-such-system");QCOMPARE(work.size(),0);
+  own.set("libraryRoots",QStringList{"library-root"});
+  controller.suggestSetupFolders(system);QCOMPARE(work.size(),1);
+  QCOMPARE(work[0][0].toString(),system);QVERIFY(work[0][1].toString().isEmpty());QCOMPARE(work[0][3].toStringList(),QStringList{"library-root"});QVERIFY(work[0][4].toBool());
+  QCOMPARE(controller.setupFolderBusy(),system);
+  const QVariantList found{QVariantMap{{"folder","a-folder"},{"files",4},{"checked",4},{"matched",4},{"detail","All 4 files checked look right."}}};
+  controller.setSetupSuggestions(system,found);
+  QVERIFY(controller.setupFolderBusy().isEmpty());QCOMPARE(controller.setupSuggestions().value(system).toList(),found);
+  for(const auto &value:controller.setupSystems()){const auto row=value.toMap();if(row.value("id").toString()==system){QCOMPARE(row.value("suggestions").toList(),found);QVERIFY(!row.value("updateAvailable").toBool());}}
+  own.set(key,"a-chosen-folder");controller.checkSetupFolder(system);QCOMPARE(work.size(),2);QCOMPARE(work[1][1].toString(),QString("a-chosen-folder"));QVERIFY(!work[1][4].toBool());
+  controller.setSetupFolderCheck(system,{{"matched",0},{"checked",3},{"detail","None of the 3 files checked look right."}});
+  QCOMPARE(controller.setupFolderChecks().value(system).toMap().value("matched").toInt(),0);QVERIFY(controller.setupFolderBusy().isEmpty());
+  controller.setEmulatorUpdate(system,true,"2","1");
+  for(const auto &value:controller.setupSystems()){const auto row=value.toMap();if(row.value("id").toString()==system)QVERIFY(row.value("updateAvailable").toBool());}
+ }
  void componentLoading(){
-  const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
+  const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","StateNotice","UnrecognisedList","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
   for(const auto &name:components){QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+name+".qml"));QVERIFY2(c.isReady(),qPrintable(c.errorString()));std::unique_ptr<QObject> o(c.create());QVERIFY2(o!=nullptr,qPrintable(c.errorString()));}
  }
  void resizingSurvivesUnrelatedSettings(){

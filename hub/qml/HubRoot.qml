@@ -92,6 +92,7 @@ FocusScope {
     RowLayout {anchors.fill:parent;anchors.margins:16;anchors.leftMargin:24;spacing:14
      UiText {id:endedText;objectName:"lastSessionText";Layout.fillWidth:true;font.pixelSize:root.vrOverlayMode?18:14;color:ended.trouble?Theme.get("color.state.needs_neon"):Theme.get("color.text.primary")
       text:(ended.session.text||"")+(ended.session.details?"\n"+ended.session.details:"")}
+     PillButton {objectName:"lastSessionAction";visible:!!uiController.nowPlayingNotice.action;text:uiController.nowPlayingNotice.actionLabel||"";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.noticeAction(uiController.nowPlayingNotice.action)}
      PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}
     }
    }
@@ -141,10 +142,19 @@ FocusScope {
   background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
  }
  Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else if(kind==="media")scanDialog.open();else if(kind==="steam-shortcut"&&typeof hubServices!=="undefined"){hubServices.beginSteam(uiController.detail.gameId,uiController.detail.variantId);steamDialog.open()}}}
+ Connections {target:uiController;function onPageRequested(page){root.navigate(page)}}
  Dialog {id:toolDialog;objectName:"toolDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;focus:true;title:"Emulators";standardButtons:Dialog.Close
   footer:DialogButtonBox{standardButtons:toolDialog.standardButtons;delegate:PillButton{vrOverlayMode:root.vrOverlayMode}}
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;text:"Locate your existing MAME or PCSX2 folder with Find my files. Supermodel can be installed from its pinned official release.";wrapMode:Text.Wrap}
+   // Only a note per tool that has a newer release; nothing is installed from here.
+   PillButton {objectName:"toolUpdatesCheck";vrOverlayMode:root.vrOverlayMode;text:uiController.toolUpdatesChecking?"Checking…":"Check for updates";enabled:!uiController.toolUpdatesChecking;onClicked:uiController.checkToolUpdates()}
+   UiText {objectName:"toolUpdatesSummary";width:parent.width;wrapMode:Text.Wrap;visible:uiController.toolUpdates.length>0&&!uiController.toolUpdatesChecking
+    text:uiController.emulatorUpdateCount>0?"A newer version is out for "+uiController.emulatorUpdateCount+(uiController.emulatorUpdateCount===1?" tool.":" tools."):"Every tool the Hub could check is up to date."}
+   Repeater {model:uiController.toolUpdates.filter(r=>r.state==="available")
+    Row {required property var modelData;width:parent.width;spacing:10
+     UiText {objectName:"toolUpdateNote";width:parent.width-whatsNew.width-10;text:modelData.text}
+     PillButton {id:whatsNew;vrOverlayMode:root.vrOverlayMode;text:"See what is new";visible:!!modelData.url;onClicked:uiController.openLink(modelData.url)}}}
    PillButton {vrOverlayMode:root.vrOverlayMode;text:"Find my files / emulator folders";onClicked:{toolDialog.close();scanDialog.open()}}
    ScrollView {width:parent.width;height:180;TextArea {text:typeof hubServices!=="undefined"?hubServices.toolPlan:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.pixelSize:12}}
    PillButton {vrOverlayMode:root.vrOverlayMode;text:"Install Supermodel";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.installSupermodel();toolDialog.close()}}

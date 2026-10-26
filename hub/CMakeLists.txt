@@ -52,6 +52,8 @@ add_library(hubcore STATIC
     src/core/app/LaunchOptions.h
     src/core/app/LaunchFailure.cpp
     src/core/app/LaunchFailure.h
+    src/core/app/LogBundle.cpp
+    src/core/app/LogBundle.h
     src/core/app/NetworkPolicy.cpp
     src/core/app/NetworkPolicy.h
     src/core/config/Config.h
@@ -305,6 +307,11 @@ if(BUILD_TESTING)
     ac_project_warnings(watchdog-tests)
     set_target_properties(watchdog-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-watchdog COMMAND watchdog-tests -o -,txt)
+    qt_add_executable(log-bundle-tests tests/LogBundleTest.cpp)
+    target_link_libraries(log-bundle-tests PRIVATE hubcore Qt6::Test zlibstatic)
+    ac_project_warnings(log-bundle-tests)
+    set_target_properties(log-bundle-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-log-bundle COMMAND log-bundle-tests -o -,txt)
     qt_add_executable(art-download-tests tests/ArtDownloadTest.cpp)
     target_link_libraries(art-download-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(art-download-tests)
