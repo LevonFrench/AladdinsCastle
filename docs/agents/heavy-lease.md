@@ -33,6 +33,10 @@ appears, and releases the lease after owned-process cleanup completes. If cleanu
 cannot be confirmed, it fails and retains the lease. Exit codes: the command's own code, 3 not
 granted, 124 deadline, 125 headset. `--gap-min 15` adds a mandatory gap after the hold
 (measurement lanes use 15). `check` lists heavy processes and exits 3 when the host is not quiet.
+For a synchronous build whose main command waits for all useful work, use
+`--stop-descendants-on-exit` before `--` to terminate lingering owned helpers such as
+MSVC's PDB server. The default waits for descendants; do not use this option with
+a launcher that deliberately exits before its useful child finishes.
 
 ## The lease folder
 

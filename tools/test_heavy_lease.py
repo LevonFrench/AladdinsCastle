@@ -242,6 +242,18 @@ class LeaseTest(unittest.TestCase):
                 sibling.kill()
             sibling.wait(timeout=15)
 
+    def test_opt_in_stops_background_helpers_when_synchronous_command_exits(self):
+        pidfile = Path(self._tmp.name) / "helper.pid"
+        parent = ("import subprocess,sys,pathlib; "
+                  "p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(10)']); "
+                  f"pathlib.Path({str(pidfile)!r}).write_text(str(p.pid))")
+        code = hl.run(self.dir, "build", "background helper", 1, [sys.executable, "-c", parent],
+                      lister=QUIET, deadline_s=5, stop_descendants_on_exit=True)
+        self.assertEqual(code, 0)
+        self.assertTrue(wait_dead(int(pidfile.read_text())))
+        self.assertFalse((self.dir / hl.LOCK_NAME).exists())
+        self.assertIn("finished-descendants-stopped", (self.dir / hl.LEDGER_NAME).read_text())
+
     @unittest.skipUnless(hl.WINDOWS, "Windows Job Object handle lifetime")
     def test_wrapper_termination_closes_job_and_kills_descendants(self):
         pidfile = Path(self._tmp.name) / "owned.pid"

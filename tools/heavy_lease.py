@@ -384,7 +384,7 @@ def release(lease_dir, record, **outcome):
 
 
 def run(lease_dir, lane, purpose, minutes, command, deadline_s=None, lister=None, extra_marker=None,
-        gap_min=0, poll_s=0.2, cwd=None):
+        gap_min=0, poll_s=0.2, cwd=None, stop_descendants_on_exit=False):
     """Hold the lease, run the command, kill its tree on deadline. Returns the exit code."""
     record = acquire(lease_dir, lane, purpose, minutes, lister=lister, extra_marker=extra_marker, gap_min=gap_min)
     deadline_s = minutes * 60 if deadline_s is None else deadline_s
@@ -400,6 +400,9 @@ def run(lease_dir, lane, purpose, minutes, command, deadline_s=None, lister=None
         except OSError:
             pass  # the child pid is only for orphan cleanup; the lease itself stays valid
         while child.running():
+            if stop_descendants_on_exit and child.poll() is not None:
+                status = "finished-descendants-stopped"
+                break
             if headset_on(lease_dir, extra_marker):
                 status, code = "killed-headset", EXIT_HEADSET
                 break
@@ -436,6 +439,8 @@ def main(argv=None):
     p_run.add_argument("--minutes", type=int, default=30, help=f"hard deadline, 1..{MAX_MINUTES}")
     p_run.add_argument("--gap-min", type=int, default=0, help="mandatory gap after release (measure lanes: 15)")
     p_run.add_argument("--cwd", default=None)
+    p_run.add_argument("--stop-descendants-on-exit", action="store_true",
+                       help="stop owned background helpers when the main command exits (opt-in for synchronous builds)")
     p_run.add_argument("command", nargs=argparse.REMAINDER, help="-- then the command")
     sub.add_parser("status", help="print the current lease")
     sub.add_parser("check", help="list heavy processes; exit 3 when the host is not quiet")
@@ -455,7 +460,8 @@ def main(argv=None):
     if not command:
         parser.error("run needs a command after --")
     try:
-        code = run(lease_dir, args.lane, args.purpose, args.minutes, command, gap_min=args.gap_min, cwd=args.cwd)
+        code = run(lease_dir, args.lane, args.purpose, args.minutes, command, gap_min=args.gap_min, cwd=args.cwd,
+                   stop_descendants_on_exit=args.stop_descendants_on_exit)
     except Busy as exc:
         print(f"heavy_lease: not granted: {exc}", file=sys.stderr)
         return EXIT_BUSY
