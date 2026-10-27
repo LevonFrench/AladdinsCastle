@@ -29,7 +29,8 @@ without starting the command:
 
 Then it runs the command at below-normal priority with a hard deadline (`--minutes`, 1 to
 45, default 30), kills the whole process tree at the deadline or when `HEADSET-ON`
-appears, and releases the lease in every case. Exit codes: the command's own code, 3 not
+appears, and releases the lease after owned-process cleanup completes. If cleanup
+cannot be confirmed, it fails and retains the lease. Exit codes: the command's own code, 3 not
 granted, 124 deadline, 125 headset. `--gap-min 15` adds a mandatory gap after the hold
 (measurement lanes use 15). `check` lists heavy processes and exits 3 when the host is not quiet.
 
@@ -59,13 +60,24 @@ folder (the owner keeps one beside the projects folder, shared by Claude and Cod
   reported as overdue and never taken over; the wrapper's deadline should have killed it.
   An unreadable lock older than a minute is stale.
 - **The deadline is a hard kill.** `planned_end` is enforced by the wrapper, not a promise.
+- **Descendant lifetime.** On Windows 10 or newer the command is created atomically in
+  a private, non-inheritable Job Object with kill-on-close and no breakaway flags.
+  The lease stays held until all job members exit, even if the launcher exits first.
+  A wrapper crash closes its job handle and terminates the job. If job setup fails,
+  the command never starts. Linux uses a new process group and waits for live members.
+- **Uncertain stale children.** A recorded child is killed only when its saved and
+  current creation times are both readable and equal. An unreadable identity leaves
+  the process and lock alone, records `recovery-blocked`, and refuses the new run.
+  A readable mismatch means a reused PID: it is left alone.
 
 ## Limits
 
 - A command started outside the wrapper is only caught by the process check, which sees
   the names above. It cannot see a heavy job under another name.
-- A hard kill of the wrapper skips its clean-up. The next contender recovers the lease; the
-  command's own children are killed only when their creation time still matches.
+- Windows Job Objects contain ordinary descendants. Processes launched through an
+  external service are outside that job. Linux process groups do not prevent a child
+  deliberately creating another session. These are containment limits, not permission
+  to launch work outside the wrapper.
 - Nothing forces an agent to use it. The owner's shared agent rules and a Bash/PowerShell
   deny hook would make that enforceable; both live outside this repository.
 - Tests: `python -B -m unittest -v test_heavy_lease` from `tools/`. They use a temporary

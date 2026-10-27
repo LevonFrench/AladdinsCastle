@@ -13,7 +13,7 @@ then os.link, so the content is never partial and a second contender fails).
 `run` refuses while a heavy process is already running, while the HEADSET-ON
 marker exists, or while another live lease is held. It runs the command at
 below-normal priority with a hard deadline, kills the whole process tree on
-timeout (or when the headset marker appears) and always releases the lease.
+timeout (or when the headset marker appears). Cleanup must finish before release.
 
 Lease directory: --lease-dir, else the ACVR_LEASE_DIR environment variable, else
 `.agent-rules/lease` in the nearest parent folder that has a `.agent-rules`
@@ -31,6 +31,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from lease_process import OwnedProcess
 
 MAX_MINUTES = 45
 STALE_GRACE_MIN = 30          # a live holder past its planned end is only reported
@@ -265,6 +266,13 @@ def classify(lease_dir, moment=None):
 def clear_stale(lease_dir, stale_record):
     """Move a stale lock aside and write the ledger entry. Returns False if we lost a race."""
     lease_dir = Path(lease_dir)
+    child = stale_record.get("child_pid")
+    child_created = stale_record.get("child_created")
+    current_created = process_create_time(child) if isinstance(child, int) and pid_alive(child) else None
+    if isinstance(child, int) and pid_alive(child) and (child_created is None or current_created is None):
+        ledger(lease_dir, event="recovery-blocked", lane=stale_record.get("lane"),
+               lease_id=stale_record.get("id"), orphan_unverified=True)
+        raise Busy("stale child identity is unreadable; left it and the lease untouched")
     aside = lease_dir / f"heavy.lock.stale.{uuid.uuid4().hex}"
     try:
         os.replace(lease_dir / LOCK_NAME, aside)
@@ -282,11 +290,24 @@ def clear_stale(lease_dir, stale_record):
             pass
         aside.unlink(missing_ok=True)
         return False
-    child = stale_record.get("child_pid")
     orphan = False
-    if isinstance(child, int) and pid_alive(child) and process_create_time(child) in (None, stale_record.get("child_created")):
-        kill_tree(child)
-        orphan = True
+    if isinstance(child, int) and pid_alive(child):
+        observed = process_create_time(child)
+        if child_created is None or observed is None:
+            # Identity can become unreadable after the preflight. Restore the lock
+            # when still free; preserve the aside record if another holder won.
+            try:
+                os.link(aside, lease_dir / LOCK_NAME)
+            except FileExistsError:
+                pass
+            else:
+                aside.unlink()
+            ledger(lease_dir, event="recovery-blocked", lane=stale_record.get("lane"),
+                   lease_id=stale_record.get("id"), orphan_unverified=True)
+            raise Busy("stale child identity is unreadable; recovery refused")
+        if observed == child_created:
+            kill_tree(child)
+            orphan = True
     ledger(lease_dir, event="recovered", lane=stale_record.get("lane"), lease_id=stale_record.get("id"),
            holder_pid=stale_record.get("pid"), planned_end=stale_record.get("planned_end"),
            orphan_killed=orphan)
@@ -368,20 +389,17 @@ def run(lease_dir, lane, purpose, minutes, command, deadline_s=None, lister=None
     record = acquire(lease_dir, lane, purpose, minutes, lister=lister, extra_marker=extra_marker, gap_min=gap_min)
     deadline_s = minutes * 60 if deadline_s is None else deadline_s
     child = None
-    status, code = "finished", None
+    status, code = "failed-start", None
     started = time.monotonic()
     try:
-        if WINDOWS:
-            flags = subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
-            child = subprocess.Popen(command, creationflags=flags, cwd=cwd)
-        else:
-            child = subprocess.Popen(command, start_new_session=True, preexec_fn=lambda: os.nice(10), cwd=cwd)
+        child = OwnedProcess(command, cwd=cwd)
+        status = "finished"
         record.update(child_pid=child.pid, child_created=process_create_time(child.pid))
         try:
             write_atomic(lease_dir, record, exclusive=False)
         except OSError:
             pass  # the child pid is only for orphan cleanup; the lease itself stays valid
-        while child.poll() is None:
+        while child.running():
             if headset_on(lease_dir, extra_marker):
                 status, code = "killed-headset", EXIT_HEADSET
                 break
@@ -389,14 +407,13 @@ def run(lease_dir, lane, purpose, minutes, command, deadline_s=None, lister=None
                 status, code = "killed-deadline", EXIT_DEADLINE
                 break
             time.sleep(poll_s)
-        if child.poll() is None:
-            kill_tree(child.pid)
-            child.wait(timeout=30)
-        elif code is None:
-            code = child.returncode
+        if code is None:
+            code = child.poll()
     finally:
-        if child is not None and child.poll() is None:
-            kill_tree(child.pid)
+        # Close owns descendants even when the direct child exited first. Failure
+        # to confirm cleanup leaves the lease in place instead of advertising free.
+        if child is not None:
+            child.close()
         release(lease_dir, record, status=status, exit_code=code,
                 seconds=round(time.monotonic() - started, 1))
     return code
@@ -442,6 +459,9 @@ def main(argv=None):
     except Busy as exc:
         print(f"heavy_lease: not granted: {exc}", file=sys.stderr)
         return EXIT_BUSY
+    except (OSError, RuntimeError) as exc:
+        print(f"heavy_lease: run failed: {exc}", file=sys.stderr)
+        return 1
     return code if code is not None else 1
 
 
