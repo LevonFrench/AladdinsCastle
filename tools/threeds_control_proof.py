@@ -18,9 +18,16 @@ exactly). The proof reads:
 Run `run` through tools/heavy_lease.py (one heavy job at a time on the PC). It needs no
 window, no sound and no headset runtime. The report needs Pillow. Nothing here names a
 game file or a folder; they come from the command line.
+
+Use a fresh, empty output folder for every run. Existing evidence is never reused or
+deleted. A child failure, timeout, missing snapshot or missing midpoint pad sample
+fails the command and records run-status.json. Report requires a complete successful
+receipt and rechecks its inputs; older unreceipted evidence remains untouched.
 """
 import argparse
+import json
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -75,8 +82,73 @@ def parse_pad_log(text):
     return rows
 
 
+class ProofError(RuntimeError):
+    """A run is incomplete or failed; it must never produce a success report."""
+
+
+def validate_trial(folder):
+    folder = Path(folder)
+    for name, _ in SNAPS:
+        path = folder / "snaps" / (name + ".png")
+        if not path.is_file() or path.stat().st_size <= 8:
+            raise ProofError(f"{folder.name}: missing snapshot {name}")
+        with path.open("rb") as stream:
+            if stream.read(8) != b"\x89PNG\r\n\x1a\n":
+                raise ProofError(f"{folder.name}: invalid PNG snapshot {name}")
+    log = folder / "host.log"
+    if not log.is_file():
+        raise ProofError(f"{folder.name}: missing host.log")
+    pads = parse_pad_log(log.read_text(encoding="utf-8", errors="replace"))
+    mid = dict(SNAPS)["mid"]
+    if mid not in pads:
+        raise ProofError(f"{folder.name}: missing midpoint pad sample at frame {mid}")
+    return pads
+
+
+def write_status(out, status):
+    temporary = Path(out) / "run-status.tmp"
+    temporary.write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(Path(out) / "run-status.json")
+
+
+def validate_run(out):
+    status = json.loads((Path(out) / "run-status.json").read_text(encoding="utf-8"))
+    if status.get("schema") != 1 or status.get("state") != "complete":
+        raise ProofError("run is not complete; no success report can be made")
+    if set(status.get("trials", {})) != set(TRIALS):
+        raise ProofError("run trial set does not match this proof")
+    for name in TRIALS:
+        row = status["trials"][name]
+        if row.get("state") != "complete" or row.get("exit_code") != 0:
+            raise ProofError(f"{name}: trial did not complete successfully")
+        validate_trial(Path(out) / name)
+    return status
+
+
 def run(args):
-    os.makedirs(args.out, exist_ok=True)
+    if args.timeout <= 0:
+        raise ProofError("timeout must be positive")
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    if any(out.iterdir()):
+        raise ProofError("output folder is not empty; choose a fresh folder (old evidence is preserved)")
+    status = {"schema": 1, "state": "running", "trials": {}}
+    # Exclusive claim also rejects a second runner racing for the same empty folder.
+    with (out / "run-status.json").open("x", encoding="utf-8") as stream:
+        json.dump(status, stream)
+    try:
+        run_trials(args, status)
+        status["state"] = "complete"
+        write_status(out, status)
+    except BaseException as error:
+        status["state"] = "failed"
+        status["error"] = str(error)
+        write_status(out, status)
+        raise
+    return 0
+
+
+def run_trials(args, status):
     for name, lines in TRIALS.items():
         d = os.path.join(args.out, name)
         for sub in ("system", "saves", "snaps"):
@@ -88,21 +160,48 @@ def run(args):
                "--controls", "pad", "--no-xr", "--mute", "--headless", "--frames", str(FRAMES), "--script", script,
                "--snapshots", os.path.join(d, "snaps"), "--log", os.path.join(d, "host.log"), "--state", args.state, "--profile", args.profile]
         flags = 0x4000 | 0x08000000 if os.name == "nt" else 0   # below normal priority, no window
-        p = subprocess.Popen(cmd, cwd=os.path.dirname(os.path.abspath(args.host)), creationflags=flags)
+        row = status["trials"][name] = {"state": "running"}
+        write_status(args.out, status)
+        p = None
         try:
-            code = p.wait(timeout=args.timeout)
-        except subprocess.TimeoutExpired:
-            p.kill()
-            code = "killed"
+            p = subprocess.Popen(cmd, cwd=os.path.dirname(os.path.abspath(args.host)), creationflags=flags)
+            try:
+                code = p.wait(timeout=args.timeout)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                row.update(state="timeout", exit_code=p.wait(timeout=10))
+                raise ProofError(f"{name}: timed out after {args.timeout} seconds")
+            row["exit_code"] = code
+            if code != 0:
+                row["state"] = "failed"
+                raise ProofError(f"{name}: child exited with code {code}")
+            validate_trial(d)
+            row["state"] = "complete"
+            write_status(args.out, status)
+        except BaseException as error:
+            if row["state"] != "timeout":
+                row["state"] = "failed"
+            row["error"] = str(error)
+            write_status(args.out, status)
+            raise
+        finally:
+            if p is not None:
+                if p.poll() is None:
+                    p.kill()
+                p.wait(timeout=10)
         print(f"{name}: exit {code}", flush=True)
 
 
 def report(args):
+    validate_run(args.out)
     from PIL import Image, ImageChops, ImageStat
 
     def eye(name, snap):
         # The left eye of a side by side 1200x720 frame, with the black bands cut off.
-        return Image.open(os.path.join(args.out, name, "snaps", snap + ".png")).convert("RGB").crop((0, 180, 600, 540))
+        with Image.open(os.path.join(args.out, name, "snaps", snap + ".png")) as image:
+            if image.width < 600 or image.height < 540:
+                raise ProofError(f"{name}: snapshot {snap} is smaller than the eye crop")
+            return image.convert("RGB").crop((0, 180, 600, 540))
 
     def diff(a, b):
         return sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3
@@ -119,12 +218,9 @@ def report(args):
     for n in names:
         with open(os.path.join(args.out, n, "host.log"), errors="replace") as f:
             pads = parse_pad_log(f.read())
-        key = SNAPS[1][1] if SNAPS[1][1] in pads else None   # the pad line logged with the "mid" snapshot
-        held = ""
-        if key is not None:
-            b, lx, ly, rx, ry = pads[key]
-            held = ",".join(decode_pad(b)) or "-"
-            held += f" stick({lx:+.1f},{ly:+.1f}) cstick({rx:+.1f},{ry:+.1f})"
+        b, lx, ly, rx, ry = pads[dict(SNAPS)["mid"]]
+        held = ",".join(decode_pad(b)) or "-"
+        held += f" stick({lx:+.1f},{ly:+.1f}) cstick({rx:+.1f},{ry:+.1f})"
         d = [round(diff(eye(n, s), eye("none1", s)), 2) for s in ("mid", "late", "end")]
         c = [round(changed(eye(n, s), eye("none1", s)), 1) for s in ("mid", "late", "end")]
         rows.append((n, held, d))
@@ -140,7 +236,7 @@ def report(args):
     print("sheet:", os.path.join(args.out, "controls-sheet.png"), "(row 1 idle; then one row per control: before, mid, late, end)")
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
@@ -151,8 +247,15 @@ def main():
     p = sub.add_parser("report")
     p.add_argument("--out", required=True)
     p.set_defaults(fn=report)
-    args = ap.parse_args()
-    args.fn(args)
+    args = ap.parse_args(argv)
+    try:
+        return args.fn(args) or 0
+    except (ProofError, OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f"3DS proof failed: {error}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("3DS proof interrupted; incomplete output retained", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":
