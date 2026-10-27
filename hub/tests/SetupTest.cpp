@@ -507,8 +507,8 @@ private slots:
     QTemporaryDir t;const auto program=t.filePath("emu/program.exe"),disc=t.filePath("my discs/game.chd");write(program,"synthetic");write(disc,"synthetic");
     const auto plan=ac::dreamcast::launchPlan(disc,"headset",program);
     QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("emu")));
-    QCOMPARE(plan["args"].toStringList(),(QStringList{"-config","config:vr.Xr=yes,input:device1=7,input:device2=7",QDir::toNativeSeparators(disc)}));
-    QCOMPARE(ac::dreamcast::launchPlan(disc,"monitor",program)["args"].toStringList()[1],QString("config:vr.Xr=no,input:device1=7,input:device2=7"));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{"-config","config:UseReios=yes,config:vr.Xr=yes,input:device1=7,input:device2=7",QDir::toNativeSeparators(disc)}));
+    QCOMPARE(ac::dreamcast::launchPlan(disc,"monitor",program)["args"].toStringList()[1],QString("config:UseReios=yes,config:vr.Xr=no,input:device1=7,input:device2=7"));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::dreamcast::launchPlan(disc,"sideways",program));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::dreamcast::launchPlan(disc,"headset",t.filePath("gone.exe")));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::dreamcast::launchPlan(t.filePath("gone.chd"),"headset",program));
