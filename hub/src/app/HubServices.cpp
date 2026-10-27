@@ -677,7 +677,8 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             // The host's own system and save folders are the Hub's, under user/, made here and kept between launches.
             const auto data=install::scopedPath("user/libretro/"+id+"/x",root_);const auto dataFolder=QFileInfo(data).absolutePath();
             for(const auto &sub:{"system","saves"})if(!QDir().mkpath(QDir(dataFolder).filePath(sub)))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
-            const auto plan=libretro::launchPlan(id,host,settings_->get("threedsCore",QString()).toString(),file,dataFolder,profiles,view);
+            const auto selected=libretro::gameFile(id,settings_->get(libretro::gameFileKey(id),QString()).toString());
+            const auto plan=libretro::launchPlan(id,host,settings_->get("threedsCore",QString()).toString(),selected,dataFolder,profiles,view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             auto &environment=request.runtimeInputs.environment;
             for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);

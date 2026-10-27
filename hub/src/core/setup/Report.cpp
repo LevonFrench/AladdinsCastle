@@ -263,19 +263,20 @@ QVariantMap scanSaturn(const QVariantMap &settings,const QVariantMap &context,co
  return groups.result("saturn",launcher.isEmpty()?QString("No Saturn launcher chosen."):QString("The Hub starts these through your Saturn launcher, which knows each disc and its gun calibration."));
 }
 QVariantMap scan3ds(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
- // The program, the core and the profile folder are Hub settings; each game's dump is found in the folder by its title.
- Q_UNUSED(context);Q_UNUSED(cancel);progress("Reading the 3DS folder");
- const auto host=settings.value("libretroHost").toString(),core=settings.value("threedsCore").toString(),folder=settings.value("threedsGameFolder").toString();
+ // Each game file is chosen explicitly; names never establish content identity.
+ Q_UNUSED(context);Q_UNUSED(cancel);progress("Checking the selected 3DS files");
+ const auto host=settings.value("libretroHost").toString(),core=settings.value("threedsCore").toString();
  const auto profiles=libretro::profilesFolder(settings.value("libretroProfiles").toString(),QCoreApplication::applicationDirPath());
  Groups groups;
  for(const auto &value:libretro::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
-  const auto issue=libretro::problem(id,host,core,folder,profiles);
-  if(issue.isEmpty())groups.ready<<item(id,title,"detail",game.value("controls").toString());
-  else if(issue.contains("game file was not found"))groups.missing<<item(id,title,"expected",title+" (your own decrypted dump, named after the game)");
+  const auto selected=settings.value(libretro::gameFileKey(id)).toString();
+  const auto issue=libretro::problem(id,host,core,selected,profiles);
+  if(issue.isEmpty())groups.ready<<item(id,title,"detail","User-selected file; content identity is not verified. "+game.value("controls").toString());
+  else if(selected.isEmpty()&&issue.startsWith("No game file"))groups.missing<<item(id,title,"expected",title+" (choose this game's file in Set-up; identity is not verified)");
   else groups.notRight<<item(id,title,"reason",issue);
  }
- return groups.result("3ds",folder.isEmpty()?QString("No 3DS folder chosen."):QString("The Hub starts these through acvr-ps1 and the Azahar core, with a profile for each game; the dumps stay where they are."));
+ return groups.result("3ds","Choose each game's file in Set-up. Files stay where they are; the Hub does not verify their content identity.");
 }
 QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
@@ -434,7 +435,7 @@ QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const Q
 }
 QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
  // Raised whenever a system is read differently, so every saved report is read again.
- static constexpr int kVersion=3;
+ static constexpr int kVersion=4;
  static const QStringList folders{"model3GameFolder","model2GameFolder","model2RuntimePath","pinballFolder","pinballRoms","ps2GameFolder","wiiGameFolder","dreamcastGameFolder","threedsGameFolder"};
  static const QStringList programs{"model3Executable","model2Executable","system22Executable","pinballExecutable","pinballDatabase","pinballMedia","pinballOverrides",
                                    "ps2Python","ps2StopFile","wiiExecutable","dreamcastExecutable","libretroHost","threedsCore","libretroProfiles","queryEmulators"};
@@ -444,6 +445,10 @@ QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
  QVariantMap values,times;
  for(const auto &key:folders){const auto value=settings.value(key).toString();values[key]=value;times[key]=time(value);}
  for(const auto &key:programs)values[key]=settings.value(key).toString();
+ for(const auto &game:libretro::games()){
+  const auto key=game.toMap().value("fileKey").toString(),value=settings.value(key).toString();
+  values[key]=value;times[key]=time(value);
+ }
  for(const auto &key:launchers){const auto value=settings.value(key).toString();values[key]=value;
   times[key]=value.isEmpty()?QString():time(QFileInfo(value).absoluteDir().filePath("games.json"));}
  auto read=systems;read.sort();

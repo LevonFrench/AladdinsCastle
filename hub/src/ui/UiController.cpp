@@ -536,8 +536,9 @@ QVariantList UiController::buildOtherGames()const{
   if(!host.isEmpty()||!core.isEmpty()||!dumps.isEmpty())for(const auto &value:libretro::games()){
    const auto game=value.toMap();const auto id=game.value("id").toString();
    const auto profiles=libretro::profilesFolder(m_settings->get("libretroProfiles",QString()).toString(),QCoreApplication::applicationDirPath());
-   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,dumps)},{"warning",game.value("controls")},
-    {"problem",libretro::problem(id,host,core,dumps,profiles)}},libretro::views());
+   const auto selected=m_settings->get(libretro::gameFileKey(id),QString()).toString();
+   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,selected)},{"warning","User-selected file; content identity is not verified. "+game.value("controls").toString()},
+    {"problem",libretro::problem(id,host,core,selected,profiles)}},libretro::views());
   }
  }
  // Time Crisis: one native program, checked as it is now.
