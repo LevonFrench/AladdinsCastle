@@ -3,6 +3,7 @@
 #include "core/wii/Wii.h"
 #include "core/libretro/Libretro.h"
 #include "HubServices.h"
+#include "core/scan/DiscMemo.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
 #include <QElapsedTimer>
@@ -733,11 +734,17 @@ void HubServices::scanSetup(const QStringList &systems){
             context["libraryChoice"]=values.value("libraryChoice").toMap();
             {QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly)){const auto saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
                 if(QStringList{saved.value("folder").toString(),saved.value("database").toString(),saved.value("roms").toString(),saved.value("media").toString()}==pinballKey)context["pinballScan"]=saved.value("result");}}
+            // What each disc said last time: a disc whose size and time are unchanged is not opened again. Kept after each
+            // system, so discs read before the Hub was closed are not read again either.
+            const auto memoPath=install::scopedPath("user/cache/setup-discs.json",root);
+            scan::DiscMemo memo;{QFile file(memoPath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))memo=scan::DiscMemo(QJsonDocument::fromJson(file.readAll()).toVariant().toMap());}
+            const auto keepMemo=[&]{try{install::atomicWrite(memoPath,QJsonDocument::fromVariant(memo.saved()).toJson(QJsonDocument::Compact));}catch(const std::exception &){}};
             for(const auto &id:systems){
-                if(cancel->load())return report; // Ended part way: nothing is saved, so the next start reads again.
+                if(cancel->load())return report; // Ended part way: the report is not saved, so the next start reads again.
                 QString title=id;for(const auto &value:setup::systems())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
                 const auto progress=[ui,title](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"setupScanProgress",Qt::QueuedConnection,Q_ARG(QString,title+": "+text));};
-                auto result=setup::scanSystem(id,values,context,progress,*cancel);
+                auto result=setup::scanSystem(id,values,context,progress,*cancel,&memo);
+                if(QStringList{"ps2","dreamcast","wii"}.contains(id))keepMemo();
                 const auto tables=result.take("pinballScan").toMap();
                 if(tables.contains("tables")&&!context.contains("pinballScan"))install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",pinballKey[0]},{"database",pinballKey[1]},{"roms",pinballKey[2]},{"media",pinballKey[3]},
                     {"fingerprint",pinball::fingerprint(pinballKey[0],pinballKey[1],pinballKey[2])},{"result",tables}}).toJson(QJsonDocument::Compact));
