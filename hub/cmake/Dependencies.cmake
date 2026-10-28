@@ -58,3 +58,5 @@ configure_file("${tomlplusplus_SOURCE_DIR}/LICENSE" "${AC_DEPENDENCY_LICENSE_DIR
 configure_file("${nlohmann_json_SOURCE_DIR}/LICENSE.MIT" "${AC_DEPENDENCY_LICENSE_DIR}/nlohmann-json-MIT.txt" COPYONLY)
 configure_file("${json_schema_validator_SOURCE_DIR}/LICENSE" "${AC_DEPENDENCY_LICENSE_DIR}/json-schema-validator-MIT.txt" COPYONLY)
 configure_file("${openvr_SOURCE_DIR}/LICENSE" "${AC_DEPENDENCY_LICENSE_DIR}/OpenVR-BSD-3-Clause.txt" COPYONLY)
+# The Pinball VPS matcher is ported from VPin Studio (through Visual Pinball Infinite); its MIT notice travels with it.
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/licenses/VPinStudio-MIT.txt" "${AC_DEPENDENCY_LICENSE_DIR}/VPinStudio-MIT.txt" COPYONLY)
