@@ -202,7 +202,8 @@ void matchVps(QVariantMap &row,const VpsDatabase &database){
   const auto &game=database.games[size_t(matchIndex)];auto parts=vps::parseFilename(clues.fileName);
   const auto score=vps::closestTableFile(game,vps::fileQuery(game,clues,parts));
   if(!score||score->authors!=0.0||score->version!=0.0)return;
-  for(const auto &value:score->file->features)features<<shown(value);row["vpsFileFound"]=QString("by its authors and version");
+  for(const auto &value:score->file->features){features<<shown(value);}
+  row["vpsFileFound"]=QString("by its authors and version");
  }
  else return;
  row["features"]=features;
