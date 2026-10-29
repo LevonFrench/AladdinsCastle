@@ -92,7 +92,9 @@ QVariantMap inspect(const QString &path) {
  try{
   require(!link(QFileInfo(path)));Compound c(path);
   for(const auto &item:{qMakePair(QString("title"),QString("TableName")),qMakePair(QString("authors"),QString("AuthorName")),qMakePair(QString("version"),QString("TableVersion"))}){
-   const auto b=c.stream("TableInfo/"+item.second);if(!b.isEmpty()){require(b.size()%2==0);row[item.first]=display(QString::fromUtf16(reinterpret_cast<const char16_t*>(b.constData()),b.size()/2));}
+   const auto b=c.stream("TableInfo/"+item.second);if(!b.isEmpty()){require(b.size()%2==0);row[item.first]=display(QString::fromUtf16(reinterpret_cast<const char16_t*>(b.constData()),b.size()/2));
+    // The table info's own name, before identify() makes the shown title: the VPS matcher weighs it.
+    if(item.first=="title")row["tableInfoName"]=row[item.first];}
   }
   bool locked=false;const auto script=scriptFrom(c.stream("GameStg/GameData"),locked);
   // A locked script still plays in VPX; the Hub only cannot read what it needs, and says so.
@@ -141,8 +143,9 @@ static QFileInfoList tableFiles(const QString &folder){
 // Raise when the scanner's results change for the same files, so saved scans from an older Hub are redone.
 // 2: locked scripts are listed as startable instead of "Protected script metadata is not classified" (2026-10-20).
 // 3: controller-aware ROMs, aliases, nested inventories, larger scripts and machine-level VPS identity.
-// 4: ROM sets checked file by file against VPinMAME's own lists (2026-10-28).
-constexpr int kScannerVersion=4;
+// 4: the VPin Studio distance matcher behind the exact VPS rules, and the table info's own name kept (2026-10-28).
+// 5: ROM sets checked file by file against VPinMAME's own lists (2026-10-28).
+constexpr int kScannerVersion=5;
 QString pinmameFolderForExecutable(const QString &executable){return executable.isEmpty()?QString():QDir(QFileInfo(executable).absolutePath()).filePath("VPinMAME");}
 QVariantMap fingerprint(const QString &folder,const QString &database,const QString &romFolder,const QString &pinmameFolder) {
  qint64 newestTable=0;const auto tables=tableFiles(folder);
@@ -152,8 +155,9 @@ QVariantMap fingerprint(const QString &folder,const QString &database,const QStr
  result.insert("database",database.isEmpty()?0:QFileInfo(database).lastModified().toMSecsSinceEpoch());return result;
 }
 QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder,const QString &pinmameFolder) {
- QVariantList rows;QJsonArray db;
- if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());db=doc.array();}
+ QVariantList rows;QJsonArray json;
+ if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());json=doc.array();}
+ const auto db=vpsDatabase(json); // games prepared once, not once a table
  const auto inventory=collectRoms(romFolder,pinmameFolder);
  QDir dir(folder);require(dir.exists());int ready=0;
  for(const auto &file:tableFiles(folder)){

@@ -10,8 +10,8 @@ class IdentityChecks(unittest.TestCase):
     def scan(self, entries, tables):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);library=root/'tables';library.mkdir()
-            for stem,title,author,version in tables:
-                table(library/(stem+'.vpx'),title,author,version,'')
+            for stem,title,author,version,*script in tables:
+                table(library/(stem+'.vpx'),title,author,version,script[0] if script else '')
             database=root/'vps.json';database.write_text(json.dumps(entries),encoding='utf-8')
             process=subprocess.run([HUB,'scan-pinball',str(library),str(database)],capture_output=True,text=True)
             self.assertEqual(process.returncode,0,process.stderr)
@@ -195,5 +195,73 @@ class IdentityChecks(unittest.TestCase):
         self.assertNotIn('vpsId',rows['Orbit_2_(Bally_1999)'])
         self.assertEqual(rows['Meteor_(Bally_1980)']['vpsId'],'plain')
         self.assertNotIn('vpsId',rows['Zeta_2'])  # two machines called Zeta II: no guess
+
+    # The ported VPin Studio distance matcher: asked only when no machine has the table's name, and
+    # its find taken only under the Hub's guards. Its games need a VPX table file, as VPS lists them.
+    def vpx(self,**game):
+        game.setdefault('tableFiles',[dict(tableFormat='VPX',authors=['Somebody'],version='9')])
+        return game
+
+    def test_distance_matcher_finds_a_name_with_extra_words(self):
+        db=[self.vpx(id='bally',name='Star Trek',manufacturer='Bally',year=1979),
+            self.vpx(id='stern',name='Star Trek',manufacturer='Stern',year=2013)]
+        stem='JPs_Star_Trek_(Bally_1979)'
+        row=self.scan(db,[(stem,'Template','Fixture','1')])[stem]
+        self.assertEqual(row['vpsId'],'bally')
+        self.assertEqual(row['vpsFound'],'by its file name')
+        self.assertEqual(row['title'],'Star Trek (Bally 1979)')
+
+    def test_exact_names_say_how_they_were_found(self):
+        db=[self.vpx(id='nova',name='Nova',manufacturer='Bally',year=1978)]
+        row=self.scan(db,[('Nova_(Bally_1978)','Nova','Fixture','1')])['Nova_(Bally_1978)']
+        self.assertEqual(row['vpsFound'],'by its name')
+
+    def test_distance_matcher_keeps_numbers_editions_makers_and_years_apart(self):
+        db=[self.vpx(id='orbit2',name='Orbit II',manufacturer='Williams',year=1999),
+            self.vpx(id='meteor',name='Meteor',manufacturer='Stern',year=2020),
+            self.vpx(id='trek',name='Star Trek',manufacturer='Bally',year=1979)]
+        rows=self.scan(db,[('JPs_Orbit_3_(Williams_1999)','Template','Fixture','1'),
+                           ('JPs_Orbit_(Williams_1999)','Template','Fixture','1'),
+                           ('Meteor_LE_JPs_(Stern_2020)','Template','Fixture','1'),
+                           ('JPs_Star_Trek_(Williams_1979)','Template','Fixture','1'),
+                           ('JPs_Star_Trek_(Bally_1980)','Template','Fixture','1')])
+        for stem,row in rows.items():
+            self.assertNotIn('vpsId',row,stem)
+
+    def test_distance_matcher_takes_no_tie(self):
+        db=[self.vpx(id='bally',name='Comet',manufacturer='Bally',year=1962),
+            self.vpx(id='williams',name='Comet',manufacturer='Williams',year=1962)]
+        row=self.scan(db,[('JPs_Comet','Template','Fixture','1')])['JPs_Comet']
+        self.assertNotIn('vpsId',row)
+
+    def test_distance_matcher_finds_by_the_scripts_rom(self):
+        db=[self.vpx(id='tz',name='Twilight Zone',manufacturer='Bally',year=1993,romFiles=[dict(version='tz_94h')]),
+            self.vpx(id='other',name='Comet',manufacturer='Bally',year=1962,romFiles=[dict(version='other_rom')])]
+        script='Const cGameName="tz_94h"\nLoadVPM "01560000","sys80.vbs",3.26\nController.GameName=cGameName'
+        rows=self.scan(db,[('tz_94h_mod','Template','Fixture','1',script),
+                           ('qq_94h_mod','Template','Fixture','1',script)])
+        self.assertEqual(rows['tz_94h_mod']['vpsId'],'tz')
+        self.assertEqual(rows['tz_94h_mod']['vpsFound'],'by its ROM')
+        self.assertNotIn('vpsId',rows['qq_94h_mod'])  # the file name says nothing of Twilight Zone
+
+    def test_distance_matcher_finds_by_the_table_info_name(self):
+        db=[self.vpx(id='afm',name='Attack from Mars',manufacturer='Bally',year=1995)]
+        row=self.scan(db,[('AFM_mars_2_0','Attack from Mars (Bally 1995)','Fixture','2.0')])['AFM_mars_2_0']
+        self.assertEqual(row['vpsId'],'afm')
+        self.assertEqual(row['vpsFound'],'by the name in its table info')
+
+    def test_table_file_features_with_the_matchers_author_and_version_tolerance(self):
+        files=[dict(tableFormat='VPX',authors=['ClarkKent'],version='1.1.3',features=['VR']),
+               dict(tableFormat='VPX',authors=['Somebody'],version='2.0',features=['VR'])]
+        db=[dict(id='comet',name='Comet',manufacturer='Bally',year=1962,tableFiles=files)]
+        rows=self.scan(db,[('Comet_(Bally_1962)','Comet','Clark Kent','1.13'),
+                           ('Comet_(Bally_1962)_b','Comet','Clark Kent','1.2'),
+                           ('Comet_(Bally_1962)_c','Comet','Nobody','1.13')])
+        row=rows['Comet_(Bally_1962)']
+        self.assertTrue(row['vrReady']);self.assertIn('VR',row['features'])
+        self.assertEqual(row['vpsFileFound'],'by its authors and version')
+        for stem in ('Comet_(Bally_1962)_b','Comet_(Bally_1962)_c'):
+            self.assertEqual(rows[stem]['vpsId'],'comet',stem)
+            self.assertNotIn('features',rows[stem],stem);self.assertFalse(rows[stem]['vrReady'],stem)
 
 if __name__=='__main__':unittest.main()
