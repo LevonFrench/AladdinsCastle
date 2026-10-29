@@ -75,6 +75,8 @@ add_library(hubcore STATIC
     src/core/pinball/Script.h
     src/core/pinball/Roms.cpp
     src/core/pinball/Roms.h
+    src/core/pinball/RomList.cpp
+    src/core/pinball/RomList.h
     src/core/pinball/Scores.cpp
     src/core/pinball/Scores.h
     src/core/pinball/Identity.cpp
@@ -164,7 +166,7 @@ target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PRIVATE zlibstatic)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
-    target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid crypt32)
+    target_link_libraries(hubcore PRIVATE version shell32 ole32 oleaut32 advapi32 uuid crypt32)
 endif()
 ac_project_warnings(hubcore)
 qt_add_resources(hubcore disc_metadata PREFIX /data BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json ../data/dreamcast-disc-index.json ../data/disc-profiles.json)
@@ -364,6 +366,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_script_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-rom-check COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_check_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-scores COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_score_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_identity_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})

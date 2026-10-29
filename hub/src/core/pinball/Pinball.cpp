@@ -2,6 +2,7 @@
 #include "Pinball.h"
 #include "Identity.h"
 #include "Roms.h"
+#include "RomList.h"
 #include "Script.h"
 #include "core/install/Support.h"
 #include <QFile>
@@ -143,7 +144,8 @@ static QFileInfoList tableFiles(const QString &folder){
 // 2: locked scripts are listed as startable instead of "Protected script metadata is not classified" (2026-10-20).
 // 3: controller-aware ROMs, aliases, nested inventories, larger scripts and machine-level VPS identity.
 // 4: the VPin Studio distance matcher behind the exact VPS rules, and the table info's own name kept (2026-10-28).
-constexpr int kScannerVersion=4;
+// 5: ROM sets checked file by file against VPinMAME's own lists (2026-10-28).
+constexpr int kScannerVersion=5;
 QString pinmameFolderForExecutable(const QString &executable){return executable.isEmpty()?QString():QDir(QFileInfo(executable).absolutePath()).filePath("VPinMAME");}
 QVariantMap fingerprint(const QString &folder,const QString &database,const QString &romFolder,const QString &pinmameFolder) {
  qint64 newestTable=0;const auto tables=tableFiles(folder);
@@ -176,7 +178,14 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
   if(row["vrReady"].toBool()) ++ready;
   rows<<row;
  }
- return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
+ // Then each ready ROM set's files against PinMAME's own list for it, asked once for the whole scan.
+ QVariantMap result{{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
+ if(const auto wanted=romCheckSets(rows,inventory);!wanted.isEmpty()){
+  QString why;const auto sets=expectedRomSets(wanted,pinmameFolder,why);
+  if(!why.isEmpty())result["romCheckNote"]=why;
+  if(!sets.isEmpty()){for(auto &value:rows)value=applyRomCheck(value.toMap(),inventory,sets);result["tables"]=rows;}
+ }
+ return result;
 }
 QVariantMap launchGuidance() {
  return {{"launchAllowed",true},{"help","Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables. There is no hold-to-quit in a table: to leave, press the left Menu button (the SteamVR dashboard), open the Hub panel and choose Exit game, or press Esc."}};
