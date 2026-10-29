@@ -14,6 +14,7 @@
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
 #include "core/scan/DiscIndex.h"
+#include "core/scan/DiscMemo.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -28,6 +29,8 @@
 namespace ac::setup {
 namespace {
 using Scanner=QVariantMap(*)(const QVariantMap &,const QVariantMap &,const Progress &,std::atomic_bool &);
+// The systems whose discs are opened one by one; with a memo, an unchanged disc is not opened again.
+using DiscScanner=QVariantMap(*)(const QVariantMap &,const QVariantMap &,const Progress &,std::atomic_bool &,scan::DiscMemo *);
 QVariantMap item(const QString &id,const QString &title,const char *key,const QString &text){return {{"id",id},{"title",title},{QString::fromLatin1(key),text}};}
 bool listedGame(const QVariantList &games,const QString &id){for(const auto &value:games)if(value.toMap().value("id").toString()==id)return true;return false;}
 // The Game library (context "library" and the user's "libraryChoice"): every copy it found of a
@@ -199,10 +202,10 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
  if(unchecked)note+=settings.value("queryEmulators").toBool()?QString(" Some games could not be checked against the emulator."):QString(" Allow the Hub to ask found emulators for their game lists, and the files inside each game are checked too.");
  return groups.result("model2",systemFolder.isEmpty()&&!context.value("library").toMap().value("systems").toMap().contains("model2")?QString("No folder chosen for this system."):note);
 }
-QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel,scan::DiscMemo *memo){
  const auto folder=settings.value("ps2GameFolder").toString(),launcher=settings.value("ps2Launcher").toString();
  Groups groups;progress("Reading the disc images");
- const auto found=ps2::discs(folder,cancel)+libraryDiscs(context,"ps2");const auto keys=ps2::launcherKeys(launcher);
+ const auto found=ps2::discs(folder,cancel,memo)+libraryDiscs(context,"ps2");const auto keys=ps2::launcherKeys(launcher);
  for(const auto &value:ps2::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   // The best identified disc of this game, with the owner's choice first.
@@ -278,12 +281,12 @@ QVariantMap scan3ds(const QVariantMap &settings,const QVariantMap &context,const
  }
  return groups.result("3ds","Choose each game's file in Set-up. Files stay where they are; the Hub does not verify their content identity.");
 }
-QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel,scan::DiscMemo *memo){
  const auto folder=settings.value("dreamcastGameFolder").toString();
  const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
  Groups groups;
  progress("Reading the disc images");
- const auto found=dreamcast::discs(folder,cancel)+libraryDiscs(context,"dreamcast");
+ const auto found=dreamcast::discs(folder,cancel,memo)+libraryDiscs(context,"dreamcast");
  for(const auto &value:dreamcast::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   // The best disc of this game: one with a VR profile, then one whose number was read.
@@ -304,13 +307,13 @@ QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context
   groups.other<<QVariantMap{{"title",c.value("title").toString().isEmpty()?QFileInfo(c.value("file").toString()).completeBaseName():c.value("title").toString()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
  return groups.result("dreamcast",noFolder(folder,context,"dreamcast"));
 }
-QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel,scan::DiscMemo *memo){
  const auto folder=settings.value("wiiGameFolder").toString(),program=settings.value("wiiExecutable").toString();
  const bool programReady=QFileInfo(program).isFile();
  Groups groups;
  progress("Reading the disc images");
  // Each disc is known by the game id in its own header, whatever the file is called.
- const auto found=wii::discs(folder,cancel)+libraryDiscs(context,"wii");
+ const auto found=wii::discs(folder,cancel,memo)+libraryDiscs(context,"wii");
  for(const auto &value:wii::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString(),route=game.value("route").toString();
   // The user's chosen copy first, then the library's own order (USA first), then the system folder's.
@@ -343,7 +346,8 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"n64",scanN64},{"saturn",scanSaturn},{"3ds",scan3ds},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps1",scanPs1},{"n64",scanN64},{"saturn",scanSaturn},{"3ds",scan3ds},{"system22",scanSystem22}};return table;}
+const QHash<QString,DiscScanner> &discScanners(){static const QHash<QString,DiscScanner> table{{"ps2",scanPs2},{"dreamcast",scanDreamcast},{"wii",scanWii}};return table;}
 }
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
  // Every machine in the output with the files it loads; the game itself names its parent and its devices.
@@ -428,9 +432,16 @@ QVariantMap withFinds(QVariantMap result,const QString &system,const QVariantMap
  return result;
 }
 }
-QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel,scan::DiscMemo *memo){
+ const auto quiet=progress?progress:[](const QString &){};
+ if(const auto scanner=discScanners().value(system)){
+  if(memo)memo->reading(system);
+  auto result=withFinds(scanner(settings,context,quiet,cancel,memo),system,settings,context);
+  if(memo&&cancel)memo->cutShort(system);
+  return result;
+ }
  const auto scanner=scanners().value(system);
- if(scanner)return withFinds(scanner(settings,context,progress?progress:[](const QString &){},cancel),system,settings,context);
+ if(scanner)return withFinds(scanner(settings,context,quiet,cancel),system,settings,context);
  Groups none;return none.result(system,"The Hub cannot check this system yet.");
 }
 QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){

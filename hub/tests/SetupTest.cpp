@@ -12,6 +12,7 @@
 #include "core/scripted/Scripted.h"
 #include "core/system22/System22.h"
 #include "core/install/Install.h"
+#include "core/scan/DiscMemo.h"
 #include <QtTest>
 #include <QDir>
 #include <QFile>
@@ -304,6 +305,36 @@ private slots:
     QVERIFY(entry(result,"notRight","xgra")["reason"].toString().contains("no entry")); // Found, but the launcher does not know it.
     QCOMPARE(entry(result,"missing","virtua-cop")["expected"].toString(),QString("Virtua Cop Elite Edition (disc image)"));
     QCOMPARE(result["other"].toList().size(),1);QCOMPARE(result["other"].toList()[0].toMap()["title"].toString(),QString("Something Else (USA)"));
+  }
+  // A second read opens only new or changed discs: while a disc's size and time are unchanged, what it said last time
+  // is used again. Kept per system; a read cut short is never kept and forgets nothing.
+  void setupRemembersDiscsWhileTheyAreUnchanged() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto folder=t.filePath("discs"),disc=folder+"/a.iso";
+    write(disc,ps2Header("SLUS_212.74"));write(folder+"/Something Else (USA).gz","synthetic");
+    const auto serial=[&](ac::scan::DiscMemo &memo){for(const auto &found:ac::ps2::discs(folder,cancel,&memo))if(found.toMap()["file"].toString().endsWith("/a.iso"))return found.toMap()["serial"].toString();return QString("no disc");};
+    // Saved as the Hub saves it, so numbers come back as they do from the file.
+    const auto saved=[](const ac::scan::DiscMemo &memo){return ac::scan::DiscMemo(QJsonDocument::fromVariant(memo.saved()).toVariant().toMap());};
+    ac::scan::DiscMemo first;first.reading("ps2");QCOMPARE(serial(first),QString("SLUS-21274"));QCOMPARE(first.reused(),0);
+    const auto discs=first.saved()["systems"].toMap()["ps2"].toMap();
+    QCOMPARE(discs.size(),1); // The unreadable file is read again next time.
+    QCOMPARE(discs.firstKey(),QDir::fromNativeSeparators(QFileInfo(disc).absoluteFilePath()));
+    // Another disc with the same size and time: the memo answers, so the file was not opened.
+    const auto time=QFileInfo(disc).lastModified();
+    const auto setTime=[&](const QDateTime &when){QFile file(disc);QVERIFY(file.open(QIODevice::ReadWrite));QVERIFY(file.setFileTime(when,QFileDevice::FileModificationTime));};
+    write(disc,ps2Header("SLUS_206.32"));setTime(time);
+    auto second=saved(first);QCOMPARE(serial(second),QString("SLUS-21274"));QCOMPARE(second.reused(),1);
+    // A new time, a memo from another reader version, or another system's memo: the disc is read.
+    setTime(time.addSecs(60));
+    auto third=saved(second);QCOMPARE(serial(third),QString("SLUS-20632"));QCOMPARE(third.reused(),0);
+    auto old=QJsonDocument::fromVariant(third.saved()).toVariant().toMap();old["version"]=0;
+    ac::scan::DiscMemo older(old);QCOMPARE(serial(older),QString("SLUS-20632"));QCOMPARE(older.reused(),0);
+    auto other=saved(third);ac::dreamcast::identify(disc,cancel,&other);QCOMPARE(other.reused(),0);
+    // A read stopped part way keeps what was known; a whole read forgets discs that are gone.
+    QFile::remove(disc);
+    auto stopped=saved(third);cancel=true;ac::setup::scanSystem("ps2",{{"ps2GameFolder",folder}},{},{},cancel,&stopped);cancel=false;
+    QCOMPARE(stopped.saved()["systems"].toMap()["ps2"].toMap().size(),1);
+    auto whole=saved(third);ac::setup::scanSystem("ps2",{{"ps2GameFolder",folder}},{},{},cancel,&whole);
+    QVERIFY(whole.saved()["systems"].toMap()["ps2"].toMap().isEmpty());
   }
   // PS1: the user's PowerShell launcher knows each disc and gun; the Hub checks its keys and starts it.
   void ps1GamesStartThroughTheLaunchersKeys() {
