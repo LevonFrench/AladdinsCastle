@@ -38,6 +38,13 @@ Pinned additional dependencies and their preserved license texts:
   hub/src/core/pinball/VpsMatch.cpp through Visual Pinball Infinite's Rust port:
   licenses/VPinStudio-MIT.txt; https://github.com/syd711/vpin-studio and
   https://github.com/VPinInfinite/VisualPinballInfinite/blob/main/engine/library/src/matcher.rs
+- Pinball high score locations (data/pinball-score-maps.json, built into the Hub): a database derived by
+  tools/pinball_score_maps.py from the Pinball Memory Maps project at commit
+  8186fc1d27e59d654fb6a8654ade6d9eb9d77498. This program makes use of content from the Pinball Memory Maps
+  project. Database: Open Database License v1.0 (licenses/PinballMemoryMaps-ODbL.md); contents: Database
+  Contents License v1.0 (licenses/PinballMemoryMaps-DbCL.txt). The derived database is offered under the ODbL
+  too. Copyright (C) 2018 and later Tom Collins and the map contributors;
+  https://github.com/tomlogic/pinball-memory-maps
 - OpenVR v2.15.6 (BSD-3-Clause): licenses/OpenVR-BSD-3-Clause.txt
   https://github.com/ValveSoftware/openvr/tree/v2.15.6
 - 7-Zip 25.01 C metadata reader (public domain): licenses/7zip-C-public-domain.txt

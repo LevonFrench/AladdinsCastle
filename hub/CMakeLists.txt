@@ -77,6 +77,8 @@ add_library(hubcore STATIC
     src/core/pinball/Roms.h
     src/core/pinball/RomList.cpp
     src/core/pinball/RomList.h
+    src/core/pinball/Scores.cpp
+    src/core/pinball/Scores.h
     src/core/pinball/Identity.cpp
     src/core/pinball/Identity.h
     src/core/pinball/VpsMatch.cpp
@@ -169,6 +171,8 @@ endif()
 ac_project_warnings(hubcore)
 qt_add_resources(hubcore disc_metadata PREFIX /data BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json ../data/dreamcast-disc-index.json ../data/disc-profiles.json)
 qt_add_resources(hubcore scan_metadata PREFIX /scan BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json)
+# High score locations from the Pinball Memory Maps project (ODbL), built by tools/pinball_score_maps.py.
+qt_add_resources(hubcore pinball_scores PREFIX /pinball BASE ../data FILES ../data/pinball-score-maps.json)
 
 add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
@@ -363,6 +367,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-pinball-script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_script_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-rom-check COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_check_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-scores COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_score_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_identity_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
     add_test(NAME hub-universal-controls-text COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/universal_controls_text.py)

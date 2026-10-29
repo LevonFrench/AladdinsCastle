@@ -408,6 +408,7 @@ class UiController : public QObject {
  const Variant *variant(const GameRecord &record) const;
  QString readme(const GameRecord &record) const;
  void message(const QString &text);
+ void readPinballScores();
  bool refuseSecondLaunch();
  bool m_launchInFlight=false;int m_refusedLaunches=0;
  void scheduleFacetsChanged();
