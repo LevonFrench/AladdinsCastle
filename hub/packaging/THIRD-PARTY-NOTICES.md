@@ -34,6 +34,10 @@ Pinned additional dependencies and their preserved license texts:
   https://github.com/nlohmann/json/tree/v3.12.0
 - json-schema-validator 2.4.0 (MIT): licenses/json-schema-validator-MIT.txt
   https://github.com/pboettch/json-schema-validator/tree/2.4.0
+- VPin Studio's VPS table matcher (MIT, Copyright (c) 2022 syd711), ported to C++ in
+  hub/src/core/pinball/VpsMatch.cpp through Visual Pinball Infinite's Rust port:
+  licenses/VPinStudio-MIT.txt; https://github.com/syd711/vpin-studio and
+  https://github.com/VPinInfinite/VisualPinballInfinite/blob/main/engine/library/src/matcher.rs
 - OpenVR v2.15.6 (BSD-3-Clause): licenses/OpenVR-BSD-3-Clause.txt
   https://github.com/ValveSoftware/openvr/tree/v2.15.6
 - 7-Zip 25.01 C metadata reader (public domain): licenses/7zip-C-public-domain.txt

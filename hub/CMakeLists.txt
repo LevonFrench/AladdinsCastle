@@ -75,6 +75,8 @@ add_library(hubcore STATIC
     src/core/pinball/Roms.h
     src/core/pinball/Identity.cpp
     src/core/pinball/Identity.h
+    src/core/pinball/VpsMatch.cpp
+    src/core/pinball/VpsMatch.h
     src/core/match/TitleMatch.cpp
     src/core/match/TitleMatch.h
     src/core/model3/Model3.cpp
@@ -327,6 +329,11 @@ if(BUILD_TESTING)
     ac_project_warnings(title-match-tests)
     set_target_properties(title-match-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-title-match COMMAND title-match-tests -o -,txt)
+    qt_add_executable(vps-match-tests tests/VpsMatchTest.cpp)
+    target_link_libraries(vps-match-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(vps-match-tests)
+    set_target_properties(vps-match-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-vps-match COMMAND vps-match-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)
