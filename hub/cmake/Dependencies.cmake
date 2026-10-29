@@ -60,3 +60,6 @@ configure_file("${json_schema_validator_SOURCE_DIR}/LICENSE" "${AC_DEPENDENCY_LI
 configure_file("${openvr_SOURCE_DIR}/LICENSE" "${AC_DEPENDENCY_LICENSE_DIR}/OpenVR-BSD-3-Clause.txt" COPYONLY)
 # The Pinball VPS matcher is ported from VPin Studio (through Visual Pinball Infinite); its MIT notice travels with it.
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/licenses/VPinStudio-MIT.txt" "${AC_DEPENDENCY_LICENSE_DIR}/VPinStudio-MIT.txt" COPYONLY)
+# The Pinball high score locations are a derived Pinball Memory Maps database; its ODbL and DbCL travel with it.
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/licenses/PinballMemoryMaps-ODbL.md" "${AC_DEPENDENCY_LICENSE_DIR}/PinballMemoryMaps-ODbL.md" COPYONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/licenses/PinballMemoryMaps-DbCL.txt" "${AC_DEPENDENCY_LICENSE_DIR}/PinballMemoryMaps-DbCL.txt" COPYONLY)
