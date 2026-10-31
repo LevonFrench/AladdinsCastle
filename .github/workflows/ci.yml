@@ -108,6 +108,10 @@ jobs:
         working-directory: setups/dolphin-vr/draw-discovery
         timeout-minutes: 2
         run: python -B -m unittest -v test_discovery
+      - name: Pixel-shader trace delta checks (synthetic CPU only)
+        working-directory: setups/dolphin-vr/ps-trace
+        timeout-minutes: 2
+        run: python -B -m unittest -v test_apply
       - name: Parse all catalog and theme TOML
         shell: python
         run: |
