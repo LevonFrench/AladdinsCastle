@@ -150,6 +150,48 @@ Time Crisis at 16:9: 37 gameplay pictures with the sides 93.7-98.0% filled
 at 4:3, and shots into the added sides register nothing. 2D sprites drawn in
 the scene are not repeated in the sides.
 
+## Soft edges (every game, opt-in)
+
+Only the System 22 games draw more picture than 4:3. The other gun games are 2D
+boards that draw a fixed picture and nothing outside it, so a wider view would
+show nothing true. For them, `GunViewer --soft-edges` (launcher `-SoftEdges`)
+removes the hard rectangle instead: the screen continues 1.6 m past each side
+and 0.5 m above and below, and that band shows the picture's own outer strip,
+mirrored, stretched, blurred more with distance and fading into the dark room.
+It joins the picture at its edge, so there is no frame line. It is not game
+picture: the screen and aim still end at the picture, so aiming into the band
+reads as off-screen (reload in games that reload that way). The dark border is
+not drawn in this mode. With `-OpenFrame` as well (Time Crisis), the 16:9 game
+picture comes first and the fade starts at its edges.
+
+The renderer change is in `libacvr/publish-presenter/TheatreRender.h`
+(`EyeScene::softX/softY`, off by default, so other views draw as before).
+`--capture-seconds` takes a list (`40,60,90`, one sub-folder per time) and, with
+soft edges, each capture also saves `left/right-plain.png`: the same frame
+without them. `side_fill.py <sheet.png> <capture folders>` measures the strips
+between a 4:3 and a 16:9 frame of the picture's height (the strips the System 22
+open frame fills), with the status page's rule (r+g+b > 30), their brightness
+against the picture, and how hard the picture's outer edge is (`edge_step`: 1 is
+a hard edge into the dark, near 0 is none).
+
+Offline proofs, 2026-10-26 (hidden, muted, no runtime; the viewer's scripted
+coin, start and shots; left-eye captures, `side_fill.py`; the plain theatre's
+4% side fill is the thin dark border):
+
+| Game (view) | Captures | Side fill, theatre | Side fill, this view | Edge step, theatre -> this view |
+|---|---|---|---|---|
+| Time Crisis (open frame + soft edges) | 45, 70, 95 s (gameplay, game over) | 96.5% (game geometry, open frame alone) | 96.5% game geometry | 0.68-0.75 -> 0.06-0.07 at the 16:9 edge |
+| Lethal Enforcers (soft edges) | 40, 60, 90 s (attract) | 4.2% | 99-100% (fade) | 0.63-0.77 -> 0.03 |
+| Terminator 2 (soft edges) | 40, 60, 90 s (gameplay, game over) | 4.2% | 43-51% (fade; the game's dark sky stays dark) | 0.87-1.81 -> 0.10-0.15 |
+| Crossbow (soft edges) | 40 s (attract); 82 s was a black scene change | 4.2% | 83% (fade) | 0.77 -> 0.05 |
+
+`validate_proof.py` passes on the soft-edge captures (upright mapping 0.97-0.99,
+gun in front and behind, dot within 2.6 px of MAME's crosshair). Inside the
+picture the soft-edge and plain frames differ on 1-2% of pixels by at most
+13/255 (interpolation over the larger screen). The fill in the band is the
+game's edge, blurred, not more game: it is offered as an opt-in view, not the
+default. Only a headset run can say whether it reads as open or as a smear.
+
 ## Motion cabinets (Namco System 22: Prop Cycle, Alpine Racer 1 and 2, Cyber Cycles, Aqua Jet, Air Combat 22)
 
 The wire header appends a `motion` block after the picture: named axes the viewer

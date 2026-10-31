@@ -31,6 +31,7 @@ struct Receipt {
     acvr_runtime *calibration_runtime=nullptr;
     bool pause_support=false;
     unsigned pause_actions=0,recenters=0,quits=0;
+    bool ring_host=false;std::vector<acvr::HoldRingView> ring_views;unsigned ring_draws=0;
     bool omit_legacy_triggers=false;
     std::vector<std::string> unavailable;
     bool requires_depth=false;
@@ -245,6 +246,9 @@ struct Recorded final:acvr::Host {
         ++r.pause_actions;return ACVR_OK;
     }
     void unavailable_controls(const std::vector<std::string> &ids) override {r.unavailable=ids;}
+    bool draws_hold_ring() const noexcept override {return r.ring_host;}
+    void show_hold_ring(const acvr::HoldRingView &view) override {r.ring_views.push_back(view);}
+    acvr_result draw_hold_ring(const acvr_draw_info &) override {++r.ring_draws;return ACVR_OK;}
     bool offscreen_reload(uint32_t slot) const noexcept override {return slot==0&&r.offscreen_reload;}
     std::vector<acvr::GunOutputRoute> gun_output_routes() const override {return r.motion_routes;}
     void gun_hand_changed(uint32_t slot,uint32_t hand) override {check(slot==0);r.hand_changes.push_back(hand);}
@@ -910,6 +914,28 @@ void universal_stick_layer() {
         check(r.quits==1&&r.recenters==0&&!held(r));
         check(acvr_runtime_tick(p)==ACVR_STOPPED);check(acvr_runtime_destroy(p)==ACVR_OK);
         check(r.closed==1);
+    }
+    {   // U4 with a host that draws the hold ring: the ring shows from 1 s, the quit waits 0.7 s for its flash, then stops.
+        Receipt r;r.ring_host=true;std::vector<Sample> s;
+        for(int i=0;i<=60;++i) {Sample x{int64_t(i)*100000000};x.lclick=x.rclick=true;s.push_back(x);}
+        auto p=run(r,s,31);
+        check(r.quits==1&&r.ring_views.size()==31);
+        check(!r.ring_views[5].visible&&r.ring_views[15].visible&&!r.ring_views[15].quit);   // 0.5 s: nothing; 1.5 s: filling
+        check(r.ring_views[30].visible&&r.ring_views[30].quit&&r.ring_views[30].flash>.9f);   // 3 s: full, flashing
+        check(r.ring_draws>0);
+        unsigned more=0;
+        while(acvr_runtime_tick(p)==ACVR_OK&&more<20) ++more;   // the flash plays: about seven more frames, not zero and not twenty
+        check(more>=6&&more<=8);
+        check(acvr_runtime_destroy(p)==ACVR_OK);
+        check(r.closed==1);
+    }
+    {   // A recentre never shows the ring, even with a host that draws it.
+        Receipt r;r.ring_host=true;std::vector<Sample> s;
+        for(int i=0;i<=30;++i) {Sample x{int64_t(i)*20000000};x.lclick=x.rclick=i>=1&&i<=20;s.push_back(x);}
+        auto p=run(r,s,s.size());
+        bool any=false;for(const auto &v:r.ring_views) any=any||v.visible;
+        check(!any&&r.recenters==1&&r.quits==0);
+        check(acvr_runtime_tick(p)==ACVR_STOPPED);check(acvr_runtime_destroy(p)==ACVR_OK);
     }
 }
 int main() {

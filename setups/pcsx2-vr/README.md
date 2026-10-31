@@ -431,7 +431,7 @@ unchanged. The action set has Touch and Index suggestions:
 | Left stick click, alone (U1) | Start |
 | Right stick click, alone (U2) | Select |
 | Both stick clicks together, released within 1 s (U3) | Recentre the screen or inside view at the current head position and yaw |
-| Both stick clicks held 3 s (U4) | Quit and save: graceful VM shutdown, memory cards flush, back to the Hub |
+| Both stick clicks held 3 s (U4) | Quit and save: graceful VM shutdown, memory cards flush, back to the Hub. A ring in each eye image shows the hold: nothing for 1 s, filling to 3 s, one flash, then the quit (gone at once if a click lets go) |
 | Left Y (Index left B) | L3 (native pad) |
 | Left X (Index left A) | R3 (native pad) |
 | Gun profile: right trigger | GunCon trigger; off-screen aim reloads |
@@ -1049,3 +1049,35 @@ and was not measured. With `PCSX2_INSIDE_SCREEN_EFFECTS=1`, combat replays at a
 30 degree turn change no pixels for Crisis Zone, Vampire Night, Ninja Assault
 and Virtua Cop in the sampled scenes; Time Crisis II loses a darkening panel
 edge, and Time Crisis 3 loses its duplicate scene.
+
+### INSIDE head-movement smear and the upscale cap (Time Crisis 3)
+
+Owner report: in INSIDE mode Time Crisis 3 showed stereo artifacts when the head
+moved, and the frame rate was poor; the stereo itself looked right with the head
+still. Code review found four causes.
+
+1. Wrong pose on the published pair. Each eye picture was sent to the compositor
+   with the newest latched head pose. A game that shows a buffer finished in an
+   earlier frame, or repeats a picture, was then reprojected by the compositor
+   against a pose that did not draw it, so the world swam or doubled while the
+   head turned. Each eye now records which latched pose drew each render target,
+   the GS scanout notes which target it shows, and the pair is published with
+   that drawing pose (kept in a 64-entry history). `PCSX2_INSIDE_LEGACY_POSE=1`
+   restores the old newest-pose publication for comparison.
+2. The profile upscale cap was ignored. `PCSX2_INSIDE_MAX_UPSCALE=2` still ran at
+   3x: the chooser never returned less than 3, the 2-second check forced 3x
+   again, and the Qt host accepted only 3 or 4. Caps 1 to 4 now apply.
+3. Per-draw environment reads. The INSIDE classifier read about fifteen
+   environment variables per draw per eye on the GS thread. They are read once.
+4. Nearest-neighbour eye stretch. The eye picture was stretched to the headset
+   grid without filtering. A scaled blit is now linear; a 1:1 blit stays exact.
+   `PCSX2_VR_NEAREST_BLIT=1` restores nearest.
+
+Offline measurement: with OpenXR disabled, INSIDE and
+`PCSX2_INSIDE_TEST_HEAD_YAW_DEG` set, a synthetic presenter publishes a sine
+head turn at `PCSX2_INSIDE_TEST_HZ` and blits both eyes like the headset path.
+The live log prints `Stats` lines every `PCSX2_LIVE_STATS_SECONDS` with speed,
+GS thread time and use, game frame rate, and pose agreement counters (stale
+pairs, repeated pictures, eyes drawn with different poses, pictures drawn with
+two poses), plus `Pose totals` at close. `inside_pose_test.py` checks the cap,
+the pose history and the drawn-pose bookkeeping on the CPU, and pins the wiring.

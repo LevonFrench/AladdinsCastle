@@ -106,6 +106,8 @@ Item {
        {key:"ps2StopFile",label:"Stop file your launcher watches",kind:"save",help:"The Hub writes this file to ask a PS2 game to quit, so it saves."}],
   model2:[{key:"model2RuntimePath",label:"Runtime libraries of the build (optional)",kind:"folder",help:"A folder of DLLs the Model 2 build needs, when they are not beside it."}],
   "3ds":[{key:"threedsCore",label:"Nintendo 3DS core (Azahar's azahar_libretro.dll)",kind:"file",help:"The core acvr-ps1 loads to play 3DS games."},
+         {key:"threedsStarFoxFile",label:"Star Fox 64 3D game file",kind:"file",help:"Choose this game's .3ds, .cci, .cxi or .3dsx file. Content identity is not verified."},
+         {key:"threedsMarioKartFile",label:"Mario Kart 7 game file",kind:"file",help:"Choose this game's .3ds, .cci, .cxi or .3dsx file. The Hub does not identify games by filename."},
          {key:"libretroProfiles",label:"Profile folder (optional)",kind:"folder",help:"The game profiles, setups/retro-ps1-vr/profiles. Left empty, the Hub looks for it above its own folder."}]})
  FileDialog {id:extraFile;title:"Choose the file";onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFile))}
  FileDialog {id:extraSave;title:"Choose where the stop file goes";fileMode:FileDialog.SaveFile;onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFile))}
@@ -207,7 +209,7 @@ Item {
           Item {Layout.fillWidth:true}
          }
          Para {objectName:"setupAction-"+card.modelData;text:card.need.next;font.pixelSize:page.body-1;color:card.need.ok?Theme.get("color.text.muted_detail"):Theme.get("color.text.body")}
-         Para {visible:!card.info.folderKey;text:"This program keeps its game files in a folder beside itself, so there is no folder to choose.";font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")}
+         Para {visible:!card.info.folderKey;text:card.modelData==="3ds"?"Choose each game file below. The Hub does not identify games by filename.":"This program keeps its game files in a folder beside itself, so there is no folder to choose.";font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")}
          RowLayout {spacing:8;visible:!!card.info.folderKey
           UiText {Layout.fillWidth:true;objectName:"setupFolder-"+card.modelData;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
            text:"Your files:  "+(card.info.folder||(card.info.guess?card.info.guess+"   (found, used unless you change it)":"not chosen"))

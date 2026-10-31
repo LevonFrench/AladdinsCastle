@@ -1,0 +1,134 @@
+name: VPX hold-to-quit compile
+# Builds Visual Pinball X (Windows x64, BGFX, Release: the owner's configuration) from the pinned upstream commit with
+# the AladdinsCastle hold-to-quit patch (setups/vpx-vr), the way upstream's own workflow builds it. Nothing is run:
+# no table, no VR runtime. The patched program is kept as a workflow artifact for the owner to install by hand.
+# Runs on changes to the patch, its shared chord header or this file, on demand, and every Monday.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'setups/vpx-vr/**'
+      - 'libacvr/src/stick_chord.hpp'
+      - '.github/workflows/compile-vpx.yml'
+  pull_request:
+    paths:
+      - 'setups/vpx-vr/**'
+      - 'libacvr/src/stick_chord.hpp'
+      - '.github/workflows/compile-vpx.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '41 5 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vpx:
+    name: vpx-vr (windows-2025-vs2026, BGFX x64 Release)
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      # The hold-to-quit logic itself is tested on the CPU in Hub CI (ci.yml, stick-click resolvers step).
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/vpx-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit, tag = pin['repository'], pin['source_commit'], pin['tag']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or repo != 'https://github.com/vpinball/vpinball':
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          if not tag.endswith(commit[:9]) or f"-{pin['revision']}-" not in tag:
+              raise SystemExit(f'Tag {tag} does not name revision {pin["revision"]} at {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\nUPSTREAM_TAG={tag}\n')
+
+      # Files exactly as upstream stores them (no line-ending conversion), only the pinned commit, no history.
+      - name: Fetch the pinned upstream commit
+        run: |
+          git config --global core.autocrlf false
+          git init vpx
+          cd vpx
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "refs/tags/$UPSTREAM_TAG"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+
+      - name: Apply the hold-to-quit patch
+        working-directory: vpx
+        run: |
+          python -B "$GITHUB_WORKSPACE/repo/setups/vpx-vr/patch/apply_acvr.py" | tee apply.log
+          grep -qx 'acvr applied' apply.log
+          rm apply.log
+          git status --short
+          git diff --stat
+
+      # The same tool set upstream's workflow installs for its Windows builds.
+      - name: MSYS2 tools for the external libraries
+        run: |
+          /c/msys64/usr/bin/bash.exe -l -c "pacman -S --noconfirm --needed make diffutils nasm bison git autoconf automake libtool"
+          /c/msys64/usr/bin/bash.exe -l -c "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-libwinpthread mingw-w64-ucrt-x86_64-libiconv mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-tools"
+
+      - name: Key for the external libraries cache
+        working-directory: vpx
+        run: echo "EXT_HASH=$(cat platforms/config.sh platforms/windows-x64/external.sh | sha256sum | cut -c1-12)" >> "$GITHUB_ENV"
+      - name: Restore the external libraries
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: vpx/external
+          key: vpx-windows-x64-Release-external-${{ env.EXT_HASH }}
+      # Upstream's script: SDL3, FreeImage, bgfx, PinMAME, OpenXR loader, DMD, sound, DOF, FFmpeg, libzip at the pins in
+      # platforms/config.sh. A cache hit only copies the built libraries into third-party/.
+      - name: Build the external libraries (upstream external.sh)
+        working-directory: vpx
+        timeout-minutes: 120
+        run: BUILD_TYPE=Release ./platforms/windows-x64/external.sh
+
+      - name: Configure (Visual Studio 2026, BGFX, x64)
+        working-directory: vpx
+        run: cmake -DRENDERER=BGFX -DPLATFORM=windows -DARCH=x64 -G "Visual Studio 18 2026" -A x64 -B build
+      # Only the program: the plugins are unchanged, and the owner's copies stay in use.
+      - name: Compile VPinballX_BGFX64.exe
+        working-directory: vpx
+        timeout-minutes: 90
+        run: cmake --build build --config Release --target vpinball --parallel
+
+      - name: Check the program (version information and the patch inside; nothing is run)
+        shell: pwsh
+        working-directory: vpx
+        run: |
+          $exe = Get-Item build\Release\VPinballX_BGFX64.exe
+          $info = $exe.VersionInfo
+          "FileVersion $($info.FileVersion)  ProductVersion $($info.ProductVersion)  $($exe.Length) bytes"
+          if ($info.FileVersion -ne '10.8.1.5436') { throw "unexpected FileVersion $($info.FileVersion)" }
+          if ($info.ProductVersion -ne '10.8.1.5436.af26b2d93-acvr') { throw "unexpected ProductVersion $($info.ProductVersion)" }
+          $bytes = [IO.File]::ReadAllBytes($exe.FullName)
+          $text = [Text.Encoding]::ASCII.GetString($bytes)
+          foreach ($marker in '[ACVR] Hold-to-quit ready', 'Keep holding both stick clicks to quit: ') {
+            if (-not $text.Contains($marker)) { throw "patch marker missing: $marker" }
+          }
+          New-Item -ItemType Directory -Force ..\vpx-acvr | Out-Null
+          Copy-Item $exe.FullName ..\vpx-acvr\VPinballX_BGFX64_acvr.exe
+          Copy-Item "$env:GITHUB_WORKSPACE\repo\setups\vpx-vr\README.md" ..\vpx-acvr\README.md
+          $hash = (Get-FileHash ..\vpx-acvr\VPinballX_BGFX64_acvr.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  VPinballX_BGFX64_acvr.exe" | Set-Content -Encoding ascii ..\vpx-acvr\SHA256SUMS.txt
+          Get-Content ..\vpx-acvr\SHA256SUMS.txt
+
+      - name: Keep the patched program
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vpx-acvr-10.8.1.5436-hold-to-quit
+          path: vpx-acvr
+          if-no-files-found: error
+          retention-days: 90

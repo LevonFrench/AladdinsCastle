@@ -116,6 +116,13 @@ private slots:
         // A SteamVR that never accepts: a few tries, then a reason, and the window carries on.
         ready=false;panel.setSteamVrRunning(true);QTRY_COMPARE(gaveUp.size(),1);QCOMPARE(attaches,6);
         QVERIFY(gaveUp.first()[0].toString().contains("not ready"));
+        // SteamVR restarted between two looks, or the panel failed while SteamVR stayed up: seen running all
+        // along, the panel still comes back after a rest instead of waiting for a stop that never comes.
+        panel.setSteamVrRunning(false);panel.setRejoin(30);ready=true;panel.setSteamVrRunning(true);QVERIFY(panel.attached());
+        panel.steamVrQuit();QVERIFY(!panel.attached());QTRY_VERIFY(panel.attached());
+        // Given up while SteamVR stays up: after a rest it tries again, and joins once SteamVR accepts.
+        ready=false;const auto before=gaveUp.size();panel.steamVrQuit();QTRY_VERIFY(gaveUp.size()>before);
+        ready=true;QTRY_VERIFY(panel.attached());
     }
     void independentOrientationCommandLine(){
         const auto defaults=ac::parseLaunchOptions({"--overlay"});

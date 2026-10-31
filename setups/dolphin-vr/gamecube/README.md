@@ -96,3 +96,25 @@ variables it runs the proofs below through the exact start path.
   477 km/h at 90 / 94 / 98 s); rolling the right controller 30° left (tilt-steer view) put the control stick at 36
   (left) and the race picture left the wall like the stick run, against the no-input run. All four runs logged `msaa=4`.
   The only errors logged were `CreateDir` failures for a deleted shader-cache folder; no alert or question fired.
+
+## More GameCube games (2026-10-26, offline only)
+
+Nine more discs were added to the private launcher next to F-Zero GX, each with one `3d` view: Mario Kart: Double Dash!!, Kirby Air Ride, Star Wars Rogue Squadron II: Rogue Leader, Super Mario Sunshine, Super Monkey Ball, The Wind Waker, Pikmin, Luigi's Mansion and Twilight Princess. Each has a catalog entry under `games/gc-*/` whose id comes from the public disc index (`data/wii-disc-index.json`): the Hub matches the game ID in the disc header (for example `GM4E01`), never the file name. Every view uses 5x internal resolution, MSAA 4x and 16x anisotropic filtering, and DolphinXR's shipped VR profile for the game (`Sys/GameSettingsVR/<game id>.ini`, present for all nine) is picked up by game ID, as it was for F-Zero GX (log lines were not captured in these runs, so the profile loading is expected, not re-proven). No per-game settings file was added.
+
+How each was checked (probe build, hidden, muted, OpenXR off, scripted pad input, Dolphin's own frame dumps; speed with Dolphin's side-by-side stereo so both eyes are drawn, uncapped, as times real time):
+
+| Game | Reached | Speed in play |
+|---|---|---|
+| Mario Kart: Double Dash!! | Grand Prix Mushroom Cup race, gas and steering change the picture | 4.6 to 7x |
+| Kirby Air Ride | Top Ride three-lap race, steering | 5.3 to 5.6x |
+| Rogue Leader | Death Star Attack flight, steering | 1.9x at the busiest moment, 4 to 9x elsewhere |
+| Super Mario Sunshine | file created, Delfino Airstrip, Mario walks and swims | 5.7 to 6.7x |
+| Super Monkey Ball | Beginner Floor 1 to the goal, Floor 2 started | 4.1 to 6x |
+| The Wind Waker | save prompt answered Yes, legend, Outset Island: Link under control on the lookout with HUD and Speak prompt | 5.5 to 6.7x |
+| Pikmin | Olimar walking the field | 9.3 to 11x |
+| Luigi's Mansion | Luigi in the Foyer, walking | 4.5 to 5.3x |
+| Twilight Princess | save created, Ordon intro, Link walking the village | 5.4 to 9x |
+
+Twilight Princess and The Wind Waker ask "create a save file?" on first start with the answer set to No. Pressing A repeatedly picks No, then "Continue without saving?" with No again, which loops forever. Push the stick left to choose Yes, then press A. (The earlier stall in the lane report was this, plus a raw test card.)
+
+Super Monkey Ball needs a Start press at the title. The `launch-gamecube.ps1 <key> -View 3d -NoXr` start path was run for all nine with the probe build and a test user folder (real time, to a boot checkpoint each). Not headset-verified. The D-pad is not mapped in the universal layout, so Rogue Leader's wingman commands are unavailable.
