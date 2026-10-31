@@ -23,7 +23,8 @@ One scheme, always on, usable seated with one hand.
 | Point | Either controller's laser (SteamVR's dashboard pointer) |
 | Select | Trigger |
 | Scroll | Thumbstick up/down under the laser; or hold the trigger and drag the list; or the page buttons at the edge of every list |
-| Back | The Back button at the top left of every page (and SteamVR's own dashboard button to leave) |
+| Back | The Back button at the bottom left of every page: up exactly one level. B does the same where SteamVR delivers it (and SteamVR's own dashboard button to leave) |
+| Home | The Home button beside Back: the library's top level, from any page |
 | Text | A keyboard button beside each editable field opens SteamVR's keyboard |
 | Feedback | Hover highlight, pressed state, a haptic tick on hover and on press |
 
@@ -31,7 +32,7 @@ Rules:
 
 1. **Clicks land where you aimed.** Button events use the last move position; the pointer is frozen for about 100 ms from trigger-down; movement under the drag threshold between press and release is still a click.
 2. **Drag threshold about 40 px** in overlay mode (a few pixels on the desktop). Above it, a press on a list becomes a scroll drag.
-3. **Stick scrolling** uses smooth scroll events × 2880 × the user's speed setting, with a dead zone, and can be turned off (a resting thumb must not scroll). Discrete events, if the runtime sends them instead, count as one notch (120) each. The scroll goes to the list under the controller that scrolled.
+3. **Stick scrolling** (as built, 2026-10-26: `hub/qml/PanelScroller.qml`) glides while the stick is held, at a speed set by the push between 1.2 and 5 rows a second, easing in and out; let go, it coasts to the next row in its direction and rests there. A stream needs two packets in one direction before it moves, and packets far weaker than the learned full push are ignored. The design target was: it uses smooth scroll events × 2880 × the user's speed setting, with a dead zone, and can be turned off (a resting thumb must not scroll). Discrete events, if the runtime sends them instead, count as one notch (120) each. The scroll goes to the list under the controller that scrolled.
 4. **Targets:** at least 48 px high with 8 px gaps on the 1280 × 800 overlay canvas, hit areas larger than the visuals, and hit areas at the panel edge extended outward. (Platform guidance: about 22 mm, or 2.5 to 3 degrees, per target and 12 mm between targets.)
 5. **Typing is rare.** Filters, an A to Z jump strip and recent searches come before the keyboard.
 6. **Losing focus never clicks.** On focus loss or hide, held buttons are released without activating anything and the pointer is parked off the panel.

@@ -7,15 +7,17 @@ import AladdinsCastle.Hub
 Item {
  id:page
  property bool vrOverlayMode:false
+ property bool reduceMotion:false
  property var scanData:uiController.pinballData
  property var selected:uiController.pinballSelection
  property var rows:scanData.tables||[]
  // Every table in the folder is listed; one that cannot play says why on its tile. Ready to play and
  // VR room only narrow the list when asked. Every readable table plays in the headset unless you exclude it.
- // B in the headset: a table's page closes first, then a search or filter clears; false at the plain list.
+ // B in the headset: a table's page closes first, then every search and filter clears at once; false at the plain list.
  function handleBack(){
   if(page.selected.id){uiController.selectPinball("");return true}
-  if(query.text.length||ready.checked||vrOnly.checked){query.text="";ready.checked=false;vrOnly.checked=false;return true}
+  if(query.text.length||ready.checked||vrOnly.checked||favourites.checked||recent.checked||maker.currentIndex>0||decade.currentIndex>0){
+   query.text="";ready.checked=false;vrOnly.checked=false;favourites.checked=false;recent.checked=false;maker.currentIndex=0;decade.currentIndex=0;return true}
   return false
  }
  function playable(r){return !r.error&&(r.romState==="ready"||r.romState==="needs no ROM")}
@@ -77,7 +79,10 @@ Item {
  FolderDialog {id:folder;onAccepted:{uiSettings.set(page.locationKey,uiController.localPath(selectedFolder));uiController.scanPinball()}}
  FileDialog {id:file;onAccepted:{uiSettings.set(page.locationKey,uiController.localPath(selectedFile));if(page.locationKey!=="pinballExecutable")uiController.scanPinball()}}
  readonly property real side:vrOverlayMode?28:40
- ColumnLayout {anchors.fill:parent;spacing:0;visible:!page.selected.id
+ // The list of tables. On the desktop the hero and the filters stay above the rows. On the SteamVR panel they
+ // are the list's header, so the whole page scrolls as one surface under the stick.
+ Item {id:listPage;anchors.fill:parent;visible:!page.selected.id
+ ColumnLayout {id:topBlock;objectName:"pinballTop";parent:page.vrOverlayMode&&grid.headerItem?grid.headerItem:listPage;width:listPage.width;spacing:0
   HeroBanner {objectName:"pinballHero";Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.38:0.42);vrOverlayMode:page.vrOverlayMode;system:"pinball"
    art:page.fileUrl(page.focusedTable.artBackglass)
    eyebrow:("Pinball"+(page.tableLine(page.focusedTable)?"  ·  "+page.tableLine(page.focusedTable):"")).toUpperCase()
@@ -112,8 +117,14 @@ Item {
    PillButton {id:ready;objectName:"pinballReady";checkable:true;text:"Ready to play";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
    PillButton {id:vrOnly;objectName:"pinballVrOnly";checkable:true;text:"VR room only";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
   }
-  ListView {id:grid;objectName:"pinballGrid";property int count:page.filtered.length;Layout.fillWidth:true;Layout.fillHeight:true;Layout.topMargin:14;clip:true;spacing:page.vrOverlayMode?18:24;model:page.shelves
-   boundsBehavior:Flickable.StopAtBounds;bottomMargin:24;ScrollBar.vertical:ScrollBar{}
+ }
+ ListView {id:grid;objectName:"pinballGrid";property int count:page.filtered.length;clip:true;spacing:page.vrOverlayMode?18:24;model:page.shelves
+   // Placed by number, not anchored to the hero block: on the panel that block lives inside the list.
+   x:0;width:listPage.width;y:page.vrOverlayMode?0:topBlock.implicitHeight+14;height:Math.max(0,listPage.height-y)
+   header:page.vrOverlayMode?topSpace:null
+   // The stick moves it on the panel (the wheel catcher below), so a laser press on a tile is never a drag.
+   interactive:!page.vrOverlayMode
+   boundsBehavior:Flickable.StopAtBounds;bottomMargin:24;ScrollBar.vertical:ScrollBar{width:page.vrOverlayMode?18:implicitWidth;policy:page.vrOverlayMode&&grid.contentHeight>grid.height?ScrollBar.AlwaysOn:ScrollBar.AsNeeded}
    delegate:ShelfRow {required property var modelData;required property int index;width:grid.width;vrOverlayMode:page.vrOverlayMode;tileName:"pinballTile";tileWidth:page.vrOverlayMode?360:300
     heading:modelData.heading;items:modelData.items;tileOf:page.tileOf;focusIndex:index===page.shelfIndex?page.tileIndex:-1
     onHovered:i=>{page.shelfIndex=index;page.tileIndex=i}
@@ -124,10 +135,26 @@ Item {
      PillButton {objectName:"pinballTileDesktop";Layout.fillWidth:true;Layout.preferredWidth:1;targetHeight:page.vrOverlayMode?48:34;vrOverlayMode:page.vrOverlayMode;neon:true;accent:Theme.get("color.state.ready_neon");text:"Launch on desktop";enabled:page.startable(parent.parent.modelData);onClicked:uiController.launchPinball(parent.parent.modelData.id,"desktop")}
      PillButton {objectName:"pinballTileHeadset";Layout.fillWidth:true;Layout.preferredWidth:1;targetHeight:page.vrOverlayMode?48:34;vrOverlayMode:page.vrOverlayMode;text:"Launch in headset";enabled:page.headsetReady(parent.parent.modelData);onClicked:uiController.launchPinball(parent.parent.modelData.id,"headset")}}}
    }
-  }
+ }
+ Component {id:topSpace;Item {width:grid.width;height:topBlock.implicitHeight+14}}
+ // Catches the stick over the panel's list; presses and hover pass through to the tiles.
+ MouseArea {objectName:"pinballWheel";anchors.fill:grid;enabled:page.vrOverlayMode;acceptedButtons:Qt.NoButton;z:2
+  onWheel:wheel=>{wheel.accepted=true;listScroller.wheel(wheel.angleDelta.y,Date.now())}}
+ // Rests: the top, the first row of tables, then each row (every row of tables is the same height).
+ PanelScroller {id:listScroller;objectName:"pinballScroller";flick:grid;reduceMotion:page.reduceMotion
+  // Measured, not estimated: the list's first row sits at 0 with its header above it, and a row's pitch is
+  // the first row's real height plus the gap. The list's own content height is only an estimate.
+  readonly property real headerHeight:grid.headerItem?Math.max(0,-grid.originY):0
+  rowHeight:{const first=grid.count>0&&grid.contentHeight>0?grid.itemAtIndex(0):null
+   return first&&first.height>0?first.height+grid.spacing:Math.max(1,(grid.contentHeight-headerHeight+grid.spacing)/Math.max(1,page.shelves.length))}
+  stops:{const list=[0];for(let i=0;i<page.shelves.length;++i)list.push(headerHeight+i*rowHeight);return list}}
  }
  // A table's own page: the hero with its backglass and the two launches, then everything else about it.
- Loader {anchors.fill:parent;active:!!page.selected.id;sourceComponent:Component{ColumnLayout {spacing:0
+ // One surface: the hero scrolls away with the rest, on the panel and on the desktop.
+ Loader {anchors.fill:parent;active:!!page.selected.id;sourceComponent:Component{Item {
+  Flickable {id:detail;objectName:"pinballDetailScroll";anchors.fill:parent;clip:true;contentHeight:tableColumn.implicitHeight;boundsBehavior:Flickable.StopAtBounds;interactive:!page.vrOverlayMode
+   ScrollBar.vertical:ScrollBar{width:page.vrOverlayMode?18:implicitWidth;policy:detail.contentHeight>detail.height?ScrollBar.AlwaysOn:ScrollBar.AsNeeded}
+  ColumnLayout {id:tableColumn;width:detail.width;spacing:0
   HeroBanner {Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.4:0.44);vrOverlayMode:page.vrOverlayMode;system:"pinball";art:page.fileUrl(page.selected.artBackglass)
    eyebrow:("Pinball"+(page.tableLine(page.selected)?"  ·  "+page.tableLine(page.selected):"")).toUpperCase()
    title:page.selected.title||""
@@ -138,8 +165,7 @@ Item {
    PillButton {targetHeight:page.vrOverlayMode?56:48;text:"‹ Back";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.selectPinball("")}
   }
   Text {objectName:"pinballDetailTitle";visible:false;text:page.selected.title||""}
-  ScrollView {id:detail;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;contentWidth:availableWidth
-   Column {x:page.side;width:detail.availableWidth-2*page.side;spacing:12;topPadding:4;bottomPadding:24
+   Column {Layout.leftMargin:page.side;Layout.preferredWidth:detail.width-2*page.side;spacing:12;topPadding:4;bottomPadding:24
     Flow {width:parent.width;spacing:8
      PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
      PillButton {text:"Include in headset";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
@@ -175,5 +201,9 @@ Item {
     UiText {objectName:"pinballLaunchHelp";width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail");font.pixelSize:page.vrOverlayMode?15:13;text:uiController.pinballLaunchHelp}
    }
   }
+  }
+  MouseArea {objectName:"pinballDetailWheel";anchors.fill:detail;enabled:page.vrOverlayMode;acceptedButtons:Qt.NoButton;z:2
+   onWheel:wheel=>{wheel.accepted=true;detailScroller.wheel(wheel.angleDelta.y,Date.now())}}
+  PanelScroller {id:detailScroller;objectName:"pinballDetailScroller";flick:detail;rowHeight:120;reduceMotion:page.reduceMotion}
  }}}
 }
