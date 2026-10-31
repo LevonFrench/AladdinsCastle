@@ -34,9 +34,14 @@ void OverlayHost::logInput(const vr::VREvent_t &event,const OverlayObservation &
     const bool move=event.eventType==vr::VREvent_MouseMove&&value.reason=="move";
     if(move&&(m_inputMoves++%15)!=0)return;
     const bool mouse=event.eventType==vr::VREvent_MouseMove||event.eventType==vr::VREvent_MouseButtonDown||event.eventType==vr::VREvent_MouseButtonUp;
-    const auto line=QString("%1 %2 %3 %4 %5 %6 %7\n").arg(value.receiptMs).arg(event.eventType)
-        .arg(mouse?double(event.data.mouse.x):-1.0,0,'f',0).arg(mouse?double(event.data.mouse.y):-1.0,0,'f',0)
-        .arg(value.position.x(),0,'f',0).arg(value.position.y(),0,'f',0).arg(value.reason);
+    // A scroll keeps SteamVR's own deltas in the raw columns and the wheel angle sent to the page after it,
+    // so the stick's packet sizes can be read from a sitting and the panel scroller tuned to them.
+    const bool scroll=event.eventType==vr::VREvent_ScrollSmooth||event.eventType==vr::VREvent_ScrollDiscrete;
+    const auto raw=[&](float mouseValue,float scrollValue){return mouse?QString::number(double(mouseValue),'f',0):scroll?QString::number(double(scrollValue),'f',4):QString("-1");};
+    const auto line=QString("%1 %2 %3 %4 %5 %6 %7%8\n").arg(value.receiptMs).arg(event.eventType)
+        .arg(raw(event.data.mouse.x,event.data.scroll.xdelta),raw(event.data.mouse.y,event.data.scroll.ydelta))
+        .arg(value.position.x(),0,'f',0).arg(value.position.y(),0,'f',0).arg(value.reason)
+        .arg(scroll&&value.dispatched?QString(" angle=%1,%2").arg(value.angle.x()).arg(value.angle.y()):QString());
     m_inputLog.write(line.toUtf8());m_inputLog.flush();++m_inputLines;
 }
 bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QString *error) {
@@ -76,6 +81,7 @@ void OverlayHost::logLine(const QByteArray &text) {
     m_inputLog.write(QByteArray::number(m_clock.isValid()?m_clock.elapsed():0)+" "+text+"\n");m_inputLog.flush();++m_inputLines;
 }
 void OverlayHost::noteBack(const QString &outcome) { logLine("b-outcome "+outcome.toUtf8()); }
+void OverlayHost::notePanel(const QString &text) { logLine("panel "+text.toUtf8()); }
 void OverlayHost::handleButtons(const HubButtons &buttons,bool panelVisible,qint64 nowMs) {
     Q_UNUSED(nowMs);
     // The log says whether B can reach the Hub at all (manifest accepted, B bound) whenever that changes while

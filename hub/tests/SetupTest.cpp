@@ -12,6 +12,7 @@
 #include "core/scripted/Scripted.h"
 #include "core/system22/System22.h"
 #include "core/install/Install.h"
+#include "core/scan/DiscMemo.h"
 #include <QtTest>
 #include <QDir>
 #include <QFile>
@@ -305,6 +306,36 @@ private slots:
     QCOMPARE(entry(result,"missing","virtua-cop")["expected"].toString(),QString("Virtua Cop Elite Edition (disc image)"));
     QCOMPARE(result["other"].toList().size(),1);QCOMPARE(result["other"].toList()[0].toMap()["title"].toString(),QString("Something Else (USA)"));
   }
+  // A second read opens only new or changed discs: while a disc's size and time are unchanged, what it said last time
+  // is used again. Kept per system; a read cut short is never kept and forgets nothing.
+  void setupRemembersDiscsWhileTheyAreUnchanged() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto folder=t.filePath("discs"),disc=folder+"/a.iso";
+    write(disc,ps2Header("SLUS_212.74"));write(folder+"/Something Else (USA).gz","synthetic");
+    const auto serial=[&](ac::scan::DiscMemo &memo){for(const auto &found:ac::ps2::discs(folder,cancel,&memo))if(found.toMap()["file"].toString().endsWith("/a.iso"))return found.toMap()["serial"].toString();return QString("no disc");};
+    // Saved as the Hub saves it, so numbers come back as they do from the file.
+    const auto saved=[](const ac::scan::DiscMemo &memo){return ac::scan::DiscMemo(QJsonDocument::fromVariant(memo.saved()).toVariant().toMap());};
+    ac::scan::DiscMemo first;first.reading("ps2");QCOMPARE(serial(first),QString("SLUS-21274"));QCOMPARE(first.reused(),0);
+    const auto discs=first.saved()["systems"].toMap()["ps2"].toMap();
+    QCOMPARE(discs.size(),1); // The unreadable file is read again next time.
+    QCOMPARE(discs.firstKey(),QDir::fromNativeSeparators(QFileInfo(disc).absoluteFilePath()));
+    // Another disc with the same size and time: the memo answers, so the file was not opened.
+    const auto time=QFileInfo(disc).lastModified();
+    const auto setTime=[&](const QDateTime &when){QFile file(disc);QVERIFY(file.open(QIODevice::ReadWrite));QVERIFY(file.setFileTime(when,QFileDevice::FileModificationTime));};
+    write(disc,ps2Header("SLUS_206.32"));setTime(time);
+    auto second=saved(first);QCOMPARE(serial(second),QString("SLUS-21274"));QCOMPARE(second.reused(),1);
+    // A new time, a memo from another reader version, or another system's memo: the disc is read.
+    setTime(time.addSecs(60));
+    auto third=saved(second);QCOMPARE(serial(third),QString("SLUS-20632"));QCOMPARE(third.reused(),0);
+    auto old=QJsonDocument::fromVariant(third.saved()).toVariant().toMap();old["version"]=0;
+    ac::scan::DiscMemo older(old);QCOMPARE(serial(older),QString("SLUS-20632"));QCOMPARE(older.reused(),0);
+    auto other=saved(third);ac::dreamcast::identify(disc,cancel,&other);QCOMPARE(other.reused(),0);
+    // A read stopped part way keeps what was known; a whole read forgets discs that are gone.
+    QFile::remove(disc);
+    auto stopped=saved(third);cancel=true;ac::setup::scanSystem("ps2",{{"ps2GameFolder",folder}},{},{},cancel,&stopped);cancel=false;
+    QCOMPARE(stopped.saved()["systems"].toMap()["ps2"].toMap().size(),1);
+    auto whole=saved(third);ac::setup::scanSystem("ps2",{{"ps2GameFolder",folder}},{},{},cancel,&whole);
+    QVERIFY(whole.saved()["systems"].toMap()["ps2"].toMap().isEmpty());
+  }
   // PS1: the user's PowerShell launcher knows each disc and gun; the Hub checks its keys and starts it.
   void ps1GamesStartThroughTheLaunchersKeys() {
     QVERIFY(ac::ps1::games().size()>=14);
@@ -384,10 +415,10 @@ private slots:
     QVERIFY(!entry(result,"ready","virtua-cop-2").isEmpty());
     QCOMPARE(entry(result,"missing","hakaider")["expected"].toString(),QString("Mechanical Violator Hakaider: Last Judgement (an entry in your Saturn launcher)"));
   }
-  // 3DS: the program, the core and the profile folder are Hub settings that Set-up fills; each dump is found by its title.
+  // 3DS: program/core/profiles and explicit per-game files are Hub settings; no title inference.
   void threeDsGamesNeedTheirProgramCoreProfilesAndDumps() {
     QVariantMap system;for(const auto &value:ac::setup::systems())if(value.toMap()["id"]=="3ds")system=value.toMap();
-    QCOMPARE(system["kind"].toString(),QString("consoles"));QCOMPARE(system["folderKey"].toString(),QString("threedsGameFolder"));QCOMPARE(system["programKey"].toString(),QString("libretroHost"));
+    QCOMPARE(system["kind"].toString(),QString("consoles"));QVERIFY(system["folderKey"].toString().isEmpty());QCOMPARE(system["programKey"].toString(),QString("libretroHost"));
     QTemporaryDir t;std::atomic_bool cancel=false;
     const auto host=t.filePath("bin/acvr-ps1.exe"),core=t.filePath("cores/azahar_libretro.dll");
     QVariantMap settings{{"libretroHost",host},{"threedsCore",core},{"libretroProfiles",t.filePath("profiles")},{"threedsGameFolder",t.filePath("dumps")}};
@@ -398,17 +429,23 @@ private slots:
     write(core,"synthetic");QVERIFY(entry(scan(),"notRight","3ds-mario-kart-7")["reason"].toString().contains("profile"));
     for(const auto &id:{"3ds-star-fox-64-3d","3ds-mario-kart-7"})write(t.filePath(QString("profiles/%1.toml").arg(id)),"schema = 1\n");
     // The program, core and profiles are right: a game without a dump is "not found", with the name to give it.
-    QVERIFY(entry(scan(),"missing","3ds-star-fox-64-3d")["expected"].toString().contains("named after the game"));
+    QVERIFY(entry(scan(),"missing","3ds-star-fox-64-3d")["expected"].toString().contains("choose this game's file"));
     write(t.filePath("dumps/Mario Kart 7.3ds"),"synthetic");
+    QVERIFY(entry(scan(),"ready","3ds-mario-kart-7").isEmpty()); // No inference from a title-shaped name.
+    settings["threedsMarioKartFile"]=t.filePath("dumps/Mario Kart 7.3ds");
     auto result=scan();
     QVERIFY(!entry(result,"ready","3ds-mario-kart-7").isEmpty());QVERIFY(entry(result,"ready","3ds-mario-kart-7")["detail"].toString().contains("left stick"));
     QVERIFY(!entry(result,"missing","3ds-star-fox-64-3d").isEmpty());
     write(t.filePath("dumps/Star Fox 64 3D.cci"),"synthetic");
+    settings["threedsStarFoxFile"]=t.filePath("dumps/Star Fox 64 3D.cci");
     result=scan();QVERIFY(!entry(result,"ready","3ds-star-fox-64-3d").isEmpty());QVERIFY(result["missing"].toList().isEmpty()&&result["notRight"].toList().isEmpty());
+    QVERIFY(entry(result,"ready","3ds-star-fox-64-3d")["detail"].toString().contains("identity is not verified"));
     // The saved report is read again when any of the four settings changes.
     const auto json=[](const QVariantMap &stamp){return QJsonDocument::fromVariant(stamp).toJson(QJsonDocument::Compact);};
     const auto stamp=json(ac::setup::reportStamp(settings,{"3ds"}));
-    for(const auto &key:{"libretroHost","threedsCore","libretroProfiles","threedsGameFolder"}){auto moved=settings;moved[key]=t.filePath("elsewhere");QVERIFY2(json(ac::setup::reportStamp(moved,{"3ds"}))!=stamp,key);}
+    for(const auto &key:{"libretroHost","threedsCore","libretroProfiles","threedsGameFolder","threedsStarFoxFile","threedsMarioKartFile"}){auto moved=settings;moved[key]=t.filePath("elsewhere");QVERIFY2(json(ac::setup::reportStamp(moved,{"3ds"}))!=stamp,key);}
+    settings["threedsStarFoxFile"]=t.filePath("missing.3ds");
+    QVERIFY(!entry(scan(),"notRight","3ds-star-fox-64-3d").isEmpty());
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");
@@ -447,6 +484,17 @@ private slots:
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"timecris","body"));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"Bad Key","theatre"));
     QCOMPARE(ac::scripted::viewLabel("3d"),QString("Real 3D"));QCOMPARE(ac::scripted::viewLabel("x-new"),QString("x-new"));
+    // Soft edges (opt-in) come after the theatre screen, keep the Hub's label and are never the default.
+    write(t.filePath("play/mame-gun/games.json"),"{\"timecris\":{\"views\":{\"soft-edges\":{},\"open-frame-soft\":{},\"theatre\":{},\"open-frame\":{}}},"
+      "\"lethalen\":{\"views\":{\"soft-edges\":{},\"theatre\":{}}}}");
+    const auto soft=ac::scripted::games(arcade);QCOMPARE(soft.size(),2);
+    ids.clear();for(const auto &v:soft[1].toMap()["views"].toList())ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"open-frame","theatre","open-frame-soft","soft-edges"}));
+    const auto softViews=soft[1].toMap()["views"].toList();
+    QCOMPARE(softViews[2].toMap()["label"].toString(),QString("Open frame, soft edges"));QCOMPARE(softViews[3].toMap()["label"].toString(),QString("Soft edges"));
+    QVERIFY(softViews[3].toMap()["optIn"].toBool());QVERIFY(softViews[2].toMap()["optIn"].toBool());QVERIFY(!softViews[0].toMap()["optIn"].toBool());
+    ids.clear();for(const auto &v:soft[0].toMap()["views"].toList())ids<<v.toMap()["id"].toString();QCOMPARE(ids,(QStringList{"theatre","soft-edges"}));
+    QCOMPARE(ac::scripted::viewLabel("soft-edges"),QString("Soft edges"));
   }
   // A launcher's game whose own file is gone is not found, and the path is said: a disc, ROM or file on the
   // entry or on any of its views, a relative one read beside games.json. A game naming no file is not judged.

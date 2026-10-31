@@ -20,8 +20,8 @@ struct Options {
  DWORD pid=0;
  unsigned seconds=3600;
  std::string model,metadata,stop,proof;
- bool offline=false,script=false,crt=false,motion=false,body=false;
- double captureSeconds=36;
+ bool offline=false,script=false,crt=false,motion=false,body=false,soft=false;
+ std::vector<double> captureSeconds{36};   // offline proof: one capture per time (sub-folders t<seconds> when several)
 };
 struct Snapshot {
  unsigned w=0,h=0,orientation=0;float aspect=4.f/3;
@@ -94,6 +94,7 @@ class Viewer:public TheatreClient {
  bool placed=false,previousTrigger=false;
  std::atomic<bool> stopRequested{false};
  CleanQuit quit;
+ acvr::HoldRing holdRing;
  body_motion::Mapper bodyMapper;
  acvr_mono::motion body{};
  FILE* trace=nullptr;
@@ -101,7 +102,7 @@ class Viewer:public TheatreClient {
  bool initialized=false,quitLogged=false;
 public:
  std::atomic<bool> exitSent{false};
- bool captured=false;
+ unsigned captures=0;
  unsigned pulses=0;
  std::uint64_t kickAt=0;   // last shot edge: the model's [motion.recoil] slide kicks back, holds, returns
  explicit Viewer(const Options& o):options(o){gun.load(o.model,o.metadata);}
@@ -133,7 +134,9 @@ public:
   scene.showDot=!options.motion && frame.focused && frame.aim.valid && on;scene.dotU=u;scene.dotV=v;scene.trigger=frame.trigger;
   if(scene.showGun)scene.gunRoot=gun.alignedRoot(Mat4::FromPose(frame.grip.position,frame.grip.orientation),aim,0);
   quit.poll(GetTickCount64(),frame.focused && frame.quitHeld,stopRequested || (!options.stop.empty() && fs::exists(options.stop)));
-  // U4 has no drawn ring in this viewer: say so in the log once the hold outlives the recentre window.
+  // U4: the hold ring (libacvr hold_ring.hpp) follows the same 3 s count that quits, so it can never disagree with the quit.
+  scene.holdRing=holdRing.update(GetTickCount64(),frame.focused?quit.progress(GetTickCount64()):0.f);
+  // And a log line once the hold outlives the recentre window.
   if(frame.quitProgress>0 && !quitLogged){std::fprintf(stderr,"viewer: both stick clicks held; quit and save in %.0f s if still held\n",3*(1-quit.progress(GetTickCount64())));quitLogged=true;}
   if(!frame.quitHeld)quitLogged=false;
   acvr_mono::controls input{};input.heartbeat_ms=GetTickCount64();
@@ -164,6 +167,8 @@ public:
    std::fprintf(trace,"%llu\t%.4f\t%.5f\t%.5f\t%u\t%u\t%u\t%.5f\t%.5f\n",(unsigned long long)snapshot.serial,snapshot.seconds,u,v,input.off_screen,buttons,snapshot.gun.buttons,snapshot.gun.cross_u,snapshot.gun.cross_v);std::fflush(trace);lastButtons=buttons;
   }
   if(complete){scene.screen.height=scene.screen.width/snapshot.aspect;upload(frame);}
+  // Soft edges (--soft-edges): 1.6 m of fading band at each side, 0.5 m above and below.
+  scene.softX=options.soft?1.6f/scene.screen.width:0.f;scene.softY=options.soft?.5f/scene.screen.height:0.f;
   return uploaded!=0;
  }
  void upload(const TheatreFrame& frame){
@@ -193,6 +198,7 @@ public:
   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
   scene.picture=prescaled;scene.pictureW=snapshot.w*scale;scene.pictureH=snapshot.h*scale;factor=scale;uploaded=snapshot.serial;
+  scene.softLod=std::log2(float(scale))+5.f;   // the band's outer end is blurred over about 32 native pixels
  }
  void draw_eye(unsigned eye,unsigned colour,const TheatreFrame& frame,bool srgb)override{
   eyes[eye].bind(colour,frame.width[eye],frame.height[eye]);
@@ -208,29 +214,35 @@ public:
   for(unsigned y=0;y<h;++y)std::copy_n(raw.data()+std::size_t(h-1-y)*w,w,top.data()+std::size_t(y)*w);
   return top;
  }
- void capture(const TheatreFrame& frame){
-  fs::create_directories(options.proof);
-  auto save=[&](std::string name,const std::vector<std::uint32_t>& pixels,unsigned w,unsigned h){if(!acvr_png::write((fs::path(options.proof)/name).string().c_str(),pixels.data(),w,h))throw std::runtime_error("proof write failed");};
+ void capture(const TheatreFrame& frame,const fs::path& folder){
+  fs::create_directories(folder);
+  auto save=[&](std::string name,const std::vector<std::uint32_t>& pixels,unsigned w,unsigned h){if(!acvr_png::write((folder/name).string().c_str(),pixels.data(),w,h))throw std::runtime_error("proof write failed");};
   save("source.png",snapshot.pixels,snapshot.w,snapshot.h);
   auto original=scene;
-  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{},recoilCount[2]{};
+  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{},recoilCount[2]{},ringCount[2]{};
   for(unsigned eye=0;eye<2;++eye){
    GLuint colour=0;glGenTextures(1,&colour);glBindTexture(GL_TEXTURE_2D,colour);glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8_ALPHA8,frame.width[eye],frame.height[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
    scene=original;scene.showGun=scene.showDot=false;draw_eye(eye,colour,frame,true);auto picture=readback(eye,frame);save(eye?"right-picture.png":"left-picture.png",picture,frame.width[eye],frame.height[eye]);
+   // the same frame without soft edges, for a before/after measure of the side areas
+   if(options.soft){scene.softX=scene.softY=0;draw_eye(eye,colour,frame,true);save(eye?"right-plain.png":"left-plain.png",readback(eye,frame),frame.width[eye],frame.height[eye]);}
    scene=original;scene.showDot=false;scene.recoil=0;draw_eye(eye,colour,frame,true);auto front=readback(eye,frame);save(eye?"right-front.png":"left-front.png",front,frame.width[eye],frame.height[eye]);
    scene.gunRoot.m[14]-=5;draw_eye(eye,colour,frame,true);auto behind=readback(eye,frame);save(eye?"right-behind.png":"left-behind.png",behind,frame.width[eye],frame.height[eye]);
    scene=original;scene.showGun=false;draw_eye(eye,colour,frame,true);auto dot=readback(eye,frame);save(eye?"right-dot.png":"left-dot.png",dot,frame.width[eye],frame.height[eye]);
    scene=original;scene.showDot=false;scene.recoil=1;draw_eye(eye,colour,frame,true);auto recoil=readback(eye,frame);save(eye?"right-recoil.png":"left-recoil.png",recoil,frame.width[eye],frame.height[eye]);
+   {acvr::HoldRing proofRing;proofRing.update(0,1.f);   // the U4 hold ring, settled: full, flash over
+    scene=original;scene.showGun=scene.showDot=false;scene.holdRing=proofRing.update(2000,1.f);draw_eye(eye,colour,frame,true);auto ring=readback(eye,frame);save(eye?"right-hold-ring.png":"left-hold-ring.png",ring,frame.width[eye],frame.height[eye]);
+    for(std::size_t i=0;i<picture.size();++i)ringCount[eye]+=(ring[i]!=picture[i]);}
    for(std::size_t i=0;i<picture.size();++i){nearCount[eye]+=(front[i]!=picture[i]);recoilCount[eye]+=(recoil[i]!=front[i]);farCount[eye]+=(behind[i]!=picture[i]);dotCount[eye]+=(dot[i]!=picture[i]);}
    glDeleteTextures(1,&colour);
    if(!options.motion && (nearCount[eye]<100 || farCount[eye]!=0 || dotCount[eye]<4))throw std::runtime_error("gun/dot depth proof failed");
    if(!options.motion && gun.hasRecoil() && recoilCount[eye]==0)throw std::runtime_error("recoil proof failed: the slide did not move");
+   if(ringCount[eye]<400)throw std::runtime_error("hold ring proof failed: the ring did not draw");
   }
   scene=original;glFinish();if(glGetError()!=GL_NO_ERROR)throw std::runtime_error("GL error during proof");
   if(GetModuleHandleA("openxr_loader.dll"))throw std::runtime_error("offline proof opened an XR loader");
-  std::ofstream f(fs::path(options.proof)/"native-proof.json");
-  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"recoil_pixels\":["<<recoilCount[0]<<","<<recoilCount[1]<<"],\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
-  captured=true;
+  std::ofstream f(folder/"native-proof.json");
+  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"recoil_pixels\":["<<recoilCount[0]<<","<<recoilCount[1]<<"],\"hold_ring_pixels\":["<<ringCount[0]<<","<<ringCount[1]<<"],\"soft_edges\":"<<(options.soft?"true":"false")<<",\"soft_x\":"<<scene.softX<<",\"soft_y\":"<<scene.softY<<",\"screen_width_m\":"<<scene.screen.width<<",\"screen_height_m\":"<<scene.screen.height<<",\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
+  ++captures;
  }
  void shutdown()override{
   if(!initialized)return;
@@ -260,9 +272,10 @@ int main(int argc,char** argv){
   for(int i=1;i<argc;++i){std::string a=argv[i];auto value=[&](){if(++i>=argc)throw std::runtime_error("missing option value");return std::string(argv[i]);};
    if(a=="--pid")o.pid=std::stoul(value());else if(a=="--model")o.model=value();else if(a=="--metadata")o.metadata=value();
    else if(a=="--seconds")o.seconds=std::stoul(value());else if(a=="--stop-file")o.stop=value();else if(a=="--offline-proof"){o.offline=true;o.proof=value();}
-   else if(a=="--script")o.script=true;else if(a=="--motion")o.motion=true;else if(a=="--body")o.motion=o.body=true;else if(a=="--crt")o.crt=true;else if(a=="--capture-seconds")o.captureSeconds=std::stod(value());else throw std::runtime_error("unknown option: "+a);
+   else if(a=="--script")o.script=true;else if(a=="--motion")o.motion=true;else if(a=="--body")o.motion=o.body=true;else if(a=="--crt")o.crt=true;else if(a=="--soft-edges")o.soft=true;
+   else if(a=="--capture-seconds"){o.captureSeconds.clear();const std::string list=value();for(std::size_t at=0;at<=list.size();){const auto end=std::min(list.find(',',at),list.size());o.captureSeconds.push_back(std::stod(list.substr(at,end-at)));at=end+1;}std::sort(o.captureSeconds.begin(),o.captureSeconds.end());}else throw std::runtime_error("unknown option: "+a);
   }
-  if(!o.pid || o.model.empty() || o.metadata.empty() || !o.seconds || o.seconds>86400 || !std::isfinite(o.captureSeconds) || o.captureSeconds<1)throw std::runtime_error("required: --pid --model --metadata; bounded --seconds, optional --offline-proof directory --script");
+  if(!o.pid || o.model.empty() || o.metadata.empty() || !o.seconds || o.seconds>86400 || o.captureSeconds.empty() || o.captureSeconds.size()>16 || !std::isfinite(o.captureSeconds.front()) || o.captureSeconds.front()<1 || !std::isfinite(o.captureSeconds.back()))throw std::runtime_error("required: --pid --model --metadata; bounded --seconds, optional --offline-proof directory --script");
   std::fprintf(stderr,"viewer: monitoring publisher %lu, offline=%d\n",o.pid,o.offline);std::fflush(stderr);
   HANDLE process=OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION,FALSE,o.pid);if(!process)throw std::runtime_error("cannot monitor publisher PID");
   std::fprintf(stderr,"viewer: creating hidden GL context\n");std::fflush(stderr);
@@ -281,9 +294,11 @@ int main(int argc,char** argv){
     if(GetTickCount64()-begin>=std::uint64_t(o.seconds)*1000)client.request_stop();
     if(o.offline){
      auto frame=synthetic(client.picture().seconds,o.script);const bool ready=client.update(frame);
-     if(ready && !client.captured && client.picture().seconds>=o.captureSeconds){
-      client.capture(frame);
-      if(!o.stop.empty())std::ofstream(o.stop)<<"quit\n";else client.request_stop();
+     const auto taken=client.captures;
+     if(ready && taken<o.captureSeconds.size() && client.picture().seconds>=o.captureSeconds[taken]){
+      char name[32];std::snprintf(name,sizeof name,"t%03.0f",o.captureSeconds[taken]);
+      client.capture(frame,o.captureSeconds.size()>1?fs::path(o.proof)/name:fs::path(o.proof));
+      if(client.captures==o.captureSeconds.size()){if(!o.stop.empty())std::ofstream(o.stop)<<"quit\n";else client.request_stop();}
      }
     }else if(!theatre_running()){client.request_stop();result=1;break;}
     if(client.exitSent){if(!exitAt)exitAt=GetTickCount64();else if(GetTickCount64()-exitAt>15000){result=1;break;}}
@@ -291,7 +306,7 @@ int main(int argc,char** argv){
     if(GetTickCount64()-begin>(std::uint64_t(o.seconds)+15)*1000){result=1;break;}
     Sleep(o.offline?1:10);
    }
-   if(o.offline && !client.captured)result=1;
+   if(o.offline && client.captures<o.captureSeconds.size())result=1;
   }catch(...){client.request_stop();if(o.offline){auto neutral=TheatreFrame{};try{client.update(neutral);}catch(...){}}if(started)stop();else client.shutdown();Host_DestroyWindow(window);CloseHandle(process);throw;}
   if(started){if(!stop())result=1;}else client.shutdown();
   DWORD code=0;if(GetExitCodeProcess(process,&code) && code!=0)result=1;

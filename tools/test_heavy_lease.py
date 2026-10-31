@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from datetime import timedelta
 from pathlib import Path
 
@@ -109,6 +110,44 @@ class LeaseTest(unittest.TestCase):
         record["pid_created"] = created
         self.assertTrue(hl.holder_alive(record))
 
+    def test_recovery_never_kills_an_unverified_child_or_frees_its_lease(self):
+        self.dir.mkdir(parents=True)
+        for saved, observed in ((123, None), (None, 123), (None, None)):
+            with self.subTest(saved=saved, observed=observed):
+                old = {"id": "old", "lane": "ghost", "child_pid": 424242, "child_created": saved}
+                (self.dir / hl.LOCK_NAME).write_text(json.dumps(old))
+                with patch.object(hl, "pid_alive", return_value=True), \
+                     patch.object(hl, "process_create_time", return_value=observed), \
+                     patch.object(hl, "kill_tree") as kill:
+                    with self.assertRaisesRegex(hl.Busy, "identity is unreadable"):
+                        hl.clear_stale(self.dir, old)
+                    kill.assert_not_called()
+                self.assertEqual(self.lock(), old)
+        self.assertIn("recovery-blocked", self.events())
+
+    def test_recovery_kills_only_a_readable_matching_child_identity(self):
+        self.dir.mkdir(parents=True)
+        for observed, expected_kills in ((123, 1), (124, 0)):
+            old = {"id": "old", "lane": "ghost", "child_pid": 424242, "child_created": 123}
+            (self.dir / hl.LOCK_NAME).write_text(json.dumps(old))
+            with patch.object(hl, "pid_alive", return_value=True), \
+                 patch.object(hl, "process_create_time", return_value=observed), \
+                 patch.object(hl, "kill_tree") as kill:
+                self.assertTrue(hl.clear_stale(self.dir, old))
+                self.assertEqual(kill.call_count, expected_kills)
+
+    def test_recovery_restores_lock_if_child_identity_becomes_unreadable(self):
+        self.dir.mkdir(parents=True)
+        old = {"id": "old", "lane": "ghost", "child_pid": 424242, "child_created": 123}
+        (self.dir / hl.LOCK_NAME).write_text(json.dumps(old))
+        with patch.object(hl, "pid_alive", return_value=True), \
+             patch.object(hl, "process_create_time", side_effect=[123, None]), \
+             patch.object(hl, "kill_tree") as kill:
+            with self.assertRaises(hl.Busy):
+                hl.clear_stale(self.dir, old)
+            kill.assert_not_called()
+        self.assertEqual(self.lock(), old)
+
     def test_live_holder_is_never_taken_over_even_when_overdue(self):
         self.dir.mkdir(parents=True)
         old = {"id": "old", "lane": "slow", "pid": os.getpid(), "pid_created": hl.process_create_time(os.getpid()),
@@ -172,6 +211,85 @@ class LeaseTest(unittest.TestCase):
         self.assertTrue(grandchild_file.exists(), "the grandchild never started; raise the deadline")
         self.assertTrue(wait_dead(int(grandchild_file.read_text())), "grandchild survived the kill")
         self.assertIn("killed-deadline", (self.dir / hl.LEDGER_NAME).read_text(encoding="utf-8"))
+
+    def test_parent_exit_does_not_release_lease_before_descendant_finishes(self):
+        done = Path(self._tmp.name) / "descendant.json"
+        script = ("import json,pathlib,time; time.sleep(.7); "
+                  f"p=pathlib.Path({str(self.dir / hl.LOCK_NAME)!r}); "
+                  f"pathlib.Path({str(done)!r}).write_text(json.dumps({{'lease_exists':p.exists()}}))")
+        parent = "import subprocess,sys; subprocess.Popen([sys.executable,'-c'," + repr(script) + "])"
+        self.assertEqual(hl.run(self.dir, "a", "descendant", 1,
+                               [sys.executable, "-c", parent], lister=QUIET, deadline_s=8), 0)
+        self.assertTrue(done.exists(), "wrapper returned before its descendant")
+        self.assertTrue(json.loads(done.read_text())["lease_exists"])
+        self.assertFalse((self.dir / hl.LOCK_NAME).exists())
+
+    def test_parent_exit_still_enforces_deadline_and_leaves_unrelated_process_alone(self):
+        pidfile = Path(self._tmp.name) / "descendant.pid"
+        parent = ("import subprocess,sys,pathlib; "
+                  "p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(10)']); "
+                  f"pathlib.Path({str(pidfile)!r}).write_text(str(p.pid))")
+        sibling = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(10)"])
+        try:
+            code = hl.run(self.dir, "a", "detached", 1, [sys.executable, "-c", parent],
+                          lister=QUIET, deadline_s=2)
+            self.assertEqual(code, hl.EXIT_DEADLINE)
+            self.assertTrue(wait_dead(int(pidfile.read_text())))
+            self.assertIsNone(sibling.poll(), "unrelated sibling was terminated")
+            self.assertFalse((self.dir / hl.LOCK_NAME).exists())
+        finally:
+            if sibling.poll() is None:
+                sibling.kill()
+            sibling.wait(timeout=15)
+
+    def test_opt_in_stops_background_helpers_when_synchronous_command_exits(self):
+        pidfile = Path(self._tmp.name) / "helper.pid"
+        parent = ("import subprocess,sys,pathlib; "
+                  "p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(10)']); "
+                  f"pathlib.Path({str(pidfile)!r}).write_text(str(p.pid))")
+        code = hl.run(self.dir, "build", "background helper", 1, [sys.executable, "-c", parent],
+                      lister=QUIET, deadline_s=5, stop_descendants_on_exit=True)
+        self.assertEqual(code, 0)
+        self.assertTrue(wait_dead(int(pidfile.read_text())))
+        self.assertFalse((self.dir / hl.LOCK_NAME).exists())
+        self.assertIn("finished-descendants-stopped", (self.dir / hl.LEDGER_NAME).read_text())
+
+    @unittest.skipUnless(hl.WINDOWS, "Windows Job Object handle lifetime")
+    def test_wrapper_termination_closes_job_and_kills_descendants(self):
+        pidfile = Path(self._tmp.name) / "owned.pid"
+        child = ("import subprocess,sys,pathlib,time; "
+                 "g=subprocess.Popen([sys.executable,'-c','import time; time.sleep(10)']); "
+                 f"pathlib.Path({str(pidfile)!r}).write_text(str(g.pid)); time.sleep(10)")
+        wrapper = (f"import sys; sys.path.insert(0,{str(Path(hl.__file__).parent)!r}); "
+                   "import heavy_lease as h; "
+                   f"h.run({str(self.dir)!r},'isolated','crash',1,[sys.executable,'-c',{child!r}],lister=lambda:[])")
+        p = subprocess.Popen([sys.executable, "-c", wrapper], creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            until = time.monotonic() + 7
+            while not pidfile.exists() and time.monotonic() < until:
+                if p.poll() is not None:
+                    self.fail("wrapper exited before its child: " + str(p.returncode))
+                time.sleep(.02)
+            self.assertTrue(pidfile.exists())
+            owned_pid = int(pidfile.read_text())
+            p.kill()  # Exact Popen handle created by this test, never a discovered PID.
+            p.wait(timeout=5)
+            self.assertTrue(wait_dead(owned_pid), "job member survived wrapper termination")
+        finally:
+            if p.poll() is None:
+                p.kill()
+            p.wait(timeout=5)
+
+    @unittest.skipUnless(hl.WINDOWS, "Windows atomic Job Object assignment")
+    def test_job_setup_failure_never_starts_command(self):
+        import lease_process
+        sentinel = Path(self._tmp.name) / "must-not-run"
+        with patch.object(lease_process.K, "UpdateProcThreadAttribute", return_value=False):
+            with self.assertRaises(OSError):
+                hl.run(self.dir, "a", "rejected job", 1,
+                       [sys.executable, "-c", f"open({str(sentinel)!r},'w').close()"], lister=QUIET)
+        self.assertFalse(sentinel.exists())
+        self.assertFalse((self.dir / hl.LOCK_NAME).exists())
 
     def test_run_stops_when_the_headset_marker_appears(self):
         marker = Path(self._tmp.name) / "HEADSET-ON"

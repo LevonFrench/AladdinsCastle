@@ -188,6 +188,12 @@ a fixed head pose and a right hand aimed at (U, V), into `<prefix>-left.png`
 and `<prefix>-right.png`. The log says where the aim ray met the screen,
 which must equal (U, V).
 
+Add `--test-hold P` to the same proof to draw the universal quit's hold ring (U4) as if both stick clicks had been
+held: P is the progress of the 3 s hold, from 0.33 (appears, empty) to 1 (full and flashing); above 1 is the settled
+full ring. The ring comes from `libacvr/src/hold_ring.hpp` and `hold_ring_gl.hpp`, shared with the MAME gun viewer and
+the Model 2 viewers. In the headset it shows from 1 s of holding, fills clockwise, and flashes once at 3 s; the host
+then waits 0.7 s before it saves and quits, so the flash is seen.
+
 Results so far (Beetle PSX 0.9.44.1, hidden runs): Point Blank was played
 from the intro to Training stages using only the gun (calibration, menus,
 hits counted by the game, memory card written). Thirteen other gun games
@@ -610,11 +616,16 @@ ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r
 | left trigger, right stick left | L | bank left (twice: barrel roll) |
 | right B, right stick right | R | bank right (twice: barrel roll) |
 | left stick click (U1) | Start | pause |
-| right stick click (U2) | Select | not used by the game (the right stick still banks) |
+| right stick click (U2) | Select | pauses, the same as Start (the right stick still banks) |
 
-The game asks in its tutorial whether to turn on gyro aiming; the host sends no
-motion, so answer no. Its "tap B to realign the gyro controls" prompt can stay
-on screen for a tester who answered yes.
+The game asks in its tutorial whether to turn on gyro aiming ("Would you like to
+turn on the gyro controls?"). The host sends no motion, so answer **No**: the
+Yes and No buttons are on the bottom screen, which the theatre does not show,
+and Yes is chosen by default. Push the left stick (the Circle Pad) left, then
+pull the right trigger (A). Offline, that answer made the "tap B to realign the
+gyro controls" prompt go away for the rest of the course (13,000 frames
+checked); the right stick and a plain A (the default, Yes) keep it on screen for
+good. The tutorial asks again each time the training course starts.
 
 ### Mario Kart 7
 

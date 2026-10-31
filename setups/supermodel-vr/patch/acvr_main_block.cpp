@@ -29,8 +29,11 @@
                           and sky strips are widened too)
    ACVR_AIM_X, ACVR_AIM_Y analog-joystick games: where the game draws its crosshair for each stick value, as
                           "value:pixel,..." over its 496x384 picture (default: Star Wars Trilogy, measured)
-   ACVR_AIM_DISTANCE=<m>  head-tracked: distance of the plane the arcade view is met on when pointing (default: the
-                          HUD panel's distance, so the ray meets the panel where the game draws its crosshair)
+   ACVR_AIM_DISTANCE=<m>  head-tracked: distance of the plane the arcade view is met on when pointing. Default: far
+                          (1000 m), where Star Wars Trilogy draws its crosshair in the 3D scene, so the crosshair lies
+                          on the controller's ray from any head or hand position. "panel" restores the older rule
+                          (the HUD panel's distance, 1.6 m in the Hub), which is right only for a head that has not
+                          moved since the recentre and a hand beside the eyes
    ACVR_HUD_MATCH=0|1     head-tracked: HUD panel over the arcade view exactly (default: on for analog-stick games)
    ACVR_LASER=0           head-tracked pointing games: no laser and aim dot from the right controller (right B
                           toggles them while playing)
@@ -42,7 +45,12 @@
                           stick.lx stick.ly stick.rx stick.ry click.l click.r; wheel (degrees, both hands on a
                           wheel, positive turns right); aim.u aim.v (the right controller points at that place of
                           the game picture, 0..1 from the top left); aim.yaw aim.pitch (degrees, left and up
-                          positive); hand.x hand.y hand.z (where the right controller is, metres from the head)
+                          positive); hand.x hand.y hand.z (where the right controller is, metres from the head);
+                          head.x head.y head.z (the made-up head moved from where it was recentred, metres: the
+                          eyes with ACVR_VR_FAKE, the pointing ray's start in screen mode) and head.yaw (degrees
+                          to the left, ACVR_VR_FAKE), for checks of the pointing
+   ACVR_AIM_FROM=hand     screen mode: the pointing ray starts at the hand, as before 2026-10-26 (default: at the
+                          head, in the controller's direction, so the game's far crosshair lies on that line)
 ******************************************************************************/
 
 ACVRStereoState g_acvrStereo;
@@ -67,6 +75,9 @@ static bool     s_acvrWantSaveState = false;
 static std::string s_acvrCaptureDir = ".";
 static bool     s_acvrQuit = false;
 static acvr_chord::Resolver s_acvrChord;    // the universal stick-click layer (ACVRChord.h)
+static acvr::HoldRing s_acvrRing;           // U4: the hold ring (libacvr hold_ring.hpp), shown from 1 s, full and flashing at 3 s
+static acvr::HoldRingView s_acvrRingView;   // handed to the presenter with each picture
+static acvr::QuitAfterFlash s_acvrQuitAfterFlash;   // the quit waits for the ring's flash, as in acvr-ps1
 static bool     s_acvrLaserHidden = false;  // right B toggles the laser and aim dot in pointing games
 
 static bool     s_acvrVRWanted = false, s_acvrVRFake = false, s_acvrVRBackdrop = false;
@@ -232,6 +243,27 @@ static int ACVR_AimValue(const std::vector<ACVRAimPoint> &t, float pixel)
 // recentre point. g0 and g1 bound the game's own 496x384 picture on it, as fractions from the top left.
 struct ACVRAimScreen { float centre[3], xaxis[3], normal[3], w, h, g0[2], g1[2]; };
 
+// Head-tracked: how far ahead of the recentre point a pointing ray is met with the arcade view. Star Wars Trilogy
+// draws its crosshair in the 3D scene, far away: the two eyes see it with no measurable disparity. A ray met on a
+// near plane puts the crosshair where the ray crosses that plane as seen from the recentre point, so it slides off
+// the ray as soon as the head moves (about 3.6 degrees for 10 cm at 1.6 m), it ignores where the hand is, and the
+// eyes see the dot near and the crosshair far. Met far away, the crosshair stays on the ray whatever the head and
+// hand do, like the far end of a laser. ACVR_AIM_DISTANCE=<m> sets the plane; "panel" is the older rule.
+static const float kACVRAimFar = 1000.0f;
+static float ACVR_AimDistance()
+{
+  static float d = -1.0f;
+  if (d < 0.0f)
+  {
+    const char *e = getenv("ACVR_AIM_DISTANCE");
+    if (e && std::string(e) == "panel") d = ACVR_EnvFloat("ACVR_HUD_DISTANCE", 1.6f);
+    else d = ACVR_EnvFloat("ACVR_AIM_DISTANCE", kACVRAimFar);
+    if (!(d > 0.1f)) d = kACVRAimFar;
+    printf("ACVR aim: head-tracked rays are met %.1f m ahead\n", d);
+  }
+  return d;
+}
+
 static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
 {
   float tl = g_acvrStereo.tanL, tr = g_acvrStereo.tanR, tb = g_acvrStereo.tanB, tt = g_acvrStereo.tanT;
@@ -245,9 +277,8 @@ static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
   }
   else if (g_acvrStereo.vr)
   {
-    // The arcade view on the plane of the HUD panel, which (with hudMatch) covers exactly this rectangle: the ray
-    // meets the panel where the game's crosshair is drawn, and that is where the game's camera aims
-    const float d = ACVR_EnvFloat("ACVR_AIM_DISTANCE", ACVR_EnvFloat("ACVR_HUD_DISTANCE", 1.6f));
+    // The arcade view on a plane ACVR_AimDistance() ahead: by default as far as the game's own crosshair
+    const float d = ACVR_AimDistance();
     yaw = s_acvrOriginYaw;
     float cx, cy;
     ACVR_ArcadeRect(d, cx, cy, s.w, s.h);
@@ -276,6 +307,19 @@ static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
 static float s_acvrAimFrom[3] = { 0, 0, 0 }, s_acvrAimHit[3] = { 0, 0, 0 };
 static long  s_acvrAimFrame = -10;
 
+static bool ACVR_AimHead(float head[3]);
+
+// Screen mode: where the pointing ray starts. The game's crosshair is far behind the screen (its two pictures are
+// an eye separation apart), so it is seen in the direction from the head through its place on the screen. A ray
+// from the head, in the direction the controller points, puts it on the controller's line wherever the hand and
+// head are. ACVR_AIM_FROM=hand restores the older rule (the ray from the hand, like a light gun at a flat screen).
+static bool ACVR_AimFromHead()
+{
+  static int fromHead = -1;
+  if (fromHead < 0) { const char *e = getenv("ACVR_AIM_FROM"); fromHead = !(e && std::string(e) == "hand"); }
+  return fromHead == 1;
+}
+
 // Where the right controller's pointing ray meets the game picture: u, v from its top left (may be outside 0..1)
 static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
 {
@@ -283,7 +327,9 @@ static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
   if (!c.aimValid[1] || !ACVR_GetAimScreen(c, s)) return false;
   const float *q = c.aimRot[1];
   const float d[3] = { -2.0f * (q[0] * q[2] + q[3] * q[1]), -2.0f * (q[1] * q[2] - q[3] * q[0]), -(1.0f - 2.0f * (q[0] * q[0] + q[1] * q[1])) };
+  float head[3];
   const float *o = c.aimPosValid[1] ? c.aimPos[1] : c.gripPos[1];
+  if (!g_acvrStereo.vr && ACVR_AimFromHead() && ACVR_AimHead(head)) o = head;
   const float dn = d[0] * s.normal[0] + d[1] * s.normal[1] + d[2] * s.normal[2];
   if (!(dn < -1e-4f)) return false;                       // pointing away from the screen
   const float t = ((s.centre[0] - o[0]) * s.normal[0] + (s.centre[1] - o[1]) * s.normal[1] + (s.centre[2] - o[2]) * s.normal[2]) / dn;
@@ -309,20 +355,55 @@ static void ACVR_FakeQuat(float yaw, float pitch, float q[4])      // pitch abou
   q[0] = cy * sp; q[1] = sy * cp; q[2] = -sy * sp; q[3] = cy * cp;
 }
 
+static void ACVR_FakeRead()
+{
+  if (s_acvrFakeRead) return;
+  s_acvrFakeRead = 1;
+  if (const char *e = getenv("ACVR_FAKE_CONTROLLERS"))
+    for (const char *p = e; *p; )
+    {
+      ACVRFakeEntry f; char key[32] = { 0 };
+      if (sscanf(p, "%ld-%ld:%31[^:]:%f", &f.first, &f.last, key, &f.value) == 4) { f.key = key; s_acvrFake.push_back(f); }
+      while (*p && *p != ';') p++;
+      if (*p == ';') p++;
+    }
+}
+
+// The made-up headset (ACVR_VR_FAKE) moved and turned after its recentre by head.x/y/z (metres) and head.yaw
+// (degrees to the left) in ACVR_FAKE_CONTROLLERS, for this frame. Leaves pos and yaw as they are when not given.
+static void ACVR_FakeHead(float pos[3], float &yaw)
+{
+  ACVR_FakeRead();
+  const long frame = s_acvrFrame + 1;
+  for (const ACVRFakeEntry &f : s_acvrFake)
+  {
+    if (frame < f.first || frame > f.last) continue;
+    if (f.key == "head.x") pos[0] = f.value; else if (f.key == "head.y") pos[1] = f.value;
+    else if (f.key == "head.z") pos[2] = f.value; else if (f.key == "head.yaw") yaw = f.value * 0.01745329f;
+  }
+}
+
+// Where the head is now (between the eyes), in the controllers' space: the headset's, or the made-up head of an
+// unattended check (head.x/y/z, after a recentre at the origin)
+static bool ACVR_AimHead(float head[3])
+{
+  ACVREyeView v[2];
+  if (ACVR_XR_GetViews(v))
+  {
+    for (int k = 0; k < 3; k++) head[k] = 0.5f * (v[0].pos[k] + v[1].pos[k]);
+    return true;
+  }
+  ACVR_FakeRead();
+  if (s_acvrFake.empty()) return false;
+  float yaw = 0.0f;
+  head[0] = head[1] = head[2] = 0.0f;
+  ACVR_FakeHead(head, yaw);
+  return true;
+}
+
 static bool ACVR_FakeControllers(ACVRControllers &c)
 {
-  if (!s_acvrFakeRead)
-  {
-    s_acvrFakeRead = 1;
-    if (const char *e = getenv("ACVR_FAKE_CONTROLLERS"))
-      for (const char *p = e; *p; )
-      {
-        ACVRFakeEntry f; char key[32] = { 0 };
-        if (sscanf(p, "%ld-%ld:%31[^:]:%f", &f.first, &f.last, key, &f.value) == 4) { f.key = key; s_acvrFake.push_back(f); }
-        while (*p && *p != ';') p++;
-        if (*p == ';') p++;
-      }
-  }
+  ACVR_FakeRead();
   if (s_acvrFake.empty()) return false;
   c = ACVRControllers();
   c.valid = true;
@@ -368,8 +449,9 @@ static bool ACVR_FakeControllers(ACVRControllers &c)
     if (ACVR_GetAimScreen(c, s))
     {
       const float su = s.g0[0] + aimU * (s.g1[0] - s.g0[0]), sv = s.g0[1] + aimV * (s.g1[1] - s.g0[1]);
-      float d[3];
-      for (int k = 0; k < 3; k++) d[k] = s.centre[k] + (su - 0.5f) * s.w * s.xaxis[k] - hand[k];
+      float d[3], from[3] = { hand[0], hand[1], hand[2] };
+      if (!g_acvrStereo.vr && ACVR_AimFromHead()) ACVR_AimHead(from);      // the ray starts at the head there
+      for (int k = 0; k < 3; k++) d[k] = s.centre[k] + (su - 0.5f) * s.w * s.xaxis[k] - from[k];
       d[1] += (0.5f - sv) * s.h;
       const float len = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
       if (len > 1e-4f)
@@ -431,19 +513,24 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
   if (!real && !ACVR_FakeControllers(c))
   {
     s_acvrChord.reset();              // no input (focus lost, thread stopped, stale): nothing stays pending or held
+    s_acvrRingView = acvr::HoldRingView();
+    if (s_acvrQuitAfterFlash.flush()) s_acvrQuit = true;   // a quit that has already fired goes now
     return;
   }
   // The stick clicks, resolved: wall clock for the headset; made-up controllers count frames, because unattended
   // runs are not in real time. Both clicks held for 3 s quit through the normal exit, which saves NVRAM.
   static bool quitCounting = false;
-  const acvr_chord::Output uc = s_acvrChord.step(real ? (std::uint64_t)SDL_GetTicks() : (std::uint64_t)(s_acvrFrame * 1000.0 / 57.5),
-                                                  c.stickClick[0], c.stickClick[1]);
+  const std::uint64_t ucNow = real ? (std::uint64_t)SDL_GetTicks() : (std::uint64_t)(s_acvrFrame * 1000.0 / 57.5);
+  const acvr_chord::Output uc = s_acvrChord.step(ucNow, c.stickClick[0], c.stickClick[1]);
+  // The ring follows the same count that quits: hidden for 1 s, filling to 3 s, one flash; gone when a click lets go
+  s_acvrRingView = s_acvrRing.update(ucNow, uc.bothHeld ? uc.quitProgress : 0.0f);
   if (uc.recentre) ACVR_XR_RequestRecentre();
   if (uc.bothHeld && !quitCounting) { quitCounting = true; printf("ACVR: both stick clicks down; quit in 3 seconds if held\n"); }
   else if (!uc.bothHeld) quitCounting = false;
-  if (uc.quit && !s_acvrQuit)
+  if (uc.quit) printf("ACVR: both stick clicks held for 3 seconds; quitting once the ring has flashed\n");
+  if (s_acvrQuitAfterFlash.update(ucNow, uc.quit) && !s_acvrQuit)
   {
-    printf("ACVR: both stick clicks held for 3 seconds; quitting\n");
+    printf("ACVR: quitting\n");
     s_acvrQuit = true;
   }
 
@@ -591,7 +678,8 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
       if (!s_acvrFake.empty() && ++logFrames >= 30)
       {
         logFrames = 0;
-        printf("ACVR aim: frame %ld u %.4f v %.4f -> AnalogJoyX %d AnalogJoyY %d\n", s_acvrFrame + 1, u, v, jx, jy);
+        printf("ACVR aim: frame %ld u %.4f v %.4f -> AnalogJoyX %d AnalogJoyY %d (arcade view %.4f %.4f %.4f %.4f)\n", s_acvrFrame + 1,
+               u, v, jx, jy, g_acvrStereo.tanL, g_acvrStereo.tanR, g_acvrStereo.tanB, g_acvrStereo.tanT);
       }
     }
     press("AnalogJoyTrigger", c.trigger[1] > 0.5f);
@@ -695,12 +783,14 @@ void ACVR_FrameBegin()
   ACVREyeView v[2];
   if (s_acvrVRFake)
   {
-    const float c = cosf(s_acvrFakeYaw), s = sinf(s_acvrFakeYaw);
+    float head[3] = { 0.0f, 0.0f, 0.0f }, fy = s_acvrFakeYaw;
+    if (s_acvrOriginSet) ACVR_FakeHead(head, fy);     // moved only after the recentre, which is at the origin
+    const float c = cosf(fy), s = sinf(fy);
     for (int i = 0; i < 2; i++)
     {
       const float x = (i == 0) ? -0.032f : 0.032f;
-      v[i].pos[0] = x * c; v[i].pos[1] = 0.0f; v[i].pos[2] = -x * s;
-      v[i].rot[0] = 0.0f; v[i].rot[1] = sinf(s_acvrFakeYaw * 0.5f); v[i].rot[2] = 0.0f; v[i].rot[3] = cosf(s_acvrFakeYaw * 0.5f);
+      v[i].pos[0] = head[0] + x * c; v[i].pos[1] = head[1]; v[i].pos[2] = head[2] - x * s;
+      v[i].rot[0] = 0.0f; v[i].rot[1] = sinf(fy * 0.5f); v[i].rot[2] = 0.0f; v[i].rot[3] = cosf(fy * 0.5f);
       v[i].tan[0] = -1.0f; v[i].tan[1] = 1.0f; v[i].tan[2] = -1.0f; v[i].tan[3] = 1.0f;
     }
   }
@@ -1176,15 +1266,31 @@ static void ACVR_DrawPointer(int eye)
   float from[3], hit[3];
   toPlayer(s_acvrAimFrom, from); toPlayer(s_acvrAimHit, hit);
   float dir[3] = { hit[0] - from[0], hit[1] - from[1], hit[2] - from[2] };
-  const float len = sqrtf(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+  float len = sqrtf(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
   if (!(len > 1e-3f)) return;
   for (int k = 0; k < 3; k++) dir[k] /= len;
+  // A far aim plane (the default): the dot is drawn 60 m out along the ray as seen from the head now, which is
+  // where the game's far crosshair lies, and kept the size it had at 1.6 m. The beam runs from the hand to it.
+  const float dotFar = 60.0f * u;
+  float dotScale = 1.0f;
+  if (len > dotFar)
+  {
+    float head[3], eyes[3];
+    for (int k = 0; k < 3; k++) eyes[k] = 0.5f * (s_acvrViews[0].pos[k] + s_acvrViews[1].pos[k]);
+    toPlayer(eyes, head);
+    for (int k = 0; k < 3; k++) hit[k] = head[k] + dir[k] * dotFar;
+    for (int k = 0; k < 3; k++) dir[k] = hit[k] - from[k];
+    len = sqrtf(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+    if (!(len > 1e-3f)) return;
+    for (int k = 0; k < 3; k++) dir[k] /= len;
+    dotScale = dotFar / (1.6f * u);
+  }
   float side[3] = { dir[2], 0.0f, -dir[0] };                   // up x dir
   float sl = sqrtf(side[0] * side[0] + side[2] * side[2]);
   if (sl < 1e-4f) { side[0] = 1.0f; side[2] = 0.0f; sl = 1.0f; }
   side[0] /= sl; side[2] /= sl;
   const float up2[3] = { dir[1] * side[2] - dir[2] * side[1], dir[2] * side[0] - dir[0] * side[2], dir[0] * side[1] - dir[1] * side[0] };
-  const float rb = 0.0015f * u, rd = 0.012f * u;               // beam and dot radius
+  const float rb = 0.0015f * u, rd = 0.012f * u * dotScale;    // beam and dot radius
   const float beam[16] = { side[0] * rb, side[1] * rb, side[2] * rb, 0, up2[0] * rb, up2[1] * rb, up2[2] * rb, 0,
                            dir[0] * len, dir[1] * len, dir[2] * len, 0, from[0], from[1], from[2], 1 };
   const float dot[16] = { rd, 0, 0, 0, 0, rd, 0, 0, 0, 0, rd, 0, hit[0], hit[1], hit[2], 1 };
@@ -1301,6 +1407,7 @@ void ACVR_StereoPresent()
   p.views[1] = s_acvrViews[1];
   p.originPos[0] = s_acvrOriginPos[0]; p.originPos[1] = s_acvrOriginPos[1]; p.originPos[2] = s_acvrOriginPos[2];
   p.originYaw = s_acvrOriginYaw;
+  p.ring = s_acvrRingView;
   ACVR_XR_Publish(p);
 }
 

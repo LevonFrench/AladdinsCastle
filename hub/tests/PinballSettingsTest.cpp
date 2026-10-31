@@ -2,6 +2,8 @@
 #include "core/pinball/Pinball.h"
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Roms.h"
+#include "core/pinball/Build.h"
+#include "core/launch/UniversalControls.h"
 #include "core/install/Support.h"
 #include <QtTest>
 #include <QDir>
@@ -122,6 +124,40 @@ private slots:
     const auto odd=ac::pinball::headsetControls("[Input]\r\nDevice.OpenXR.Element5 = 5;B;user_hand_left_input_thumbstick_click\r\nDevice.OpenXR.Element6 = 6;B;user_hand_right_input_thumbstick_click\r\n");
     QVERIFY(odd.contains("Mapping.Start = Key;30 | OpenXR;5\r\n"));QVERIFY(odd.contains("Mapping.VRControllerCalibration = OpenXR;5 & OpenXR;6\r\n"));
     QVERIFY(!QByteArray(odd).replace("\r\n","").contains('\n'));
+  }
+  // The patched AladdinsCastle VPX is told by its product version ending in "-acvr"; the program is never run.
+  void thePatchedBuildIsToldByItsProductVersion() {
+    QVERIFY(ac::pinball::isPatchedVersion("10.8.1.5436.af26b2d93-acvr"));
+    QVERIFY(ac::pinball::isPatchedVersion(" 10.8.1.5436.af26b2d93-ACVR "));
+    QVERIFY(!ac::pinball::isPatchedVersion("10.8.1.5436.af26b2d93"));
+    QVERIFY(!ac::pinball::isPatchedVersion("10.8.1.5436.acvr.af26b2d93"));
+    QVERIFY(!ac::pinball::isPatchedVersion({}));
+    QTemporaryDir folder;
+    QCOMPARE(ac::pinball::productVersion(folder.filePath("missing.exe")),QString());
+    ac::install::atomicWrite(folder.filePath("plain.exe"),"not a program");
+    QCOMPARE(ac::pinball::productVersion(folder.filePath("plain.exe")),QString());
+    QVERIFY(!ac::pinball::isPatchedBuild(folder.filePath("plain.exe")));
+#ifdef Q_OS_WIN
+    // A real version resource is read: Windows' own kernel32.dll has a product version and is not the patched VPX.
+    const auto kernel=QDir(qEnvironmentVariable("SystemRoot")).filePath("System32/kernel32.dll");
+    const auto version=ac::pinball::productVersion(kernel);
+    QVERIFY2(version.contains('.'),qPrintable(version));
+    QVERIFY(!ac::pinball::isPatchedBuild(kernel));
+#endif
+  }
+  // The Hub's pinball text follows the build: the standard build is left through the Hub panel and its table adjust
+  // toggles; the patched build quits on a 3 s hold and moves the table only while both clicks are held.
+  void thePinballTextFollowsTheBuild() {
+    const auto standard=ac::universal::pinballControls(false),patched=ac::universal::pinballControls(true);
+    QCOMPARE(ac::universal::pinballControls(),standard);
+    QVERIFY(standard.contains("click both sticks again to keep it there"));QVERIFY(standard.contains("Exit game"));
+    QVERIFY(standard.contains("only in the patched AladdinsCastle build"));
+    QVERIFY(patched.contains("let go to keep it"));QVERIFY(patched.contains("Hold both stick clicks for 3 seconds with your hands still = quit and save."));
+    QVERIFY(!patched.contains("standard"));
+    const auto plain=ac::pinball::launchGuidance(false).value("help").toString(),acvr=ac::pinball::launchGuidance(true).value("help").toString();
+    for(const auto &help:{plain,acvr}){QVERIFY(help.contains("normal settings"));QVERIFY(help.contains("scores"));QVERIFY(help.contains("Esc"));}
+    QVERIFY(plain.contains("only in the patched"));QVERIFY(acvr.contains("This is the patched AladdinsCastle build"));
+    QCOMPARE(ac::pinball::launchGuidance(true).value("patchedBuild").toBool(),true);
   }
   void aPlanWithoutAnOwnedFileWritesNothing() {
     QTemporaryDir folder;ac::pinball::writeVrSettings({{"args",QStringList{"-Play","x"}}});
