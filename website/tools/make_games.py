@@ -41,6 +41,9 @@ SYSTEMS = [
   'Moving menus and HUDs onto a screen in the room is still being tried; for three games the trials so far are rejected or inconclusive. Mario Kart Wii was wrong in its one headset run.'),
  ('gamecube', 'GameCube', '#f6c744', '1 game · 2 views', 'DolphinXR: real 3D with the HUD on a panel.', [('F-Zero GX', None, 'headset fix not yet seen')],
   'F-Zero GX did not get past its title screen in the headset on 22 October; a fix is in, not yet seen in the headset.'),
+ ('3ds', 'Nintendo 3DS', '#ff4fa8', '2 games · 4 views', 'acvr-ps1 with the Azahar core: both eyes drawn by the game, shown in stereo on a big screen in the room.',
+  ['Star Fox 64 3D', 'Mario Kart 7'],
+  'Each has a Theatre screen view and an Eyes swapped view for checking depth. The bottom screen can be a touch panel, off by default. Both are offline proofs only and have never been in a headset. You supply your own game dump and the Azahar core.'),
 ]
 
 

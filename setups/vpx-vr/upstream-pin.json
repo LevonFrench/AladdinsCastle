@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/vpinball/vpinball",
+  "tag": "v10.8.1-5436-af26b2d93",
+  "source_commit": "af26b2d9392b4c9ec3e3edff4bbd69562085a44c",
+  "version": "10.8.1",
+  "revision": 5436,
+  "matches": "The owner's VPinballX_BGFX64.exe reports FileVersion 10.8.1.5436 and ProductVersion 10.8.1.5436.af26b2d93 (read from its version information only; the program was not run). The tag above names that same commit.",
+  "licence": "GPL-3.0-or-later for the files this patch touches (each starts with // license:GPLv3+); the rest of VPX is under its LICENSE file",
+  "build": "Windows x64, BGFX renderer, Release, Visual Studio 2026 (the configuration of the owner's VPinballX_BGFX64.exe). OpenXR is only built into the Windows BGFX program.",
+  "checked_on": "2026-10-26"
+}

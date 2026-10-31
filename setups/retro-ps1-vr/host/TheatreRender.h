@@ -6,6 +6,7 @@
 #pragma once
 #include "WinGL.h"
 #include "MiniJson.h"
+#include "../../../libacvr/src/hold_ring_gl.hpp"   // the shared U4 hold ring (libacvr), drawn with scissored clears
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -379,7 +380,7 @@ struct EyeScene {
   ScreenGeometry screen;
   bool showGun = false; Mat4 gunRoot = Mat4::Identity(); float trigger = 0; float recoil = 0;   // slide travel 0..1
   bool showDot = false; float dotU = .5f, dotV = .5f;
-  float quitProgress = 0;   // the two-stick-click quit hold, 0..1 of 3 s: a ring of dots fills in the middle of the screen once it passes the recentre second
+  acvr::HoldRingView holdRing;   // the two-stick-click quit hold (U4): a ring in the middle of the screen, from 1 s, full and flashing at 3 s (libacvr hold_ring.hpp)
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
   float v0 = 0, vh = 1;   // and its rows (a letterboxed picture)
@@ -500,20 +501,19 @@ public:
     }
     if (s.showDot) drawDot(s.screen, s.screen.frame, s.dotU, s.dotV, vp, encode);
     if (s.touch && s.touchDot) drawDot(s.touchPanel, s.touchPanel.frame, s.touchDotU, s.touchDotV, vp, encode);
-    if (s.quitProgress > .33f) {   // quit countdown: twelve dots round the middle of the screen, one more every 0.25 s from 1 s to 3 s, then all lit
-      const int lit = std::min(12, (int)std::ceil(s.quitProgress * 12.f));
-      const float ringR = s.screen.height * .12f, white[4] = { 1.f, 1.f, 1.f, 1 };
-      for (int i = 0; i < lit; ++i) {
-        const float a = i * 6.2831853f / 12 - 1.5707963f;
-        drawDot(s.screen, s.screen.frame, .5f + ringR / s.screen.width * std::cos(a), .5f + ringR / s.screen.height * std::sin(a), vp, encode, 1.6f, white);
-      }
-    }
     if (s.showGun && m_gun && m_gun->loaded()) {
       const Mat4 eyeWorld = view.RigidInverse(); const float eye[3] = { eyeWorld.m[12], eyeWorld.m[13], eyeWorld.m[14] };
       // The light sits at (0.36, 0.70, 0.62) in the viewer's space (runtime-lighting.json), so it is turned into world space for this eye.
       const float lv[3] = { .36f, .70f, .62f }; const float ln = std::sqrt(lv[0] * lv[0] + lv[1] * lv[1] + lv[2] * lv[2]);
       float lightWorld[3]; for (int c = 0; c < 3; ++c) lightWorld[c] = (view.m[c * 4] * lv[0] + view.m[c * 4 + 1] * lv[1] + view.m[c * 4 + 2] * lv[2]) / ln;
       m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil, eye, lightWorld);
+    }
+    if (s.holdRing.visible) {   // drawn last, over everything, at the screen's depth so both eyes see it with the right parallax
+      const float ringR = s.screen.height * .12f;
+      const auto c = s.screen.local(.5f, .5f), e = s.screen.local(.5f + ringR / s.screen.width, .5f);
+      const Mat4 mvp = vp * s.screen.frame;
+      const auto at = acvr::place_hold_ring(mvp.m.data(), c.data(), e.data(), w, h);
+      if (at.ok) acvr::draw_hold_ring_gl(s.holdRing, at.cx, at.cy, at.radius, w, h);
     }
     tgl::BindVertexArray(0); tgl::UseProgram(0);
   }

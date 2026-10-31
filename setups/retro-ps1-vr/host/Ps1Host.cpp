@@ -789,7 +789,7 @@ void Usage()
     "         [--gun guncon|justifier|lightgun|stunner] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
     "         [--profile <file.toml> [--view <name>]] [--print-config]\n"
-    "         [--theatre-proof <prefix> --test-aim U V | --test-touch U V] [--state <saved state to start from>]\n"
+    "         [--theatre-proof <prefix> --test-aim U V | --test-touch U V] [--test-hold P: draw the U4 hold ring at progress P, 0.33 to 1, above 1 settled] [--state <saved state to start from>]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
     "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift),\n"
@@ -808,7 +808,7 @@ int main(int argc, char **argv)
 {
   std::string game, gunName = "guncon", script, snapshots, logPath, profileNote;
   unsigned frames = 0, seconds = 0; bool headless = false, noXr = false, mute = false, testAim = false;
-  float testU = .5f, testV = .5f; bool testPanel = false; std::string theatreProof, startState, profilePath, viewName;
+  float testU = .5f, testV = .5f, testHold = 0; bool testPanel = false; std::string theatreProof, startState, profilePath, viewName;
   bool printConfig = false, controlsGiven = false, gunGiven = false, portGiven = false;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
@@ -834,6 +834,7 @@ int main(int argc, char **argv)
     else if (a == "--state") startState = next();
     else if (a == "--test-aim") { testAim = true; testU = (float)std::atof(next().c_str()); testV = (float)std::atof(next().c_str()); }
     else if (a == "--test-touch") { testPanel = true; testU = (float)std::atof(next().c_str()); testV = (float)std::atof(next().c_str()); }   // the proof's hand aims at the 3DS panel
+    else if (a == "--test-hold") testHold = (float)std::atof(next().c_str());   // the proof draws the U4 hold ring at this progress
     else if (a == "--frames") frames = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
     else if (a == "--script") script = next();
     else if (a == "--snapshots") snapshots = next();
@@ -998,7 +999,7 @@ int main(int argc, char **argv)
   Log("Universal controls: left stick click Start, right stick click Select, both clicks recentre, both held 3 s quit and save (no menu button is read)");
   if (const char *aim = std::getenv("ACVR_PS1_AIM")) if (*aim) Log("Aim trim (x scale, x shift, y scale, y shift): %s", aim);
   CleanQuit quit;
-  bool quitCounting = false;
+  bool quitCounting = false; ULONGLONG quitFiredAt = 0;
   timeBeginPeriod(1);   // 1 ms sleeps, so pacing and audio refill are not 15 ms steps
   const double frameMs = 1000.0 / (g_av.timing.fps > 1 ? g_av.timing.fps : 60.0);
   LARGE_INTEGER freq, t0; QueryPerformanceFrequency(&freq); QueryPerformanceCounter(&t0);
@@ -1019,7 +1020,11 @@ int main(int argc, char **argv)
       // The universal quit (both stick clicks held 3 s) is resolved in the presenter. Logged, so a quit that does not
       // happen can be told apart from a hold that never arrived.
       if ((controller.quitProgress > .33f) != quitCounting) { quitCounting = controller.quitProgress > .33f; Log(quitCounting ? "Both stick clicks down (hold to 3 s to quit and save)" : "Stick clicks released"); }
-      if (controller.quitFired) { Log("Clean quit: both stick clicks held for 3 s"); break; }
+      // The quit waits 0.7 s so the headset shows the hold ring flashing once; the game keeps running meanwhile.
+      if (controller.quitFired) {
+        if (!quitFiredAt) { quitFiredAt = now; Log("Both stick clicks held for 3 s: quit and save after the ring has flashed"); }
+        if (now - quitFiredAt >= 700) { Log("Clean quit: both stick clicks held for 3 s"); break; }
+      }
       if (GetAsyncKeyState(VK_ESCAPE) & 1) quit.request(CleanQuit::Reason::escape);
       if (seconds && now - startedAt >= seconds * 1000ull) quit.request(CleanQuit::Reason::time_limit);
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
@@ -1170,7 +1175,7 @@ int main(int argc, char **argv)
     else {
       std::string note;
       const bool hud = !g_hudFrame.empty() && g_hudFrame.size() == (std::size_t)g_hwW * g_hwH;
-      auto proofConfig = TheatreConfig(); proofConfig.proofAtPanel = testPanel;
+      auto proofConfig = TheatreConfig(); proofConfig.proofAtPanel = testPanel; proofConfig.proofHold = testHold;
       const bool ok = theatre::RenderProof(proofConfig, g_frame.data(), g_frameW, g_frameH, testU, testV, theatreProof, note,
                                            hud ? g_hudFrame.data() : nullptr, hud ? g_hwW : 0, hud ? g_hwH : 0);
       Log("Theatre proof %s-left.png / -right.png: %s (%s)", theatreProof.c_str(), ok ? "written" : "FAILED", note.c_str());

@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import AladdinsCastle.Hub
 // The SteamVR panel's library, after Steam's: one slim bar of system tabs, search and filter, then one
 // grid of every game that scrolls as a single surface. A tile opens the game's own page.
-// The stick scrolls whole rows (PanelScroller); B steps back one level (handleBack, called by HubRoot).
+// The stick glides it and it rests on rows (PanelScroller); Back or B steps back one level (handleBack, called by HubRoot).
 FocusScope {
  id:page
  objectName:"panelLibrary"
@@ -88,6 +88,8 @@ FocusScope {
   if(filtered||searchOpen){tab="all";query="";readyOnly=false;searchOpen=false;currentIndex=0;scroller.scrollToRow(0);page.forceActiveFocus();return true}
   return false
  }
+ // Home: every level closed, the whole grid from its top.
+ function goHome(){filterMenu.close();selectedId="";tab="all";query="";readyOnly=false;searchOpen=false;currentIndex=0;scroller.scrollToRow(0);page.forceActiveFocus()}
  function openAt(i){const row=shown[i];if(!row||!row.id)return;currentIndex=i;selectedId=row.id}
  function chooseTab(id){if(id==="pinball"){page.pinballRequested();return}tab=id;currentIndex=0;scroller.scrollToRow(0)}
  onTabChanged:Qt.callLater(()=>{for(const child of tabRow.children)if(child.objectName==="panelTab-"+tab){tabStrip.contentX=Math.max(0,Math.min(tabStrip.contentWidth-tabStrip.width,child.x-40));return}})
@@ -143,7 +145,7 @@ FocusScope {
    leftMargin:page.side;rightMargin:page.side;topMargin:18;bottomMargin:24
    cellWidth:(width-2*page.side)/columns;cellHeight:Math.round(tileWidth*9/16)+20
    clip:true;model:page.shown;cacheBuffer:cellHeight*2
-   // The stick moves it, a row at a time (the wheel catcher above); dragging the bar moves it too.
+   // The stick moves it (the wheel catcher below); dragging the bar moves it too.
    interactive:false;keyNavigationEnabled:false;boundsBehavior:Flickable.StopAtBounds
    ScrollBar.vertical:ScrollBar {objectName:"panelScrollBar";width:18;policy:grid.contentHeight>grid.height?ScrollBar.AlwaysOn:ScrollBar.AlwaysOff}
    delegate:Item {
@@ -168,7 +170,7 @@ FocusScope {
   Column {
    anchors.centerIn:grid;spacing:16;visible:page.shown.length===0;width:Math.min(parent.width-80,640)
    UiText {objectName:"panelEmpty";width:parent.width;horizontalAlignment:Text.AlignHCenter;font.pixelSize:22;color:Theme.get("color.text.muted")
-    text:page.rows.length===0?"No games set up on this PC yet. Add your systems in Set-up.":"No games match. Press B to show every game."}
+    text:page.rows.length===0?"No games set up on this PC yet. Add your systems in Set-up.":"No games match. Press Back to show every game."}
    PillButton {anchors.horizontalCenter:parent.horizontalCenter;visible:page.rows.length===0;vrOverlayMode:page.vrOverlayMode;neon:true;accent:page.readyColour;text:"Set-up";onClicked:page.setupRequested()}
   }
  }

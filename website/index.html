@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AC VR Hub</title>
-<meta name="description" content="AC VR Hub is one front door for arcade and console light gun and racing games in VR: a desktop window that is also a SteamVR dashboard panel. 143 games across 12 systems, with the project's own gun and control models.">
+<meta name="description" content="AC VR Hub is one front door for arcade and console light gun and racing games in VR: a desktop window that is also a SteamVR dashboard panel. 146 games across 13 systems, with the project's own gun and control models.">
 <meta name="theme-color" content="#120c1f">
 <link rel="icon" href="token.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/PressStart2P-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/CinzelDecorative-Black.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/SpaceGrotesk-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261026a">
+<link rel="stylesheet" href="style.css?v=20261027a">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
@@ -18,7 +18,7 @@
 } }
 </script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" crossorigin>
-<link rel="modulepreload" href="arcade.js?v=20261026a">
+<link rel="modulepreload" href="arcade.js?v=20261027a">
 <script src="music.js?v=20261026a" defer></script>
 </head>
 <body>
@@ -75,9 +75,9 @@
         <p class="scroll-hint"><span class="blink">▼</span> Scroll to walk in</p>
       </div>
       <div class="grid grid-4 stats">
-        <div class="panel stat reveal"><b>143</b><span>games in the Hub library</span></div>
-        <div class="panel stat reveal"><b>279</b><span>ways to play them (views)</span></div>
-        <div class="panel stat reveal"><b>12</b><span>systems, from Model 3 to Wii</span></div>
+        <div class="panel stat reveal"><b>146</b><span>games in the Hub library</span></div>
+        <div class="panel stat reveal"><b>285</b><span>ways to play them (views)</span></div>
+        <div class="panel stat reveal"><b>13</b><span>systems, from Model 3 to the 3DS</span></div>
         <div class="panel stat reveal"><b>3</b><span>accepted in the headset so far</span></div>
       </div>
     </div>
@@ -102,7 +102,7 @@
         </article>
         <article class="panel reveal">
           <h3>Rules from real headset sessions</h3>
-          <p>Game controls stay off the left Menu and the right headset button, since SteamVR and the headset own them; the left Menu opens the SteamVR dashboard, where the Hub panel is. Every game uses the same stick clicks: Left stick click = Start. Right stick click = Select or Coin. Click both sticks together = put the screen in front of you again. Hold both stick clicks for 3 seconds = quit and save. Exit game in the Hub panel also ends the game cleanly (not yet checked in the headset).</p>
+          <p>Game controls stay off the left Menu and the right headset button, since SteamVR and the headset own them; the left Menu opens the SteamVR dashboard, where the Hub panel is. Every game uses the same stick clicks: Left stick click = Start. Right stick click = Select or Coin. Click both sticks together = put the screen in front of you again. Hold both stick clicks for 3 seconds = quit and save. Exit game in the Hub panel also ends the game cleanly. None of these controls has been tried in the headset yet.</p>
         </article>
         <article class="panel reveal">
           <h3>Four ways to see a game</h3>
@@ -118,7 +118,7 @@
   </section>
 
   <!-- 2 · gun models -->
-  <section class="stop" id="stop-2" data-stop="2" data-side="right">
+  <section class="stop" id="stop-2" data-stop="2" data-side="left">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Gun models</p>
@@ -156,7 +156,7 @@
   </section>
 
   <!-- 3 · ghost controls -->
-  <section class="stop" id="stop-3" data-stop="3" data-side="left">
+  <section class="stop" id="stop-3" data-stop="3" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Sit-down racers</p>
@@ -172,7 +172,7 @@
   </section>
 
   <!-- 4 · arcade boards -->
-  <section class="stop" id="stop-4" data-stop="4" data-side="right">
+  <section class="stop" id="stop-4" data-stop="4" data-side="left">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Arcade boards</p>
@@ -206,6 +206,7 @@
         <article class="panel sys reveal"><h3>Nintendo Wii</h3><span class="route">DolphinXR · 20 games, 28 views</span><p>Real 3D or a screen in the room, with the pointer or motion controls. All 20 games load a saved starting point, which proves a state loads, not that a game plays; no game has a complete pass yet. Mario Kart Wii was wrong in its one headset run.</p><span class="state wip">E2 · offline only</span></article>
         <article class="panel sys reveal"><h3>Dreamcast</h3><span class="route">Flycast, patched · 5 games, 7 views</span><p>Real 3D and open frame. Confidential Mission was rebuilt after headset issues; Death Crimson OX and 2 and Virtua Cop 2 are still early.</p><span class="state wip">E2 · three games E1</span></article>
         <article class="panel sys reveal"><h3>Saturn and GameCube</h3><span class="route">Beetle Saturn · 5 games · DolphinXR · F-Zero GX</span><p>Saturn on the big screen with its gun. F-Zero GX in real 3D with the HUD on a panel did not get past its title screen in the headset; the fix has not been seen since.</p><span class="state wip">E2 · F-Zero GX fix unseen</span></article>
+        <article class="panel sys reveal"><h3>Nintendo 3DS</h3><span class="route">acvr-ps1 with the Azahar core · 2 games, 4 views</span><p>The 3DS draws a picture for each eye, and the Hub shows its top screen in stereo on a big screen. Star Fox 64 3D and Mario Kart 7 start from the Hub. The bottom screen can be a touch panel, off by default. Never tried in a headset.</p><span class="state wip">E2 · offline proof</span></article>
       </div>
     </div>
   </section>
@@ -237,13 +238,16 @@
       <div class="grid">
         <article class="panel reveal"><h3>The SteamVR panel</h3><p>A Steam-like grid of system tabs with a game page, a large on-panel Back button and guards against double presses on Play.</p></article>
         <article class="panel reveal"><h3>Your library, read in place</h3><p>The Hub finds your games up to six folders deep without moving or copying anything. Artwork is fetched only when you ask, per game or per system.</p></article>
+        <article class="panel reveal"><h3>Set-up that guides you</h3><p>The steps come in order, and each system shows one status and one next thing to do. The Hub only reads your folders. It lists files it did not recognise with a plain reason, groups duplicate discs and suggests folders to try.</p></article>
+        <article class="panel reveal"><h3>Titles match loosely, discs do not</h3><p>Accents, roman numerals, "&amp;" and small typos no longer stop artwork or search from finding a game. A file name never decides which disc it is: that comes from the disc itself.</p></article>
+        <article class="panel reveal"><h3>Updates and problem reports</h3><p>One button asks GitHub's public release list if a newer emulator exists, and installs nothing. Another saves a ZIP of the logs with your folder names, account name and keys taken out, so you can look it over before you send it.</p></article>
         <article class="panel reveal"><h3>Nothing left running</h3><p>When a game ends, a watchdog ends the helper programs it started and never touches anything else on your PC. Games can also appear in your Steam library.</p></article>
       </div>
     </div>
   </section>
 
   <!-- 8 · where it stands -->
-  <section class="stop stop-last" id="stop-8" data-stop="8" data-side="right">
+  <section class="stop stop-last" id="stop-8" data-stop="8" data-side="left">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Scoreboard</p>
@@ -257,7 +261,7 @@
         </article>
         <article class="panel reveal">
           <h3>Still open</h3>
-          <ul class="ticks"><li>Headset verdicts for most games, the new gun shapes and the new hand pose</li><li>Wii: a complete game pass, steady frame pacing in the headset, and Metroid Prime Trilogy without clipping</li><li>Controls for PS2 games that use no gun</li><li>Universal stick-click controls (Start, Select or Coin, recentre, quit): changed, not yet checked in the headset</li><li>Easier system switching in the Hub, and one layout for desk and headset</li><li>A first tester release (0.01): not published yet</li></ul>
+          <ul class="ticks"><li>Headset verdicts for most games, the new gun shapes and the new hand pose</li><li>Wii: a complete game pass, steady frame pacing in the headset, and Metroid Prime Trilogy without clipping</li><li>Controls for PS2 games that use no gun</li><li>Universal stick-click controls (Start, Select or Coin, recentre, quit): changed, not yet checked in the headset</li><li>Nintendo 3DS games and the new Set-up, update check and problem report: built and tested offline, never used in the headset or on a clean PC</li><li>Easier system switching in the Hub, and one layout for desk and headset</li><li>A first tester release (0.01): not published yet</li></ul>
         </article>
       </div>
       <div class="panel log reveal">
@@ -286,7 +290,7 @@
 
 <noscript><p class="noscript">The walk-through needs JavaScript and WebGL. Everything above is still here to read.</p></noscript>
 <script src="page.js?v=20261023d" defer></script>
-<script type="module" src="arcade.js?v=20261026a"></script>
+<script type="module" src="arcade.js?v=20261027a"></script>
 <script type="module" src="bench.js?v=20261026a"></script>
 </body>
 </html>

@@ -131,6 +131,15 @@ replays the expressions through a small model of Dolphin's `hold()`/`pulse()` (C
   SteamVR-launched process ends. `Dolphin.ini [Interface] ConfirmStop = False` is required
   (`templates/Dolphin.ini`), otherwise Exit pauses on a "Do you want to stop" message box that
   nobody can press in the headset. No save state is written.
+- **Older user folders**: the install recipes and the sitting tool only seed `Hotkeys.ini` and
+  `ConfirmStop` into a fresh folder. `reseed_controls.py [--apply] USER_DIR...` (dry run by default)
+  merges the missing keys into an existing folder: the recentre and Exit hotkeys (a user's own binding
+  stays and the chord is OR-ed in; the old 250 ms pair window is upgraded to 150 ms),
+  `[Interface] ConfirmStop = False`, and `[General] HotkeysRequireFocus = False` only when unset. It
+  never opens GameSettings, GCPadNew.ini or WiimoteNew.ini, and copies a changed file once to
+  `<name>.before-universal-controls`. The Hub runs the same merge (`wii::refreshUniversalControls`)
+  on the build's `User` folder each time it starts a Wii game. Tests: `test_reseed_controls.py`
+  and `hub/tests/WiiTest.cpp`.
 - **Remote 2** moved from the right stick click to a tap of left Y; **Home** stays the 0.5 s hold of left Y.
   Wheel and Sideways sets keep their own 2 (right trigger, right A).
 - **Motion**: pointer is the right controller's aim ray, the Nunchuk is the left stick, and shake,

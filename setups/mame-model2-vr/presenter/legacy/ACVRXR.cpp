@@ -26,9 +26,11 @@
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <windows.h>
 #include "WinGL.h"
+#include "../../../../libacvr/src/hold_ring_gl.hpp"   // the shared U4 hold ring (libacvr)
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdarg>
@@ -55,6 +57,9 @@ namespace
   ACVRControllerInput s_input;
   acvr_chord::Resolver s_chord;                // the universal stick-click layer, on the XR thread only
   std::atomic<bool> s_recentreRequest{false};  // both stick clicks: the next frame puts the screen in front of the player again
+  acvr::HoldRing s_ring;                       // U4 hold ring: resolved on the XR thread, burned into the eye pictures as they are copied
+  acvr::HoldRingView s_ringView;
+  bool s_ringDrawn=false;
   ULONGLONG s_inputTime = 0;
   TextureHandoff s_pair;
   Host_Window *s_ownerWindow=nullptr;
@@ -255,6 +260,7 @@ namespace
       input.start=input.start || clicks.start;
       input.coin=input.coin || clicks.select;
       input.quitHeld=clicks.bothHeld;   // the viewer's CleanQuit counts the 3 seconds
+      s_ringView=s_ring.update(GetTickCount64(),clicks.bothHeld?clicks.quitProgress:0.f);
       if(clicks.recentre) s_recentreRequest=true;
       XrSpaceLocation pose = { XR_TYPE_SPACE_LOCATION };
       const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
@@ -271,7 +277,7 @@ namespace
         input.u=hit.u; input.v=hit.v; input.offScreen=!hit.on_screen;
         input.trigger=triggerOK && trigger.isActive && trigger.currentState>=.55f;
       }
-    } else s_chord.reset();   // no input focus: nothing stays pending or held
+    } else { s_chord.reset(); s_ringView=s_ring.update(GetTickCount64(),0.f); }   // no input focus: nothing stays pending or held
     DispatchHaptics(input.active);
     std::lock_guard<std::mutex> guard(s_inputMutex); s_input=input; s_inputTime=GetTickCount64();
   }
@@ -405,7 +411,9 @@ namespace
     const auto info=s_pair.peek();
     if(!info.serial || s_stop) return false;
     if(!EnsureChains(info.w,info.h)) return false;
-    if(shownSerial==info.serial) return true;
+    // A picture already shown is copied again while the hold ring is up (it animates) and once more when it goes (to clean it off).
+    const acvr::HoldRingView ring=s_ringView;
+    if(shownSerial==info.serial && !ring.visible && !s_ringDrawn) return true;
     // Runtime waits hold NO publication lock. Preserve acquired images across
     // timeout retries; never release an image whose wait has not succeeded.
     for(int eye=0;eye<2;++eye) {
@@ -426,7 +434,11 @@ namespace
     if(s_stop) return false;
     const GLuint destination[]={s_images[0][s_imageIndex[0]].image,s_images[1][s_imageIndex[1]].image};
     std::uint64_t copied=0;
-    const bool complete=CopyPair(destination,info.w,info.h,copied);
+    const bool complete=CopyPair(destination,info.w,info.h,copied,[&](int) {
+      // The draw framebuffer holds this eye's finished picture: the ring goes over its middle.
+      if(ring.visible) acvr::draw_hold_ring_gl(ring,float(info.w)*.5f,float(info.h)*.5f,float(std::min(info.w,info.h))*.12f,int(info.w),int(info.h));
+    });
+    if(complete) s_ringDrawn=ring.visible;
     // A resize before CopyPair takes ownership declines this frame atomically.
     // Both images have completed their waits and may now be released safely.
     bool released=true;
@@ -456,7 +468,7 @@ namespace
     if(s_instance && p_xrDestroyInstance) p_xrDestroyInstance(s_instance);
     s_aimSpace=s_viewSpace=s_space=XR_NULL_HANDLE;
     s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_instance=XR_NULL_HANDLE;
-    s_aim=s_trigger=s_start=s_coin=s_haptic=s_clickL=s_clickR=XR_NULL_HANDLE; s_chord.reset(); s_recentreRequest=false;
+    s_aim=s_trigger=s_start=s_coin=s_haptic=s_clickL=s_clickR=XR_NULL_HANDLE; s_chord.reset(); s_recentreRequest=false; s_ring.reset(); s_ringView={}; s_ringDrawn=false;
     s_system=XR_NULL_SYSTEM_ID; s_right=s_left=XR_NULL_PATH; s_format=0;
     s_quadPose={}; s_poseSet=false;
     glDeleteFramebuffers(1,&s_readFbo); glDeleteFramebuffers(1,&s_drawFbo);

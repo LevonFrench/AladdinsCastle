@@ -69,8 +69,13 @@ download-to-first-game route to recommend yet.
 
 ## Reporting a problem
 
-Keep settings and logs private. Redact local paths and game-library details
-before you send anything. The logs are in `user/logs/`.
+In the Hub, open **Settings** (or the help panel) and choose **Save a problem
+report**. It writes one ZIP of the Hub's logs and the last game's log, with your
+folder names, account name, emails and keys taken out. No game files or saves go
+in. **Open the reports folder** shows where it is. Open the ZIP and look through
+it before you send it; the redaction is checked by tests but is not perfect (a
+folder name with spaces and no file extension at the very end of a line can stay).
+Settings and the raw logs in `user/logs/` stay private.
 
 ## Limits of this guide
 
