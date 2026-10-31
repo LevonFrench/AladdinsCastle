@@ -1,0 +1,256 @@
+name: Emulator compile check
+# Compiles each patched emulator from its pinned upstream commit, so a patch that applies but does not build fails here.
+# No game content, no BIOS, no VR runtime: nothing is run, only compiled and linked. Sources are fetched from GitHub at the pinned commit.
+on:
+  push:
+    paths:
+      - 'setups/supermodel-vr/**'
+      - 'setups/flycast-hotd2-vr/**'
+      - '.github/workflows/emulator-compile.yml'
+  pull_request:
+    paths:
+      - 'setups/supermodel-vr/**'
+      - 'setups/flycast-hotd2-vr/**'
+      - '.github/workflows/emulator-compile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supermodel:
+    name: supermodel-vr (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/supermodel-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit = pin['repository'], pin['source_commit']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or not repo.startswith('https://github.com/'):
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n')
+
+      - name: Fetch the pinned upstream commit (no history)
+        shell: bash
+        run: |
+          git init upstream
+          cd upstream
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+
+      - name: Fetch pinned OpenXR headers (headers only, SHA-256 checked)
+        shell: python
+        timeout-minutes: 5
+        run: |
+          # Version and per-file hashes come from the Supermodel pin; the tag is derived from the version.
+          import hashlib, json, pathlib, time, urllib.request
+          pin = json.loads(pathlib.Path('repo/setups/supermodel-vr/upstream-pin.json').read_text(encoding='utf-8'))['openxr_header_pin']
+          tag = 'release-' + pin['version']
+          target = pathlib.Path('upstream/Libraries/openxr/include/openxr')
+          target.mkdir(parents=True, exist_ok=True)
+          for name, expected in sorted(pin['sha256'].items()):
+              url = f'https://raw.githubusercontent.com/KhronosGroup/OpenXR-SDK/{tag}/include/openxr/{name}'
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(url, timeout=60) as response:
+                          data = response.read()
+                      break
+                  except OSError:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+              # The pin hashed openxr_platform_defines.h with CRLF line endings; upstream ships LF. Accept either form of the same text.
+              digest = hashlib.sha256(data).hexdigest()
+              if expected not in (digest, hashlib.sha256(data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')).hexdigest()):
+                  raise SystemExit(f'{name} from {tag} has SHA-256 {digest}, expected {expected}')
+              (target / name).write_bytes(data)
+          print(f'Fetched {len(pin["sha256"])} OpenXR {pin["version"]} headers into {target}')
+
+      # Windows only: Supermodel's own Libraries\Get_*.cmd download these three source trees; the same release tags are
+      # fetched here and each is checked against the version-header hash in the pin. The zips are cached.
+      - name: Restore library source cache
+        if: runner.os == 'Windows'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: libzips
+          key: supermodel-libs-${{ hashFiles('repo/setups/supermodel-vr/upstream-pin.json') }}
+      - name: Fetch pinned SDL2, SDL2_net and zlib sources (hash checked)
+        if: runner.os == 'Windows'
+        shell: python
+        timeout-minutes: 5
+        run: |
+          import hashlib, json, pathlib, shutil, time, urllib.request, zipfile
+          libs = json.loads(pathlib.Path('repo/setups/supermodel-vr/upstream-pin.json').read_text(encoding='utf-8'))['libraries']
+          cache = pathlib.Path('libzips'); cache.mkdir(exist_ok=True)
+          dest_root = pathlib.Path('upstream/Libraries')
+          for name, lib in sorted(libs.items()):
+              folder = pathlib.PurePosixPath(lib['version_header']).parts[1]      # e.g. SDL2-2.30.11
+              source = lib['source']
+              assert '/tree/' in source and source.startswith('https://github.com/'), source
+              url = source.replace('/tree/', '/archive/refs/tags/') + '.zip'
+              zpath = cache / (folder + '.zip')
+              if not zpath.exists():
+                  for attempt in range(3):
+                      try:
+                          with urllib.request.urlopen(url, timeout=120) as response:
+                              zpath.write_bytes(response.read())
+                          break
+                      except OSError:
+                          if attempt == 2:
+                              raise
+                          time.sleep(5)
+              tmp = pathlib.Path('libtmp') / folder
+              shutil.rmtree(tmp, ignore_errors=True)
+              with zipfile.ZipFile(zpath) as archive:
+                  archive.extractall(tmp)
+              (top,) = list(tmp.iterdir())
+              target = dest_root / folder
+              shutil.rmtree(target, ignore_errors=True)
+              shutil.move(str(top), str(target))
+              header = target.joinpath(*pathlib.PurePosixPath(lib['version_header']).parts[2:]).read_bytes()
+              lf = header.replace(bytes([13, 10]), bytes([10]))
+              ok = {lib['version_header_sha256']}
+              crlf = lf.replace(bytes([10]), bytes([13, 10]))
+              if not ({hashlib.sha256(lf).hexdigest(), hashlib.sha256(crlf).hexdigest()} & ok):
+                  raise SystemExit(f'{name}: version header hash differs from the pin')
+              print(f'{name} {lib["version"]} ready in {target}')
+
+      - name: Apply the VR patch
+        shell: bash
+        working-directory: upstream
+        run: |
+          python "$GITHUB_WORKSPACE/repo/setups/supermodel-vr/patch/apply_acvr.py" | tee apply.log
+          grep -qx 'acvr applied' apply.log
+          rm apply.log
+          git status --short
+
+      # Windows: the project's own Visual Studio solution, Release x64. The pin records toolset v145 (Visual Studio 2026);
+      # this runner has Visual Studio 2022, so the toolset is set to v143 on the command line. SDL2, SDL2_net and zlib are
+      # built from the sources that ship inside the Supermodel tree.
+      - name: Set up MSVC 2022 x64
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      - name: Compile the patched solution (MSVC, Release x64)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: upstream
+        run: |
+          msbuild MSVC/Supermodel.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /v:minimal /nologo
+          if ($LASTEXITCODE -ne 0) { throw "msbuild exit $LASTEXITCODE" }
+          $exe = Get-ChildItem -Recurse -Filter Supermodel.exe -Path MSVC | Select-Object -First 1
+          if (-not $exe) { throw 'Supermodel.exe was not produced' }
+          # The presenter is the Windows-only part of the patch; make sure it really was compiled.
+          $obj = Get-ChildItem -Recurse -Filter ACVRXR.obj -Path MSVC | Select-Object -First 1
+          if (-not $obj) { throw 'ACVRXR.obj was not produced: the presenter was not compiled' }
+          Write-Host "Built $($exe.FullName) ($([math]::Round($exe.Length / 1MB, 1)) MB) and $($obj.Name)"
+
+      # Linux: the project's own Makefile. The presenter (ACVRXR.cpp) is Windows-only and compiles to stubs here; the
+      # Makefile does not list the new file, so it is added for this check.
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        timeout-minutes: 20
+        run: |
+          # Bounded and retried: a stalled mirror is cut off after 9 minutes and tried once more.
+          for attempt in 1 2; do
+            if sudo timeout 120 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update &&
+               sudo timeout 420 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends libsdl2-dev libsdl2-net-dev libglu1-mesa-dev zlib1g-dev ccache; then
+              exit 0
+            fi
+            echo "apt attempt $attempt failed"
+          done
+          exit 1
+      - name: Restore compiler cache
+        if: runner.os == 'Linux'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.ccache
+          key: supermodel-ccache-${{ env.UPSTREAM_COMMIT }}-${{ hashFiles('repo/setups/supermodel-vr/patch/**') }}
+          restore-keys: supermodel-ccache-${{ env.UPSTREAM_COMMIT }}-
+      - name: Compile the patched source (g++, Makefile.UNIX)
+        if: runner.os == 'Linux'
+        working-directory: upstream
+        run: |
+          grep -q '^	Src/OSD/SDL/Main.cpp \\$' Makefiles/Rules.inc
+          sed -i 's#^\tSrc/OSD/SDL/Main.cpp \\$#&\n\tSrc/OSD/SDL/ACVRXR.cpp \\#' Makefiles/Rules.inc
+          grep -q 'ACVRXR.cpp' Makefiles/Rules.inc
+          make -f Makefiles/Makefile.UNIX release -j"$(nproc)" OPT=-O1 CC="ccache gcc" CXX="ccache g++" SILENT=
+          test -x bin/supermodel
+          ccache -s
+
+  flycast-hotd2-vr:
+    name: flycast-hotd2-vr (windows-2022)
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/flycast-hotd2-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit = pin['repository'], pin['source_commit']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or not repo.startswith('https://github.com/'):
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n')
+      # The fork carries Flycast's submodules; they are fetched shallow at the commits the pinned commit records.
+      - name: Fetch the pinned upstream commit and its submodules
+        shell: bash
+        run: |
+          git init upstream
+          cd upstream
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+          git submodule update --init --recursive --depth 1 --jobs 8
+      - name: Apply the VR patch
+        shell: bash
+        working-directory: upstream
+        run: |
+          git apply --check "$GITHUB_WORKSPACE/repo/setups/flycast-hotd2-vr/patch/acvr-hotd2-vr.patch"
+          git apply --verbose "$GITHUB_WORKSPACE/repo/setups/flycast-hotd2-vr/patch/acvr-hotd2-vr.patch"
+      - name: Set up MSVC 2022 x64
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      # The same configure flags as setups/flycast-hotd2-vr/tools/build.cmd (Ninja, cl, OpenXR on, DirectX 9 off).
+      # The OpenXR SDK source is fetched by the upstream CMakeLists with its own checksum. The gun-model clean-up
+      # (tools/clean_gun_model.py) only rewrites a data header and is not needed to compile.
+      - name: Configure and compile (MSVC, Ninja, Release)
+        shell: pwsh
+        working-directory: upstream
+        timeout-minutes: 40
+        run: |
+          cmake -S . -B build-win -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=Release -DUSE_DX9=OFF -DUSE_OPENXR=ON
+          if ($LASTEXITCODE -ne 0) { throw "cmake configure exit $LASTEXITCODE" }
+          cmake --build build-win --parallel
+          if ($LASTEXITCODE -ne 0) { throw "cmake build exit $LASTEXITCODE" }
+          if (-not (Test-Path build-win/flycast.exe)) { throw 'flycast.exe was not produced' }
+          Get-ChildItem build-win -Recurse -Filter xr_host.cpp.obj | Select-Object -First 1 | ForEach-Object { Write-Host "Compiled $($_.Name)" }
