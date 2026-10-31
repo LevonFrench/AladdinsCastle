@@ -934,6 +934,8 @@ void ACVR_XR_Stop()
 
 #else   // not Windows: the presenter is not built
 
+#include "OSD/ACVRStereo.h"
+
 float ACVR_XR_DistanceMetres() { return 2.5f; }
 bool ACVR_XR_Start(void *) { return false; }
 bool ACVR_XR_GetViews(ACVREyeView *) { return false; }
