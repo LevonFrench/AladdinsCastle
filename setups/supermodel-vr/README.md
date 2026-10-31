@@ -48,6 +48,8 @@ Known limits of the head-tracked mode:
 
 `tools\Build.ps1` does step 4 at low priority.
 
+The `Emulator compile check` workflow in `.github/workflows` does steps 1 to 4 on every change to this folder: it fetches the pinned commit and library sources, the pinned OpenXR headers, applies the patch, and compiles it with Visual Studio 2022 (Windows, toolset v143 instead of the pinned v145) and with g++ (Linux, where the VR presenter compiles to stubs). It runs nothing and needs no game. A compile error in the patched code fails the job.
+
 ## Run
 
 Everything is switched by environment variables, so the same program runs unchanged without them.
@@ -96,7 +98,7 @@ Every game, driving, pointing and stick games alike, has the same universal laye
 | Left stick click, alone | Start (held for as long as the click) |
 | Right stick click, alone | Coin |
 | Both clicks, the second within 150 ms of the first, released within 1 s | Recentre the screen or the head-tracked view |
-| Both clicks held for 3 s | Quit; the game saves its NVRAM through its normal exit |
+| Both clicks held for 3 s | Quit; the game saves its NVRAM through its normal exit. A ring shows the hold: nothing for 1 s, filling to 3 s, one flash, then the quit (gone at once if a click lets go) |
 
 A click waits 150 ms for the other one before it is sent, so a Start or Coin press reaches the game 150 ms late, and neither is sent at all when it turns out to be a chord. Where a Star Wars Trilogy flight stick is grabbed (`ACVR_STICK_GRAB=1`), the event button is right A.
 
@@ -154,6 +156,7 @@ Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are fr
 | `patch\ACVRXR.cpp` | The OpenXR presenter and controller reader |
 | `patch\ACVRStereo.h` | State shared between the frame loop, the renderer and the presenter |
 | `patch\ACVRChord.h` | The universal stick-click layer: Start, Coin, recentre, 3-second quit (pure logic) |
+| `libacvr/src/hold_ring*.hpp` | The U4 hold ring (shared with every host); `apply_acvr.py` copies them to `Src/OSD/acvr/`, and the presenter draws the ring over both eye pictures |
 | `tools\Build.ps1` | Builds the patched solution at low priority |
 | `tools\chord_resolver_test.cpp` | CPU-only test of `ACVRChord.h` (build line in the file) |
 | `tools\Run-Capture.ps1` | One hidden, low-priority run that saves chosen frames as pictures |

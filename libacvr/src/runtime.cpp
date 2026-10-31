@@ -107,6 +107,9 @@ struct acvr_runtime {
     bool busy = false, have_calibration = false;
     acvr::StickChord chord;           // U1-U4, shared by every host and game
     bool quit_requested = false;       // U4 fired: the next tick returns ACVR_STOPPED
+    acvr::HoldRing ring;               // U4 hold ring state, for a host that draws it
+    bool quit_pending = false;         // U4 fired, but the host is still flashing its ring
+    uint64_t quit_at_ms = 0;
     std::string game, content, storage, options;
 #ifdef ACVR_GUN_MODELS
     std::unique_ptr<acvr::GunInstance> gun_model;
@@ -583,11 +586,17 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             std::fprintf(stderr, "libacvr: both stick clicks: recentre view\n");
             r->host->runtime_action(acvr::RuntimeAction::Recenter); // a host without a movable view ignores it
         }
+        const uint64_t stick_ms = uint64_t(now) / 1000000u;
+        const bool ring_host = r->host->draws_hold_ring();
+        if (ring_host) r->host->show_hold_ring(r->ring.update(stick_ms, stick));
         if (stick.quit) {
             std::fprintf(stderr, "libacvr: both stick clicks held 3 s: quit and save\n");
             r->host->runtime_action(acvr::RuntimeAction::Quit);
-            r->quit_requested = true;
+            // A host that draws the ring keeps running for the flash (0.7 s), then the next tick stops.
+            if (ring_host) { r->quit_pending = true; r->quit_at_ms = stick_ms + acvr::HoldRingTiming{}.flash_ms; }
+            else r->quit_requested = true;
         }
+        if (r->quit_pending && stick_ms >= r->quit_at_ms) r->quit_requested = true;
         // OpenXR may request a visible picture before granting input focus.
         // The backend opens unpaused and has no lease until its first tick.
         // Publish exactly one neutral tick, then freeze that drawable lease;
@@ -797,6 +806,8 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 if(result!=ACVR_OK) return finish(result,false);
             }
 #endif
+            result=r->host->draw_hold_ring(info);   // over everything, last
+            if(result!=ACVR_OK) return finish(result,false);
         }
         return finish(ACVR_OK, draw);
     } catch (...) {

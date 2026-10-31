@@ -7,6 +7,8 @@
 #include <QRegularExpression>
 #include <QStringList>
 #include <QUrl>
+#include <optional>
+#include <utility>
 namespace ac::pinball {
 namespace {
 QString shown(QString s){s.remove(QChar(0));return s.simplified().left(512);}
@@ -78,6 +80,37 @@ bool corroboratedVersion(const QString &stem,const QString &name,const QString &
  auto suffix=file.mid(name.size()).trimmed();while(!suffix.isEmpty()&&(suffix.front()=='-'||suffix.front()==QChar(0x2013)))suffix=suffix.mid(1).trimmed();
  return suffix.startsWith('v',Qt::CaseInsensitive)&&key(suffix)==key(QString("v")+version);
 }
+vps::Clues vpsClues(const QVariantMap &row){
+ vps::Clues clues;clues.fileName=QFileInfo(row.value("path").toString()).completeBaseName();
+ const auto text=[&row](const char *field)->std::optional<QString>{const auto v=row.value(field).toString();return v.trimmed().isEmpty()?std::nullopt:std::optional<QString>(v);};
+ clues.infoName=text("tableInfoName");clues.infoAuthors=text("authors");clues.infoVersion=text("version");clues.rom=text("rom");
+ return clues;
+}
+bool editionOrNumber(const QString &word){
+ static const QStringList editions{"le","pro","prem","premium","se","limited","ltd","ce","ve"};
+ static const QRegularExpression number("^\\d+$");
+ return editions.contains(word)||number.match(word).hasMatch();
+}
+// The distance matcher's machine, only where the Hub's exact rules cannot object: VPin Studio's
+// sure finds (its confirming distance, the table info's name, the script's ROM), no other machine
+// as near, no maker or year the file gives that differs, and, unless the ROM found it, every word
+// and number of the machine's name in the name it was found by, with no number or edition word
+// ("LE", "Pro") left over there that the machine's name lacks: "Orbit 3" is not "Orbit II".
+std::optional<std::pair<const vps::Game*,vps::Found>> guardedGame(const QVariantMap &row,const std::vector<vps::Game> &games,const vps::Clues &clues){
+ const auto m=vps::matchTable(games,clues);
+ if(!m.game||!vps::sure(m.found)||m.tied)return std::nullopt;
+ auto maker=makerKey(row.value("maker").toString());if(maker=="vpw")maker.clear();
+ if(!maker.isEmpty()&&makerKey(m.game->manufacturer)!=maker)return std::nullopt;
+ const int year=row.value("year").toInt();if(year&&m.game->year&&m.game->year!=year)return std::nullopt;
+ if(m.found!=vps::Found::ByRom){
+  const auto source=QString(m.found==vps::Found::ByTableInfo?clues.infoName.value_or(QString()):clues.fileName).replace('_',' ');
+  const auto have=match::titleTokens(source),want=match::titleTokens(m.game->name);
+  if(want.isEmpty())return std::nullopt;
+  for(const auto &word:want)if(!have.contains(word))return std::nullopt;
+  for(const auto &word:match::titleTokens(vps::parseFilename(source).tableName.value_or(source)))if(!want.contains(word)&&editionOrNumber(word))return std::nullopt;
+ }
+ return std::make_pair(m.game,m.found);
+}
 }
 void identify(QVariantMap &row,const QString &fileStem){
  const auto file=parse(fileStem),embedded=parse(row.value("title").toString());Parts chosen=file;
@@ -96,35 +129,38 @@ void identify(QVariantMap &row,const QString &fileStem){
  if(!chosen.maker.isEmpty())row["maker"]=chosen.maker;else row.remove("maker");
  if(chosen.year)row["year"]=chosen.year;else row.remove("year");
 }
-void matchVps(QVariantMap &row,const QJsonArray &db){
+VpsDatabase vpsDatabase(const QJsonArray &db){return {db,vps::games(db)};}
+void matchVps(QVariantMap &row,const QJsonArray &db){matchVps(row,vpsDatabase(db));}
+void matchVps(QVariantMap &row,const VpsDatabase &database){
+ const auto &db=database.json;
  const auto name=key(row.value("machine").toString());auto maker=makerKey(row.value("maker").toString());const int year=row.value("year").toInt();
  if(maker=="vpw")maker.clear(); // VPW identifies a table team, not the original machine maker.
  if(name.isEmpty())return;
- QJsonObject match;int count=0;
+ QJsonObject match;qsizetype matchIndex=-1;int count=0;
  const auto stem=QFileInfo(row.value("path").toString()).completeBaseName().replace('_',' ');bool exact=false;
- for(const auto &value:db){const auto machine=value.toObject();if(key(machine.value("name").toString())!=name)continue;
+ for(qsizetype i=0;i<db.size();++i){const auto machine=db.at(i).toObject();if(key(machine.value("name").toString())!=name)continue;
   if(!maker.isEmpty()&&makerKey(machine.value("manufacturer").toString())!=maker)continue;
   if(year&&machine.value("year").toInt()!=year)continue;
-  match=machine;exact=true;if(++count>1)return;
+  match=machine;matchIndex=i;exact=true;if(++count>1)return;
  }
  if(!exact){
   QStringList tried;for(const auto &alternate:alternateNames(row.value("machine").toString())){
    const auto alternateKey=key(alternate);if(alternateKey.isEmpty()||tried.contains(alternateKey))continue;
    tried<<alternateKey;
-   for(const auto &value:db){const auto machine=value.toObject();if(key(machine.value("name").toString())!=alternateKey)continue;
+   for(qsizetype i=0;i<db.size();++i){const auto machine=db.at(i).toObject();if(key(machine.value("name").toString())!=alternateKey)continue;
     if(!maker.isEmpty()&&makerKey(machine.value("manufacturer").toString())!=maker)continue;
     if(year&&machine.value("year").toInt()!=year)continue;
-    match=machine;if(++count>1)return;
+    match=machine;matchIndex=i;if(++count>1)return;
    }
   }
   // Still nothing: the same title with a numeral, "&", accent or article written another way
   // ("Orbit 2" and "Orbit II"). Extra or missing words never match, and two machines are no match.
   if(count==0){
-   for(const auto &value:db){const auto machine=value.toObject();
+   for(qsizetype i=0;i<db.size();++i){const auto machine=db.at(i).toObject();
     if(match::compareTitles(row.value("machine").toString(),machine.value("name").toString())<match::Quality::Same)continue;
     if(!maker.isEmpty()&&makerKey(machine.value("manufacturer").toString())!=maker)continue;
     if(year&&machine.value("year").toInt()!=year)continue;
-    match=machine;if(++count>1)break;
+    match=machine;matchIndex=i;if(++count>1)break;
    }
   }
   if(count==1)exact=true;
@@ -132,32 +168,44 @@ void matchVps(QVariantMap &row,const QJsonArray &db){
  // An arbitrary author suffix is discarded only when a unique VPS title is an exact prefix
  // and the remaining filename explicitly says Mod. The normal exact-title path wins.
  if(!exact&&row.value("maker").toString().isEmpty()&&!year){qsizetype longest=0;
-   for(const auto &value:db){const auto machine=value.toObject();const auto candidate=shown(machine.value("name").toString());
+   for(qsizetype i=0;i<db.size();++i){const auto machine=db.at(i).toObject();const auto candidate=shown(machine.value("name").toString());
    if(candidate.isEmpty()||!stem.startsWith(candidate+" ",Qt::CaseInsensitive))continue;
    const auto rest=stem.mid(candidate.size()).trimmed();
    static const QRegularExpression authorMod("^(?:[\\p{L}\\p{N} .'-]+\\s+)?(?:Mod|VR Room Mod)(?:\\s+v?\\d+(?:\\.\\d+)*)?$",QRegularExpression::CaseInsensitiveOption);
    if(!authorMod.match(rest).hasMatch())continue;
-   if(candidate.size()>longest){longest=candidate.size();match=machine;count=1;}else if(candidate.size()==longest){++count;}
+   if(candidate.size()>longest){longest=candidate.size();match=machine;matchIndex=i;count=1;}else if(candidate.size()==longest){++count;}
   }
  }
+ const auto clues=vpsClues(row);QString found=count==1?QString("by its name"):QString();
+ // No machine by name at all: the distance matcher, under the Hub's guards.
+ if(count==0)if(const auto fuzzy=guardedGame(row,database.games,clues)){matchIndex=fuzzy->first->index;match=db.at(matchIndex).toObject();count=1;found=vps::describe(fuzzy->second);}
  if(count!=1)return;
  const auto id=match.value("id").toString(),canonical=shown(match.value("name").toString()),manufacturer=shown(match.value("manufacturer").toString());
  const int matchedYear=match.value("year").toInt();if(canonical.isEmpty()||manufacturer.isEmpty()||(matchedYear&&(matchedYear<1800||matchedYear>2100)))return;
- row["vpsMatched"]=true;if(!id.isEmpty())row["vpsId"]=id;
+ row["vpsMatched"]=true;row["vpsFound"]=found;if(!id.isEmpty())row["vpsId"]=id;
  row["vpsName"]=canonical;
  const auto url=safeVpsUrl(match);if(!url.isEmpty())row["vpsUrl"]=url;
  row["machine"]=canonical;row["maker"]=manufacturer;if(matchedYear)row["year"]=matchedYear;
  row["title"]=caption({canonical,manufacturer,matchedYear,true});
  row["type"]=shown(match.value("type").toString());row["players"]=match.value("players").toInt();row["theme"]=shown(match.value("theme").toString());
  QList<QJsonObject> files;const auto author=key(row.value("authors").toString()),version=row.value("version").toString().trimmed().toCaseFolded();
- if(author.isEmpty()||version.isEmpty())return;
- for(const auto &value:match.value("tableFiles").toArray()){
+ if(!author.isEmpty()&&!version.isEmpty())for(const auto &value:match.value("tableFiles").toArray()){
   const auto file=value.toObject();if(!file.value("tableFormat").toString().isEmpty()&&file.value("tableFormat").toString()!="VPX")continue;
   QStringList authors;for(const auto &authorValue:file.value("authors").toArray())authors<<authorValue.toString();
   if(key(authors.join(" "))==author&&file.value("version").toString().trimmed().toCaseFolded()==version)files<<file;
  }
- if(files.size()!=1)return;
- QStringList features;for(const auto &value:files.first().value("features").toArray())features<<shown(value.toString());
+ QStringList features;
+ if(files.size()==1){for(const auto &value:files.first().value("features").toArray())features<<shown(value.toString());row["vpsFileFound"]=QString("exact");}
+ else if(files.isEmpty()&&matchIndex>=0&&size_t(matchIndex)<database.games.size()){
+  // The matcher's nearest file, taken only when every author it was given is on it, in order, and
+  // its version is the table's: a nearest file alone is not the table's file.
+  const auto &game=database.games[size_t(matchIndex)];auto parts=vps::parseFilename(clues.fileName);
+  const auto score=vps::closestTableFile(game,vps::fileQuery(game,clues,parts));
+  if(!score||score->authors!=0.0||score->version!=0.0)return;
+  for(const auto &value:score->file->features){features<<shown(value);}
+  row["vpsFileFound"]=QString("by its authors and version");
+ }
+ else return;
  row["features"]=features;
  if(features.contains("VR",Qt::CaseInsensitive)&&row.value("error").toString().isEmpty()){
   auto evidence=row.value("evidence").toStringList();evidence<<"VPS: VR";row["evidence"]=evidence;row["vrReady"]=true;

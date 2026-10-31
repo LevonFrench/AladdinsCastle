@@ -1,0 +1,36 @@
+id           = "gc-the-legend-of-zelda-twilight-princess"
+title        = "The Legend of Zelda: Twilight Princess"
+alt_titles   = []
+genre        = "action"
+subgenre     = []
+year         = 2006
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-gamecube"
+graphics     = "polygon-3d"
+players      = 1
+series       = "The Legend of Zelda"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own GameCube disc image (ISO/GCM or RVZ)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "true3d", via = "DolphinXR through the user's launcher (games.json)" }
+
+[hub]
+pill   = "GC-ZELDATP"
+colour = "#1a1420"
+accent = "#a07ae0"
+blurb  = "Link and Midna cross Hyrule and the Twilight Realm in a darker adventure."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_Legend_of_Zelda:_Twilight_Princess"]
+confidence = "medium"
+checked    = "2026-10-26"

@@ -4,6 +4,7 @@
 #include "UiController.h"
 #include "core/settings/Secret.h"
 #include "core/pinball/Pinball.h"
+#include "core/pinball/Build.h"
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
 #include "core/dreamcast/Dreamcast.h"
@@ -16,6 +17,7 @@
 #include "core/scripted/Scripted.h"
 #include "core/system22/System22.h"
 #include "core/pinball/Gamepad.h"
+#include "core/pinball/Scores.h"
 #include "core/art/Download.h"
 #include "core/launch/UniversalControls.h"
 #include <QFileInfo>
@@ -34,7 +36,16 @@
 namespace ac {
 QString UiController::universalControls()const{return universal::controls();}
 QString UiController::universalMenuNote()const{return universal::menuNote();}
-QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().value("help").toString();}
+QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance(m_pinballPatched).value("help").toString();}
+QString UiController::pinballHeadsetControls()const{return universal::pinballControls(m_pinballPatched);}
+void UiController::refreshPinballBuild(){
+ const QFileInfo exe(m_settings->get("pinballExecutable",QString()).toString());
+ const QString key=exe.isFile()?exe.absoluteFilePath()+"|"+QString::number(exe.size())+"|"+QString::number(exe.lastModified().toMSecsSinceEpoch()):QString();
+ if(key==m_pinballBuildKey)return;
+ m_pinballBuildKey=key;
+ const bool patched=!key.isEmpty()&&pinball::isPatchedBuild(exe.absoluteFilePath());
+ if(patched!=m_pinballPatched){m_pinballPatched=patched;emit pinballBuildChanged();}
+}
 namespace {
 QString str(const Json &j,const char *key){return j.contains(key)&&j[key].is_string()?QString::fromStdString(j[key].get<std::string>()):QString();}
 QString eventText(const QVariantMap &e){auto kind=e.value("kind").toString(), text=e.value("text").toString();if(kind=="step")return QString("--- [%1/%2] %3 ---").arg(e.value("index",e.value("step")).toInt()).arg(e.value("total").toInt()).arg(text);const QMap<QString,QString> prefixes{{"ok"," [OK] "},{"warn"," [!!] "},{"fail"," [XX] "},{"work"," [..] "},{"detail","  "},{"prompt"," >>> "},{"done"," >>> "}};return prefixes.value(kind,"  ")+text;}
@@ -89,6 +100,8 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
+ connect(settings,&UiSettings::changed,this,&UiController::refreshPinballBuild);
+ refreshPinballBuild();
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  // A key saved in the clear by an earlier Hub is protected now, and the clear copy removed.
  if(const auto plain=m_settings->get("steamGridDbKey").toString();!plain.isEmpty()){if(setSteamGridDbKey(plain))m_settings->remove("steamGridDbKey");}
@@ -376,7 +389,14 @@ void UiController::setPinballArt(const QVariantMap &art){
  if(!selected.isEmpty()){m_pinballSelection["artThumb"]=selected.value("thumb");m_pinballSelection["artBackglass"]=selected.value("backglass");}
  emit pinballChanged();
 }
-void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}emit pinballChanged();}
+void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}readPinballScores();emit pinballChanged();}
+// The selected table's saved high scores, read fresh from PinMAME's .nv file: they change with every game, so
+// they are not kept in the scan.
+void UiController::readPinballScores(){
+ if(m_pinballSelection.isEmpty())return;
+ const auto folder=pinball::nvramFolder(pinball::pinmameFolderForExecutable(m_settings->get("pinballExecutable",QString()).toString()),m_settings->get("pinballRoms",QString()).toString());
+ m_pinballSelection["highScores"]=pinball::tableScores(m_pinballSelection,folder);
+}
 void UiController::scanPinball(){if(m_pinballScanning)return;const auto folder=m_settings->get("pinballFolder",QString()).toString();if(folder.isEmpty()){message("Choose your Pinball table folder first.");return;}m_pinballScanning=true;emit pinballChanged();emit pinballScanRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
 void UiController::openPinball(){const auto folder=m_settings->get("pinballFolder",QString()).toString();if(m_pinballScanning||m_pinballRaw.contains("tables")||folder.isEmpty())return;emit pinballRestoreRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
 void UiController::pinballFailed(const QString &error){m_pinballScanning=false;emit pinballChanged();message(error);}
@@ -390,7 +410,7 @@ void UiController::launchPinballQueued(const QVariantMap &row,const QString &clo
  m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");m_nowPlaying["view"]=view;
  const bool headset=view!="desktop";
  const QString pad=gamepad.isEmpty()?QString():" Gamepad ("+gamepad+"): LB/RB or the triggers are the flippers, pull the right stick down for the plunger, Start and Back together exit.";
- if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table: "+universal::pinballControls()+" X opens the menu."+pad;
+ if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table: "+universal::pinballControls(m_pinballPatched)+" X opens the menu."+pad;
  else m_nowPlaying["hint"]="On the desktop, with VR off."+(pad.isEmpty()?QString(" No gamepad was found; the keyboard plays as Visual Pinball is set."):pad);
  emit nowPlayingChanged();
 }
@@ -536,8 +556,9 @@ QVariantList UiController::buildOtherGames()const{
   if(!host.isEmpty()||!core.isEmpty()||!dumps.isEmpty())for(const auto &value:libretro::games()){
    const auto game=value.toMap();const auto id=game.value("id").toString();
    const auto profiles=libretro::profilesFolder(m_settings->get("libretroProfiles",QString()).toString(),QCoreApplication::applicationDirPath());
-   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,dumps)},{"warning",game.value("controls")},
-    {"problem",libretro::problem(id,host,core,dumps,profiles)}},libretro::views());
+   const auto selected=m_settings->get(libretro::gameFileKey(id),QString()).toString();
+   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,selected)},{"warning","User-selected file; content identity is not verified. "+game.value("controls").toString()},
+    {"problem",libretro::problem(id,host,core,selected,profiles)}},libretro::views());
   }
  }
  // Time Crisis: one native program, checked as it is now.
@@ -785,6 +806,7 @@ void UiController::launchFinished(const QString &id,const QString &error,int exi
  }
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();
  m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();
+ if(!m_pinballSelection.isEmpty()){readPinballScores();emit pinballChanged();} // a table may have just saved new scores
  const auto said=m_lastSession.value("text").toString();message(error.isEmpty()?"Game closed.":m_lastSession.value("outcome")=="stopped"?said:error);
  if(restart)emit playRequested(id,variant);
 }

@@ -49,5 +49,11 @@
     "build_system": "Visual Studio 18 MSBuild",
     "note": "Library inputs are built by the checked-in Supermodel MSVC solution; no rolling dependency version is implied."
   },
+  "ci_compile": {
+    "workflow": ".github/workflows/emulator-compile.yml",
+    "windows": "windows-2022 runner, Visual Studio 2022, PlatformToolset v143 passed on the command line (the toolset above is v145, Visual Studio 2026); the library sources are the pinned release tags, hash-checked against the version headers above",
+    "linux": "ubuntu-24.04, g++ with the project Makefile; the VR presenter compiles to stubs",
+    "checked_on": "2026-10-26"
+  },
   "reproducibility_recorded_on": "2026-10-18"
 }
