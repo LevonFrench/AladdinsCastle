@@ -492,7 +492,8 @@ QVariantList UiController::buildOtherGames()const{
  const auto add=[&](QVariantMap row,const QVariantList &views){
   auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
   for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
-  if(!known)view=views.first().toMap().value("id").toString();
+  // The default is the first view that is not opt-in (soft edges, roll steer, body motion...).
+  if(!known){view=views.first().toMap().value("id").toString();for(const auto &value:views)if(!value.toMap().value("optIn").toBool()){view=value.toMap().value("id").toString();break;}}
   row["viewChosen"]=known;
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;

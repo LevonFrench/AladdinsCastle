@@ -25,6 +25,9 @@ const QList<Known> &known(){
   {"motion","Motion controls","Your controllers move like the game's own controllers."},
   {"pad","Pad","The game's pad on your controllers."},
   {"theatre","Theatre screen","The original picture on a big screen in front of you."},
+  // Opt-in, after the theatre screen: the picture's own edges fade into the room (not more game picture).
+  {"open-frame-soft","Open frame, soft edges","The game drawn past its old 4:3 frame, and past that its edges fade softly into the room."},
+  {"soft-edges","Soft edges","The theatre screen with its edges fading softly into the room instead of a hard frame. The fade is the game's own edge, not more picture."},
   {"headset-rate","Headset refresh rate","The console's video rate raised to your headset's refresh rate."},
   {"no-60fps","Headset rate, no 60 fps code","As Headset refresh rate, without the 60 fps code: try it if the game hangs at start."},
   {"tilt-steer","Tilt steer (opt-in)","Steer by tilting your controller, like a wheel."},
@@ -36,6 +39,7 @@ const QList<Known> &known(){
  return views;
 }
 int rank(const QString &id){for(int i=0;i<known().size();++i)if(id==QLatin1String(known()[i].id))return i;return id.endsWith("monitor")?int(known().size())+1:int(known().size());}
+bool isOptIn(const QString &id){static const QStringList ids{"soft-edges","open-frame-soft","tilt-steer","roll-steer","body","depth-trial"};return ids.contains(id);}
 const Known *findKnown(const QString &id){for(const auto &view:known())if(id==QLatin1String(view.id))return &view;return nullptr;}
 QJsonObject read(const QString &launcher){
  if(launcher.isEmpty())return {};
@@ -60,6 +64,7 @@ QVariantList viewsOf(const QJsonObject &entry){
                    {"help",own.value("help").toString(base?QString::fromUtf8(base->help):QString())},
                    {"controls",own.value("controls").toString(entry.value("controls").toString())}};
   view["monitor"]=own.value("monitor").toBool(id=="monitor"||id.endsWith("-monitor"));
+  view["optIn"]=isOptIn(id); // never the game's default view
   list<<view;
  }
  return list;
