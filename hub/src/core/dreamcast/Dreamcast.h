@@ -4,6 +4,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <atomic>
+namespace ac::scan{class DiscMemo;}
 namespace ac::dreamcast {
 // Dreamcast gun games through the user's own build of the hotd2-vr Flycast fork.
 // Only public titles and product numbers are listed; discs and the emulator are
@@ -14,9 +15,10 @@ QString viewLabel(const QString &view);
 // What one disc image is: {file, game, title, product, region, verified, profile}.
 // "game" is empty when it is none of the listed games. Read-only.
 // A disc whose own number is listed is that game whatever its file is called.
-QVariantMap identify(const QString &file,std::atomic_bool &cancel);
+// With a memo, an unchanged disc is not opened again.
+QVariantMap identify(const QString &file,std::atomic_bool &cancel,scan::DiscMemo *memo=nullptr);
 // The disc images directly inside a folder, identified. Subfolders are not entered.
-QVariantList discs(const QString &folder,std::atomic_bool &cancel);
+QVariantList discs(const QString &folder,std::atomic_bool &cancel,scan::DiscMemo *memo=nullptr);
 // executable, cwd and args for one disc and view. Throws install::Error.
 QVariantMap launchPlan(const QString &file,const QString &view,const QString &executable);
 }

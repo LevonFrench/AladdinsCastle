@@ -12,6 +12,7 @@ param(
  [string]$AimTrim='',
  [switch]$Mute,
  [switch]$OpenFrame,
+ [switch]$SoftEdges,
  [switch]$Body,
  [switch]$Crt
 )
@@ -25,6 +26,8 @@ $ErrorActionPreference='Stop'
 #         body motion (controller roll/tilt, lean and twist, pedalling), which is opt-in.
 #  wide:  environment for -OpenFrame (the game's 3D drawn past 4:3, here 16:9), only where
 #         a picture showed the added sides filled with game geometry.
+# -SoftEdges works for every game: the viewer carries the picture's own edges, blurred and fading,
+#         past the frame (not new game picture; aiming there is off-screen). README "Soft edges".
 #  aim:   per-game trim "x scale,x shift,y scale,y shift" around the centre; MAME_VR_AIM.
 #  xhair: '1' shows MAME's crosshair (only where MAME's calibration matches the game), '0' hides it.
 $games=@{
@@ -103,6 +106,7 @@ try {
  $mame.PriorityClass='BelowNormal';$mameHandle=$mame.Handle
  $argsV=@('--pid',$mame.Id,'--model',('"'+$GunModel+'"'),'--metadata',('"'+$GunMetadata+'"'),'--seconds',$Seconds,'--stop-file',('"'+$StopFile+'"'))
  if($Crt){$argsV+='--crt'}
+ if($SoftEdges){$argsV+='--soft-edges'}
  if($games[$Game].motion){$argsV+=$(if($Body){'--body'}else{'--motion'})}
  $viewer=Start-Process -FilePath $ViewerExe -ArgumentList $argsV -WorkingDirectory $run -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $run 'viewer.log') -RedirectStandardError (Join-Path $run 'viewer-errors.log')
  $viewer.PriorityClass='BelowNormal';$viewerHandle=$viewer.Handle

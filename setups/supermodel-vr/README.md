@@ -48,6 +48,8 @@ Known limits of the head-tracked mode:
 
 `tools\Build.ps1` does step 4 at low priority.
 
+The `Emulator compile check` workflow in `.github/workflows` does steps 1 to 4 on every change to this folder: it fetches the pinned commit and library sources, the pinned OpenXR headers, applies the patch, and compiles it with Visual Studio 2022 (Windows, toolset v143 instead of the pinned v145) and with g++ (Linux, where the VR presenter compiles to stubs). It runs nothing and needs no game. A compile error in the patched code fails the job.
+
 ## Run
 
 Everything is switched by environment variables, so the same program runs unchanged without them.
@@ -65,8 +67,9 @@ Everything is switched by environment variables, so the same program runs unchan
 | `ACVR_FOV_SCALE`, `ACVR_NO_CULL=1` | Screen mode: wider camera, culling off |
 | `ACVR_WIDE_ALL=0` | With `-wide-screen`: widen only full-screen views, as upstream does. By default letterboxed scene views (Star Wars Trilogy) and sky strips (Virtua Fighter 3) are widened too |
 | `ACVR_AIM_X`, `ACVR_AIM_Y` | Analog-stick games: where the game draws its crosshair for each stick value, `value:pixel,...` over its 496x384 picture. The default is Star Wars Trilogy's, measured from its own crosshair |
-| `ACVR_AIM_DISTANCE` | Head-tracked: how far ahead the arcade view is met when pointing, metres (2.5) |
-| `ACVR_FAKE_CONTROLLERS` | Made-up controllers for unattended checks, used only when no real ones are read: `first-last:control:value;...` (see the top of `acvr_main_block.cpp`) |
+| `ACVR_AIM_DISTANCE` | Head-tracked: how far ahead the arcade view is met when pointing, metres. Default 1000, where Star Wars Trilogy draws its crosshair; `panel` restores the older rule (the HUD panel's distance, 1.6 m) |
+| `ACVR_AIM_FROM=hand` | Screen mode: the pointing ray starts at the hand, as before 2026-10-26. Default: at the head, in the controller's direction, so the game's far crosshair lies on the controller's line |
+| `ACVR_FAKE_CONTROLLERS` | Made-up controllers for unattended checks, used only when no real ones are read: `first-last:control:value;...` (see the top of `acvr_main_block.cpp`). With `ACVR_VR_FAKE`, `head.x`, `head.y`, `head.z` and `head.yaw` also move the made-up head after its recentre |
 | `ACVR_INPUT_SCRIPT` | Hold inputs during given frames, as `first-last:InputId:value;...` |
 | `ACVR_HIDDEN=1`, `ACVR_CAPTURE_FRAME`, `ACVR_CAPTURE_DIR`, `ACVR_SAVE_STATE_FRAME` | Unattended runs: hidden window, save frames as pictures and quit, write a save state |
 | `ACVR_VR_FAKE=1`, `ACVR_VR_FAKE_YAW` | Head-tracked rendering with a made-up headset, for checks on a monitor |
@@ -84,8 +87,8 @@ With `ACVR_XR` the game never runs unseen. It closes cleanly, saving NVRAM, in t
 
 Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
-- Driving: the left thumbstick steers; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A and B are extra Start and Coin (the cabinet had both and nothing else uses them), X view change, Y second view button or hand brake. Steering with both hands on a wheel (hold both grips and turn the hands) is opt-in only: `ACVR_WHEEL_GRAB=1`. It is off by default, also when `ACVR_CONTROLS=1` draws the wheel, which then turns with the stick.
-- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Checked offline against the game's own crosshair at 12 points on Yavin: the largest error was 0.009 of the picture, on the normal and on the open-frame screen. Right trigger fires, right grip is the event button, right B switches the laser and dot on or off.
+- Driving: the left thumbstick steers; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A and B are extra Start and Coin (the cabinet had both and nothing else uses them), X view change, Y second view button or hand brake. Steering with both hands on a wheel (hold both grips and turn the hands) is opt-in only: `ACVR_WHEEL_GRAB=1`. The Hub sets it only in the "Inside the game, with the wheel" view, which is that opt-in; every other view steers with the stick.
+- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. In screen mode the ray starts at the head, in the direction the controller points, and is met with the screen; in the head-tracked mode it is met with the arcade view far ahead, where the game draws its crosshair; the stick value is looked up from the game's measured crosshair response, which is not linear. Checked offline against the game's own crosshair at 12 points on Yavin: the largest error was 0.009 of the picture, on the normal and on the open-frame screen. Right trigger fires, right grip is the event button, right B switches the laser and dot on or off.
 - Stick and buttons: left thumbstick, and A, B, X, Y as the game's four buttons. There are no Start or Coin aliases here.
 
 Every game, driving, pointing and stick games alike, has the same universal layer on the stick clicks (`patch\ACVRChord.h`, the same logic in every host; the menu buttons are never read):
@@ -95,7 +98,7 @@ Every game, driving, pointing and stick games alike, has the same universal laye
 | Left stick click, alone | Start (held for as long as the click) |
 | Right stick click, alone | Coin |
 | Both clicks, the second within 150 ms of the first, released within 1 s | Recentre the screen or the head-tracked view |
-| Both clicks held for 3 s | Quit; the game saves its NVRAM through its normal exit |
+| Both clicks held for 3 s | Quit; the game saves its NVRAM through its normal exit. A ring shows the hold: nothing for 1 s, filling to 3 s, one flash, then the quit (gone at once if a click lets go) |
 
 A click waits 150 ms for the other one before it is sent, so a Start or Coin press reaches the game 150 ms late, and neither is sent at all when it turns out to be a chord. Where a Star Wars Trilogy flight stick is grabbed (`ACVR_STICK_GRAB=1`), the event button is right A.
 
@@ -124,7 +127,13 @@ The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of r
 | `ACVR_STICK_INVERT=1` | With `ACVR_STICK_GRAB`: pushing forward aims up instead |
 | `ACVR_TEST_STICK` | With `ACVR_STICK_GRAB`: a stick held at `pitch,roll` degrees, for unattended pictures |
 
-Head-tracked pointing (Star Wars Trilogy): the HUD panel is placed exactly over the arcade view (`ACVR_HUD_MATCH`), the right controller's ray is met with that view at the panel's distance, and a thin red laser with a yellow dot at its end is drawn in the scene (`ACVR_LASER=0` hides them). Checked offline at 12 points against the game's own crosshair in the head-tracked mode: largest error 0.009 of the picture (about 0.4 degrees).
+Head-tracked pointing (Star Wars Trilogy): the HUD panel is placed exactly over the arcade view (`ACVR_HUD_MATCH`), the right controller's ray is met with that view 1000 m ahead, and a thin red laser with a yellow dot at its end is drawn in the scene (`ACVR_LASER=0` hides them). The dot is drawn 60 m out along the ray, at its 1.6 m size.
+
+Why so far: the game draws its crosshair in its 3D scene, and the two eyes see it with no measurable disparity (more than about 800 m away). Until 2026-10-26 the ray was met on the HUD panel 1.6 m ahead. That puts the crosshair where the ray crosses the panel as seen from the recentre point, not on the ray: the laser points one way and the crosshair sits 2 to 21 degrees off it, depending on where the hand is; the crosshair slides off the dot when the head moves; and the dot floats at 1.6 m while the crosshair is far, so each eye sees them apart. Met far away, the crosshair lies on the controller's ray from any head and hand position. `ACVR_AIM_DISTANCE=panel` brings the older rule back.
+
+The screen view has the same mismatch in another form. The stereo screen draws the far crosshair an eye separation apart, so it is seen in the direction from the head through its place on the screen. A ray from the hand puts it where the hand's ray crosses the screen, about 8 degrees off the controller's line with the hand 30 cm below the eyes. Since 2026-10-26 the ray starts at the head and keeps the controller's direction. The offline check uses the same 12 poses, read as the screen: the largest error is 3.6 game pixels (0.33 degrees), down from 129 pixels on average (8 to 25 degrees). `ACVR_AIM_FROM=hand` brings the older rule back.
+
+Checked offline with `tools\aim_proof.py` (made-up head and controller poses, the game's own crosshair found in both eye pictures, Yavin): at 12 poses, with the head still, moved 10 to 15 cm, turned 12 to 15 degrees, and the hand in five places, the crosshair was within 3.4 of the game's 496x384 pixels of the controller's ray (0.31 degrees, mean 1.6 pixels); the dot within 4.2 pixels of it. The older rule on the same poses: up to 230 pixels (21 degrees) off the ray, and the dot up to 57 pixels from the crosshair once the head moved. The game itself follows the stick with no smoothing: the crosshair reaches a new value two frames after it is set. With `ACVR_STICK_GRAB=1` and the grip held, the tilt stick ignores turning the hand left or right (the crosshair stayed in the middle column) and was up to 12 degrees off.
 
 Not yet: hands drawn on the wheel, grabbing the rim itself, the shifter and pedals.
 
@@ -147,9 +156,11 @@ Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are fr
 | `patch\ACVRXR.cpp` | The OpenXR presenter and controller reader |
 | `patch\ACVRStereo.h` | State shared between the frame loop, the renderer and the presenter |
 | `patch\ACVRChord.h` | The universal stick-click layer: Start, Coin, recentre, 3-second quit (pure logic) |
+| `libacvr/src/hold_ring*.hpp` | The U4 hold ring (shared with every host); `apply_acvr.py` copies them to `Src/OSD/acvr/`, and the presenter draws the ring over both eye pictures |
 | `tools\Build.ps1` | Builds the patched solution at low priority |
 | `tools\chord_resolver_test.cpp` | CPU-only test of `ACVRChord.h` (build line in the file) |
 | `tools\Run-Capture.ps1` | One hidden, low-priority run that saves chosen frames as pictures |
+| `tools\aim_proof.py` | Offline pointing proof: made-up head and controller poses, the game's crosshair found in the eye pictures and compared with the controller's ray |
 | `upstream-pin.json` | The Supermodel commit the patch is written against |
 
 ## Where it changes Supermodel

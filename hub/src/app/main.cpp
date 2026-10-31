@@ -24,6 +24,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QImage>
 #include <QFile>
 #include <QFileInfo>
@@ -92,6 +93,8 @@ int main(int argc,char **argv){
     }
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
+    // The castle on the window and taskbar; the program file carries the same picture (resources/hub.rc).
+    QGuiApplication::setWindowIcon(QIcon(app.applicationDirPath()+"/resources/overlay-thumbnail.png"));
     QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
     const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
     if(catalogRoot.isEmpty()){err<<"Catalog missing.\n";return 2;}
@@ -107,6 +110,9 @@ int main(int argc,char **argv){
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
     QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
     const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+    // Qt writes compiled QML to the user's AppData by default. This Hub is portable: keep that cache in its own user/cache folder, so deleting
+    // the folder leaves nothing behind. Must be set before the first QML file is loaded.
+    if(!qEnvironmentVariableIsSet("QML_DISK_CACHE_PATH"))qputenv("QML_DISK_CACHE_PATH",QDir(portableRoot).filePath("user/cache/qmlcache").toLocal8Bit());
     // Keep SteamVR's entry for the Hub pointing at this program, so SteamVR registers it next time it starts.
     {QString manifestError;ac::refreshOverlayManifest(QDir(app.applicationDirPath()).filePath(QString("resources/")+ac::product::short_id+".vrmanifest"),&manifestError);}
     // One Hub per folder: a second start asks the first to come to the front, and quits. A Hub that SteamVR
@@ -199,10 +205,12 @@ int main(int argc,char **argv){
                 overlay.shutdown();
                 return false;},
             [&overlay]{QTimer::singleShot(0,&overlay,[&overlay]{overlay.shutdown();});});
-        QObject::connect(panel.get(),&ac::PanelAttacher::attachedChanged,&app,[&out](bool attached){out<<(attached?"Joined SteamVR's dashboard as a panel.\n":"Left SteamVR's dashboard; the window carries on.\n");out.flush();});
-        QObject::connect(panel.get(),&ac::PanelAttacher::gaveUp,&app,[&err](const QString &reason){err<<"Not a SteamVR panel this time: "<<reason<<'\n';});
-        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,panel.get(),&ac::PanelAttacher::steamVrQuit);
-        QObject::connect(&overlay,&ac::OverlayHost::failed,panel.get(),[&err,p=panel.get()](const QString &error){err<<error<<'\n';p->steamVrQuit();});
+        // Each step also goes to the input log, so a panel that never came back leaves a trail.
+        QObject::connect(panel.get(),&ac::PanelAttacher::attachedChanged,&app,[&out,&overlay](bool attached){out<<(attached?"Joined SteamVR's dashboard as a panel.\n":"Left SteamVR's dashboard; the window carries on.\n");out.flush();overlay.notePanel(attached?"joined":"left");});
+        QObject::connect(panel.get(),&ac::PanelAttacher::gaveUp,&app,[&err,&overlay](const QString &reason){err<<"Not a SteamVR panel this time: "<<reason<<'\n';overlay.notePanel("gave-up "+reason);});
+        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,panel.get(),[&overlay,p=panel.get()]{overlay.notePanel("steamvr-quit");p->steamVrQuit();});
+        QObject::connect(&overlay,&ac::OverlayHost::failed,panel.get(),[&err,&overlay,p=panel.get()](const QString &error){err<<error<<'\n';overlay.notePanel("failed "+error);p->steamVrQuit();});
+        QObject::connect(&ui,&ac::UiController::steamVrRunningChanged,&overlay,[&ui,&overlay]{overlay.notePanel(ui.steamVrRunning()?"steamvr-seen":"steamvr-gone");});
         QObject::connect(&ui,&ac::UiController::steamVrRunningChanged,panel.get(),[&ui,p=panel.get()]{p->setSteamVrRunning(ui.steamVrRunning());});
     }
     // Explicit operator diagnostics capture this application's own Qt surface.
@@ -272,6 +280,13 @@ int main(int argc,char **argv){
     });
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
+    // Diagnostic: read the game library (the folders in the libraryRoots setting) first, then the ticked systems' folders, as the
+    // Game library's and Set-up's buttons do, one after the other. The fresh-install check uses it on fake files.
+    if(qEnvironmentVariableIsSet("AC_UI_LIBRARY_SCAN")){
+        auto chained=std::make_shared<bool>(false);
+        QObject::connect(&ui,&ac::UiController::libraryChanged,&ui,[&ui,chained]{if(*chained||ui.libraryScanning())return;*chained=true;ui.scanSetup();});
+        QTimer::singleShot(300,&ui,[&ui]{ui.scanLibrary();});
+    }
     ac::Json diagnosticFinished=ac::Json::array();
     if(!capture.isEmpty()){
         QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&diagnosticFinished](const QString &id,int code,const QString &error,const QString &){
@@ -304,6 +319,14 @@ int main(int argc,char **argv){
         QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&services](const QString &,int,const QString &,const QString &){
             QTimer::singleShot(0,&services,[&services]{services.requestHubExit();});
         });
+    }
+    else if(!capture.isEmpty()&&qEnvironmentVariableIsSet("AC_UI_LIBRARY_SCAN")){
+        // The fresh-install check on a slow runner: the picture is taken a second after the Set-up read has finished, so the page shows its
+        // result, not "Reading". A read that never finishes is pictured after a minute.
+        auto taken=std::make_shared<bool>(false);
+        const auto take=[&app,taken,writeCapture]{if(*taken)return;*taken=true;QTimer::singleShot(1000,&app,writeCapture);};
+        QObject::connect(&ui,&ac::UiController::setupChanged,&app,[&ui,take]{if(!ui.setupScanning()&&!ui.setupReport().value("systems").toList().isEmpty())take();});
+        QTimer::singleShot(60000,&app,take);
     }
     else if(!capture.isEmpty())QTimer::singleShot(6000,&app,writeCapture);
     if(overlayInitialized&&options.showDashboard){
