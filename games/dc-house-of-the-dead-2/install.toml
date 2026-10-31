@@ -50,7 +50,7 @@ targets = ["steam"]                       # target is the Hub: --launch dc-house
 
 [variant.hotd2-vr-pcvr.launch]
 exe     = "${install_dir}/flycast.exe"
-args    = ["-config", "config:vr.Xr=yes", "${media.disc.path}"]   # flycast [option]... [<rom path>] (core/cfg/cl.cpp)
+args    = ["-config", "config:UseReios=yes,config:vr.Xr=yes", "${media.disc.path}"]   # built-in BIOS: a BIOS beside the disc never runs the date screen
 cwd     = "${install_dir}"
 runtime = "steamvr"                       # any OpenXR runtime with OpenGL works; SteamVR is pinned by default
 

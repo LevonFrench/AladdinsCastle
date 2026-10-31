@@ -35,7 +35,9 @@ QVariantMap launchPlan(const QString &file,const QString &view,const QString &ex
  const QFileInfo program(executable);
  return {{"executable",QDir::toNativeSeparators(program.absoluteFilePath())},{"cwd",QDir::toNativeSeparators(program.absolutePath())},
          // Light guns in ports A and B: the build only plugs them in itself for games it has a profile for,
-         // and on the monitor the mouse aims only a port that holds a gun.
-         {"args",QStringList{"-config",QString(view=="headset"?"config:vr.Xr=yes":"config:vr.Xr=no")+",input:device1=7,input:device2=7",QDir::toNativeSeparators(QFileInfo(file).absoluteFilePath())}}};
+         // and on the monitor the mouse aims only a port that holds a gun. UseReios: Flycast's built-in BIOS, so a
+         // real BIOS and blank flash file beside the disc in the user's own folder never start the console's
+         // Set Date/Time screen; the disc plays in place (Flycast still forces the real BIOS for games that need it).
+         {"args",QStringList{"-config",QString("config:UseReios=yes,")+(view=="headset"?"config:vr.Xr=yes":"config:vr.Xr=no")+",input:device1=7,input:device2=7",QDir::toNativeSeparators(QFileInfo(file).absoluteFilePath())}}};
 }
 }

@@ -5,6 +5,12 @@ that rebuilds Dreamcast and NAOMI games in true 3D for PC VR (OpenXR) and Quest,
 small patch of our own. It ships no game files and no BIOS: the user's own disc images are
 needed, and none is required for the Dreamcast BIOS (Flycast emulates it).
 
+Discs play in place, from the folder they are in. The Hub and the House of the Dead 2 recipe pass
+`config:UseReios=yes`, so Flycast uses its built-in BIOS even when a real `dc_bios.bin` and a blank
+`dc_flash.bin` sit beside the disc. Without it Flycast finds those files in the disc's folder and
+runs the console's first-start Set Date/Time screen (seen with Death Crimson 2 and Virtua Cop 2).
+Flycast still switches to the real BIOS by itself for the few games that need one.
+
 Upstream: `upstream-pin.json`. Licence: Flycast and hotd2-vr are GPL-2.0-or-later; our patch
 is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see its header).
 
