@@ -3,6 +3,7 @@
 #include "core/install/Install.h"
 #include "core/scan/Scan.h"
 #include "core/scan/DiscIndex.h"
+#include "core/scan/DiscMemo.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -201,12 +202,15 @@ QVariantList games(){return scan::DiscIndex::games("wii");}
 QString discId(const QString &path,std::atomic_bool &cancel){const auto read=scan::Scanner::inspect(path,cancel);return read.error.isEmpty()&&read.system=="wii"?read.identity:QString();}
 QString discId(const QString &path){std::atomic_bool cancel{false};return discId(path,cancel);}
 QString gameFor(const QString &id){return scan::DiscIndex::match("wii",id).value("game").toString();}
-QVariantMap identify(const QString &path,std::atomic_bool &cancel){
- const QFileInfo info(path);const auto id=discId(info.absoluteFilePath(),cancel);const auto row=scan::DiscIndex::match("wii",id);
+QVariantMap identify(const QString &path,std::atomic_bool &cancel,scan::DiscMemo *memo){
+ const QFileInfo info(path);
+ // Only an id that was found is kept: an empty answer may be a read stopped by its time limit.
+ const auto readId=[&](bool &finished){const auto id=discId(info.absoluteFilePath(),cancel);finished=!id.isEmpty()&&!cancel;return id;};
+ bool finished=false;const auto id=memo?memo->identity("wii",info,readId):readId(finished);const auto row=scan::DiscIndex::match("wii",id);
  return {{"file",QDir::fromNativeSeparators(info.absoluteFilePath())},{"id",id},{"game",row.value("game",QString())},{"title",row.value("title",QString())},{"verified",!row.isEmpty()}};
 }
 QVariantMap identify(const QString &path){std::atomic_bool cancel{false};return identify(path,cancel);}
-QVariantList discs(const QString &folder, std::atomic_bool &cancel) {
+QVariantList discs(const QString &folder, std::atomic_bool &cancel, scan::DiscMemo *memo) {
   QVariantList found;
   if (folder.isEmpty())
     return found;
@@ -215,7 +219,7 @@ QVariantList discs(const QString &folder, std::atomic_bool &cancel) {
       break;
     if (entry.isSymLink() || entry.isJunction())
       continue;
-    found << identify(entry.absoluteFilePath(),cancel);
+    found << identify(entry.absoluteFilePath(),cancel,memo);
   }
   return found;
 }

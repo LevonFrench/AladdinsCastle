@@ -15,6 +15,7 @@
 #include "stereo_capture.hpp"
 #include "fixed_capture_pose.hpp"
 #include "gl_swapchain_format.hpp"
+#include "hold_ring_gl.hpp"
 #ifdef ACVR_GUN_GL
 #include "gun_gl.hpp"
 #include "hand_assembly.hpp"
@@ -215,6 +216,24 @@ public:
         gl_.bind_fbo(kFrame,target.fbo);
         return ACVR_OK;
     }
+    // U4 hold ring: the runtime resolves it, this draws it over each finished eye image. It sits straight ahead of the eye
+    // (zero parallax, like a reticle), a tenth of the image across, so it is seen wherever the player is looking.
+    bool draws_hold_ring() const noexcept override {return true;}
+    void show_hold_ring(const HoldRingView &view) override {hold_ring_=view;}
+    acvr_result draw_hold_ring(const acvr_draw_info &info) override {
+        if(!hold_ring_.visible)return ACVR_OK;
+        if(!active_||!in_frame_||wglGetCurrentContext()!=context_||wglGetCurrentDC()!=dc_)return ACVR_BAD_STATE;
+        if(info.view_count!=1||!info.views||info.views->eye_index>=2)return ACVR_BAD_ARGUMENT;
+        const auto &s=eyes_[info.views->eye_index];
+        if(!s.acquired||s.index>=s.targets.size())return ACVR_BAD_STATE;
+        const auto &p=info.views->projection_from_view;
+        const float w=float(s.width),h=float(s.height);
+        // The point straight ahead of this eye, through its own (possibly off-axis) projection.
+        const float cx=(-p[8]*.5f+.5f)*w,cy=(-p[9]*.5f+.5f)*h;
+        gl_.bind_fbo(kFrame,s.targets[s.index].fbo);
+        draw_hold_ring_gl(hold_ring_,cx,cy,std::min(w,h)*.1f,int(s.width),int(s.height));
+        return ACVR_OK;
+    }
     acvr_result end(bool) override;
     void output(const acvr_output_event &) override {}
     void cancel_effects() noexcept override {}
@@ -257,6 +276,7 @@ private:
         out=reinterpret_cast<T>(p);return true;
     }
     HMODULE loader_=nullptr;
+    HoldRingView hold_ring_;
     std::string application_name_;
     std::string content_root_,model_id_;
     struct CapturedEye {uint32_t width=0,height=0;std::vector<uint8_t> rgb;};

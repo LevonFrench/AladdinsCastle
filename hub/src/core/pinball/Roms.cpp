@@ -11,6 +11,7 @@
 #include <QStringList>
 #include <QtEndian>
 #include <algorithm>
+#include <optional>
 namespace ac::pinball {
 namespace {
 constexpr int maxDepth=8,maxEntries=20000,maxAliases=4096;
@@ -25,10 +26,10 @@ bool romPayload(const QFileInfo &f){
 quint16 u16(const QByteArray &b,qsizetype p){return qFromLittleEndian<quint16>(b.constData()+p);}
 quint32 u32(const QByteArray &b,qsizetype p){return qFromLittleEndian<quint32>(b.constData()+p);}
 void stamp(QCryptographicHash &hash,const QString &path,const QFileInfo &f){hash.addData(path.toCaseFolded().toUtf8());hash.addData(QByteArrayView("\0",1));hash.addData(QByteArray::number(f.size()));hash.addData(QByteArrayView("\0",1));hash.addData(QByteArray::number(f.lastModified().toMSecsSinceEpoch()));hash.addData(QByteArrayView("\n",1));}
-// A differently named ZIP can identify a ROM only when all nonempty files are
-// under the same explicitly named root directory. Member bytes are not read.
-QString zipRoot(const QFileInfo &info,qint64 &budget,bool &complete){
- const auto unavailable=[&]()->QString{complete=false;return {};};
+struct ZipEntry {QString name;quint32 packed=0,unpacked=0,crc=0;};
+// A ZIP's central directory, bounded by budget; nothing when it cannot be read safely. Member bytes are not read.
+std::optional<QList<ZipEntry>> centralDirectory(const QFileInfo &info,qint64 &budget){
+ const auto unavailable=[]()->std::optional<QList<ZipEntry>>{return std::nullopt;};
  QFile f(info.absoluteFilePath());if(!f.open(QIODevice::ReadOnly)||f.size()<22)return unavailable();
  // Most archives have no ZIP comment: read their fixed footer first so a large
  // collection does not spend the metadata budget on compressed ROM payloads.
@@ -42,24 +43,35 @@ QString zipRoot(const QFileInfo &info,qint64 &budget,bool &complete){
  if(end<0||u16(tail,end+4)||u16(tail,end+6)||u16(tail,end+8)!=u16(tail,end+10))return unavailable();
  const quint16 count=u16(tail,end+10);const quint32 size=u32(tail,end+12),offset=u32(tail,end+16);
  if(!count||count>4096||size>4*1024*1024||quint64(offset)+size>quint64(f.size())||!f.seek(offset))return unavailable();
- if(size>budget){complete=false;return {};}budget-=size;
+ if(size>budget){return unavailable();}budget-=size;
  const auto directory=f.read(size);if(directory.size()!=qsizetype(size))return unavailable();
- qsizetype p=0;QString root;int files=0;bool singleRoot=true;
+ qsizetype p=0;QList<ZipEntry> entries;
  for(int i=0;i<count;++i){
   if(p+46>directory.size()||u32(directory,p)!=0x02014b50U)return unavailable();
-  const quint16 flags=u16(directory,p+8),method=u16(directory,p+10);const quint32 packed=u32(directory,p+20),unpacked=u32(directory,p+24);
+  const quint16 flags=u16(directory,p+8),method=u16(directory,p+10);const quint32 crc=u32(directory,p+16),packed=u32(directory,p+20),unpacked=u32(directory,p+24);
   const quint16 nameSize=u16(directory,p+28),extra=u16(directory,p+30),comment=u16(directory,p+32);
   if(flags&1||(method!=0&&method!=8)||p+46+nameSize+extra+comment>directory.size())return unavailable();
   const auto raw=directory.mid(p+46,nameSize);const auto name=(flags&0x800)?QString::fromUtf8(raw):QString::fromLatin1(raw);
   p+=46+nameSize+extra+comment;
   if(name.contains('\\')||name.startsWith('/')||name.contains(":")||name.contains("//")||name.contains("../")||name.startsWith("../"))return unavailable();
+  entries<<ZipEntry{name,packed,unpacked,crc};
+ }
+ if(p!=directory.size())return unavailable();
+ return entries;
+}
+// A differently named ZIP can identify a ROM only when all nonempty files are
+// under the same explicitly named root directory. Member bytes are not read.
+QString zipRoot(const QFileInfo &info,qint64 &budget,bool &complete){
+ const auto entries=centralDirectory(info,budget);if(!entries){complete=false;return {};}
+ QString root;int files=0;bool singleRoot=true;
+ for(const auto &entry:*entries){
+  const auto &name=entry.name;
   if(name.endsWith('/'))continue;
-  if(!packed||!unpacked)continue;
+  if(!entry.packed||!entry.unpacked)continue;
   const auto slash=name.indexOf('/');if(slash<=0||slash==name.size()-1){singleRoot=false;continue;}
   const auto next=romName(name.left(slash));if(next.isEmpty()||(!root.isEmpty()&&next!=root)){singleRoot=false;continue;}
   root=next;++files;
  }
- if(p!=directory.size())return unavailable();
  return singleRoot&&files?root:QString();
 }
 void readAliases(const QString &pinmameFolder,RomInventory &out,QCryptographicHash &hash){
@@ -93,6 +105,14 @@ QString resolve(const QString &name,const RomInventory &inventory,bool &safe){
  if(inventory.unresolvedAliases.contains(current)){safe=false;return {};}
  return current;
 }
+// The case-folded set name a row's ROM resolves to through VPMAlias.txt, when that is certain.
+QString checkedSet(const QVariantMap &row,const RomInventory &inventory){
+ if(row.value("romState")!="ready"||!row.value("romCandidatesComplete").toBool())return {};
+ const auto candidates=row.value("romCandidates").toStringList();if(candidates.size()!=1)return {};
+ const auto name=romName(candidates.first());if(name.isEmpty())return {};
+ bool safe=true;const auto resolved=resolve(name,inventory,safe);
+ return safe&&inventory.zips.contains(resolved)?resolved:QString();
+}
 bool relatedArchive(const QString &name,const QSet<QString> &present){
  // A revision/clone may use a merged parent archive. Names alone cannot prove
  // that coverage, but a related installed archive prevents a definite missing verdict.
@@ -124,7 +144,7 @@ RomInventory collectRoms(const QString &romFolder,const QString &pinmameFolder){
      if(f.isFile()&&f.suffix().compare("zip",Qt::CaseInsensitive)==0&&f.size()>0){
       bool archiveReadable=true;const auto rooted=zipRoot(f,zipBudget,archiveReadable);
       if(!archiveReadable){out.complete=false;continue;}
-      const auto stem=romName(f.completeBaseName());if(!stem.isEmpty())out.present.insert(stem);
+      const auto stem=romName(f.completeBaseName());if(!stem.isEmpty()){out.present.insert(stem);if(!out.zips.contains(stem))out.zips.insert(stem,f.absoluteFilePath());}
       if(!rooted.isEmpty()&&rooted!=stem)out.possible.insert(rooted);
      }
      if(f.isDir()){
@@ -168,5 +188,50 @@ QVariantMap applyRomState(QVariantMap row,const RomInventory &inventory){
  if(related){row["romState"]="unknown";row["romReason"]="A related ROM archive is installed; exact version or merged-set coverage is unverified";return row;}
  if(!inventory.complete){row["romState"]="unknown";row["romReason"]="ROM folder is empty or could not be fully inspected";return row;}
  row["romState"]="ROM missing";row["romReason"]="No certain PinMAME ROM candidate was found";return row;
+}
+std::optional<QList<ZipFile>> zipFiles(const QString &path){
+ const QFileInfo info(path);if(link(info))return std::nullopt;
+ qint64 budget=4*1024*1024+65557+22;const auto entries=centralDirectory(info,budget);if(!entries)return std::nullopt;
+ QList<ZipFile> files;
+ for(const auto &entry:*entries){if(entry.name.endsWith('/'))continue;files<<ZipFile{entry.name.mid(entry.name.lastIndexOf('/')+1),entry.unpacked,entry.crc};}
+ return files;
+}
+RomSetCheck checkRomSet(const ExpectedSet &set,const QList<ZipFile> &own,const QList<ZipFile> &parent){
+ RomSetCheck result;
+ const auto find=[](const ExpectedRom &rom,const QList<ZipFile> &files,bool &differs)->bool{
+  if(rom.crc)for(const auto &file:files)if(file.crc==rom.crc&&file.size==rom.length)return true;
+  for(const auto &file:files)if(file.name.compare(rom.name,Qt::CaseInsensitive)==0){differs=file.size!=rom.length||(rom.crc&&file.crc!=rom.crc);return true;}
+  return false;
+ };
+ for(const auto &rom:set.roms){
+  bool differs=false;
+  if(find(rom,own,differs)||find(rom,parent,differs)){if(differs)result.differ<<rom.name;continue;}
+  if(!rom.crc)continue; // no good dump is known: PinMAME does not require it
+  ((rom.flags&0x20)?result.soundMissing:result.missing)<<rom.name;
+ }
+ return result;
+}
+QStringList romCheckSets(const QVariantList &rows,const RomInventory &inventory){
+ QStringList sets;
+ for(const auto &value:rows){const auto set=checkedSet(value.toMap(),inventory);if(!set.isEmpty()&&!sets.contains(set))sets<<set;}
+ return sets;
+}
+QVariantMap applyRomCheck(QVariantMap row,const RomInventory &inventory,const ExpectedSets &sets){
+ const auto set=checkedSet(row,inventory);if(set.isEmpty()||!sets.contains(set))return row;
+ const auto own=zipFiles(inventory.zips.value(set));if(!own)return row;
+ const auto &expected=sets[set];QList<ZipFile> parent;
+ if(const auto name=romName(expected.cloneOf);!name.isEmpty()&&inventory.zips.contains(name))if(const auto files=zipFiles(inventory.zips.value(name)))parent=*files;
+ const auto check=checkRomSet(expected,*own,parent);
+ const auto list=[](const QStringList &names){return names.size()>4?names.mid(0,4).join(", ")+QString(" and %1 more").arg(names.size()-4):names.join(", ");};
+ row["romCheckSource"]=QString("VPinMAME");
+ if(!check.missing.isEmpty()){row["romCheck"]=QString("files missing");row["romMissing"]=check.missing;row["romState"]="ROM missing";
+  row["romReason"]=QString("The ROM set %1 lacks %2 of the files PinMAME needs: %3.").arg(set).arg(check.missing.size()).arg(list(check.missing));}
+ else if(!check.differ.isEmpty()){row["romCheck"]=QString("files differ");row["romDiffer"]=check.differ;row["romState"]="unknown";
+  row["romReason"]=QString("%1 of the files in %2.zip differ from what PinMAME expects (%3), so VPinMAME may stop on a warning.").arg(check.differ.size()).arg(set).arg(list(check.differ));}
+ else if(!check.soundMissing.isEmpty()){row["romCheck"]=QString("sound files missing");
+  row["romReason"]=QString("The ROM set %1 has no sound files (%2), so the table plays without sound.").arg(set).arg(list(check.soundMissing));}
+ else row["romCheck"]=QString("complete");
+ if(!check.soundMissing.isEmpty())row["romSoundMissing"]=check.soundMissing;
+ return row;
 }
 }

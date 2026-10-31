@@ -192,6 +192,8 @@ private:
     std::shared_ptr<std::atomic_bool> libraryCancel_;
     // The running Set-up folder check or suggestion (a newer one ends it).
     std::shared_ptr<std::atomic_bool> folderCancel_;
+    // The running Set-up report read (a newer one, or closing the Hub, ends it unsaved).
+    std::shared_ptr<std::atomic_bool> setupCancel_;
     QString model2StopFile_;quint64 model2Session_=0;
     QString ps1StopFile_;
 };

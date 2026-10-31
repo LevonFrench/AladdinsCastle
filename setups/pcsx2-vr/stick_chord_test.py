@@ -38,10 +38,28 @@ def check_bindings(text):
     assert "quit_y" not in controllers
 
 
+RING_HEADERS = ("stick_chord.hpp", "hold_ring.hpp", "hold_ring_gl.hpp", "hold_ring_host.hpp")
+
+
+def check_ring(text):
+    """The U4 hold ring: the patch carries libacvr's headers unchanged and draws the ring in the eye images."""
+    libacvr = HERE.parents[1] / "libacvr" / "src"
+    for name in RING_HEADERS:
+        shared = (libacvr / name).read_text(encoding="utf-8").replace("\r\n", "\n")
+        assert new_file(text, f"pcsx2/GS/acvr/{name}") == shared, f"pcsx2/GS/acvr/{name} differs from libacvr/src/{name}"
+    live = new_file(text, "pcsx2/GS/PS2StereoLive.h")
+    assert "if(copied)DrawHoldRing(eye,used[eye],pair_pose);" in live, "ring not drawn after the eye blit"
+    controllers = new_file(text, "pcsx2/GS/PS2VRControllers.h")
+    assert "hold_ring.update(click_ms,stick_chord.QuitProgress(click_time))" in controllers
+    assert "quit_after_flash.update(click_ms,clicks.quit)" in controllers, "the quit must wait for the ring's flash"
+
+
 def main():
     text = PATCH.read_text(encoding="utf-8")
     check_bindings(text)
     print("PASS bindings: stick clicks only, no menu/system button, L3/R3 on left Y/X")
+    check_ring(text)
+    print("PASS hold ring: libacvr headers copied unchanged, drawn after each eye blit, quit after the flash")
     gxx = shutil.which("g++")
     if not gxx:
         print("SKIP chord logic: g++ not found")

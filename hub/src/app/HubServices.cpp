@@ -3,6 +3,7 @@
 #include "core/wii/Wii.h"
 #include "core/libretro/Libretro.h"
 #include "HubServices.h"
+#include "core/scan/DiscMemo.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
 #include <QElapsedTimer>
@@ -529,6 +530,8 @@ HubServices::~HubServices(){
     if(artCancel_)*artCancel_=true;
     if(localArtCancel_)localArtCancel_->store(true);
     if(libraryCancel_)libraryCancel_->store(true);
+    if(folderCancel_)folderCancel_->store(true);
+    if(setupCancel_)setupCancel_->store(true);
     artPool_.waitForDone();
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
@@ -679,7 +682,8 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             // The host's own system and save folders are the Hub's, under user/, made here and kept between launches.
             const auto data=install::scopedPath("user/libretro/"+id+"/x",root_);const auto dataFolder=QFileInfo(data).absolutePath();
             for(const auto &sub:{"system","saves"})if(!QDir().mkpath(QDir(dataFolder).filePath(sub)))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
-            const auto plan=libretro::launchPlan(id,host,settings_->get("threedsCore",QString()).toString(),file,dataFolder,profiles,view);
+            const auto selected=libretro::gameFile(id,settings_->get(libretro::gameFileKey(id),QString()).toString());
+            const auto plan=libretro::launchPlan(id,host,settings_->get("threedsCore",QString()).toString(),selected,dataFolder,profiles,view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             auto &environment=request.runtimeInputs.environment;
             for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
@@ -717,10 +721,14 @@ void HubServices::scanSetup(const QStringList &systems){
     // Off the GUI thread; only the user's folders are read, and only Hub's own cache is written.
     const auto values=settings_->values();const auto root=root_;const QPointer<UiController> ui=ui_;
     const QStringList pinballKey{values.value("pinballFolder").toString(),values.value("pinballDatabase").toString(),values.value("pinballRoms").toString(),values.value("pinballMedia").toString()};
+    // Reading every disc of a large folder can take many minutes; the Hub's thread pool waits for its work on exit,
+    // so without this flag closing the Hub would wait for the whole read.
+    if(setupCancel_)setupCancel_->store(true);
+    const auto cancel=std::make_shared<std::atomic_bool>(false);setupCancel_=cancel;
     auto *watcher=new QFutureWatcher<QVariantMap>(this);
-    connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto report=watcher->result();watcher->deleteLater();ui_->setSetupReport(report);if(!report.value("error").toString().isEmpty())ui_->showError("Set-up",report.value("error").toString());});
-    watcher->setFuture(QtConcurrent::run([systems,values,root,ui,pinballKey]{
-        QVariantMap report;QVariantList results;std::atomic_bool cancel=false;
+    connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,cancel]{const auto report=watcher->result();watcher->deleteLater();if(cancel->load())return;ui_->setSetupReport(report);if(!report.value("error").toString().isEmpty())ui_->showError("Set-up",report.value("error").toString());});
+    watcher->setFuture(QtConcurrent::run([systems,values,root,ui,pinballKey,cancel]{
+        QVariantMap report;QVariantList results;
         try{
             const auto cachePath=install::scopedPath("user/cache/pinball-scan.json",root);
             QVariantMap context;
@@ -728,15 +736,23 @@ void HubServices::scanSetup(const QStringList &systems){
             context["libraryChoice"]=values.value("libraryChoice").toMap();
             {QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly)){const auto saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
                 if(QStringList{saved.value("folder").toString(),saved.value("database").toString(),saved.value("roms").toString(),saved.value("media").toString()}==pinballKey)context["pinballScan"]=saved.value("result");}}
+            // What each disc said last time: a disc whose size and time are unchanged is not opened again. Kept after each
+            // system, so discs read before the Hub was closed are not read again either.
+            const auto memoPath=install::scopedPath("user/cache/setup-discs.json",root);
+            scan::DiscMemo memo;{QFile file(memoPath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))memo=scan::DiscMemo(QJsonDocument::fromJson(file.readAll()).toVariant().toMap());}
+            const auto keepMemo=[&]{try{install::atomicWrite(memoPath,QJsonDocument::fromVariant(memo.saved()).toJson(QJsonDocument::Compact));}catch(const std::exception &){}};
             for(const auto &id:systems){
+                if(cancel->load())return report; // Ended part way: the report is not saved, so the next start reads again.
                 QString title=id;for(const auto &value:setup::systems())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
                 const auto progress=[ui,title](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"setupScanProgress",Qt::QueuedConnection,Q_ARG(QString,title+": "+text));};
-                auto result=setup::scanSystem(id,values,context,progress,cancel);
+                auto result=setup::scanSystem(id,values,context,progress,*cancel,&memo);
+                if(QStringList{"ps2","dreamcast","wii"}.contains(id))keepMemo();
                 const auto tables=result.take("pinballScan").toMap();
                 if(tables.contains("tables")&&!context.contains("pinballScan"))install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",pinballKey[0]},{"database",pinballKey[1]},{"roms",pinballKey[2]},{"media",pinballKey[3]},
                     {"fingerprint",pinball::fingerprint(pinballKey[0],pinballKey[1],pinballKey[2])},{"result",tables}}).toJson(QJsonDocument::Compact));
                 results<<result;
             }
+            if(cancel->load())return report;
             report={{"scanned",QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")},{"systems",results},{"stamp",setup::reportStamp(values,systems)}};
             install::atomicWrite(install::scopedPath("user/cache/setup-report.json",root),QJsonDocument::fromVariant(report).toJson(QJsonDocument::Compact));
         }catch(const std::exception &e){report["systems"]=results;report["error"]=QString::fromUtf8(e.what());}

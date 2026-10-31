@@ -14,6 +14,8 @@ public:
   PanelAttacher(std::function<bool(QString *)> attach, std::function<void()> detach,
                 QObject *parent = nullptr);
   void setRetry(int intervalMs, int attempts);
+  // How long to wait for a quitting SteamVR to stop, and to rest after giving up, before trying again.
+  void setRejoin(int intervalMs);
   bool attached() const { return attached_; }
 public slots:
   void setSteamVrRunning(bool running);
@@ -28,7 +30,7 @@ private:
   void detach();
   std::function<bool(QString *)> attach_;
   std::function<void()> detach_;
-  QTimer retry_;
+  QTimer retry_, rejoin_;
   int tries_ = 0, attempts_ = 12;
   bool running_ = false, attached_ = false, waitForStop_ = false;
 };

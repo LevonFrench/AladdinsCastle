@@ -1,7 +1,7 @@
 // Model bench: an interactive panel showing the project's own models one at a time.
 // Starts only when the panel scrolls into view; drag to turn, Fire to see the moving parts work.
 import * as THREE from 'three';
-import { catalog, loadModel } from './models.js?v=20261025b';
+import { catalog, loadModel } from './models.js?v=20261026a';
 
 const panel = document.getElementById('bench');
 if (panel) {

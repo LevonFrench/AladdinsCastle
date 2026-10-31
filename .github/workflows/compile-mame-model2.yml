@@ -1,0 +1,190 @@
+name: MAME Model 2 compile check
+# Compiles the patched MAME Model 2 driver (the small SUBTARGET=model2 build, one driver source) from its pinned commit,
+# and on Windows also the VR presenter against the patched source. Nothing is run: no ROM, no BIOS, no VR runtime.
+# MAME is large, so this runs only on changes to setups/mame-model2-vr (and this file), on demand, and every Monday.
+# The compiler cache is kept between runs, so a re-run after a small change is much shorter than the first.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'setups/mame-model2-vr/**'
+      - '.github/workflows/compile-mame-model2.yml'
+  pull_request:
+    paths:
+      - 'setups/mame-model2-vr/**'
+      - '.github/workflows/compile-mame-model2.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '47 4 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mame:
+    name: mame-model2-vr (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 1500M
+      CCACHE_COMPRESS: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/mame-model2-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit = pin['repository'], pin['source_commit']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or not repo.startswith('https://github.com/'):
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n')
+
+      - name: Fetch the pinned upstream commit (no history)
+        shell: bash
+        run: |
+          git init upstream
+          cd upstream
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+
+      - name: Apply the stereo patch
+        shell: bash
+        working-directory: upstream
+        run: |
+          git apply --check "$GITHUB_WORKSPACE/repo/setups/mame-model2-vr/model2-stereo.patch"
+          git apply --verbose "$GITHUB_WORKSPACE/repo/setups/mame-model2-vr/model2-stereo.patch" | tail -12
+          git status --short
+
+      - name: Restore compiler cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .ccache
+          key: mame-ccache-${{ runner.os }}-${{ env.UPSTREAM_COMMIT }}-${{ hashFiles('repo/setups/mame-model2-vr/model2-stereo.patch') }}
+          restore-keys: mame-ccache-${{ runner.os }}-${{ env.UPSTREAM_COMMIT }}-
+
+      # ---------------------------------------------------------------- Linux
+      # The Windows-only pieces of the patch (audio GUIDs, the Windows build script) are not part of a Linux build; the
+      # Model 2 driver, renderer and input changes are. The flags follow the setup README, with the SDL front end.
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2; do
+            if sudo timeout 120 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update &&
+               sudo timeout 420 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends \
+                 build-essential python3 libsdl2-dev libsdl2-ttf-dev libfontconfig-dev libasound2-dev libpulse-dev ccache; then
+              exit 0
+            fi
+            echo "apt attempt $attempt failed"
+          done
+          exit 1
+      - name: Compile the patched Model 2 driver (g++, SUBTARGET=model2)
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: upstream
+        timeout-minutes: 75
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          make -j"$(nproc)" SUBTARGET=model2 SOURCES=src/mame/sega/model2.cpp REGENIE=1 OPTIMIZE=0 SYMBOLS=0 PRECOMPILE=0 \
+            NOWERROR=1 NO_USE_MIDI=1 NO_OPENGL=1 NO_USE_PORTAUDIO=1 USE_QTDEBUG=0 TOOLS=0
+          ls -l model2
+          ccache -s
+
+      # -------------------------------------------------------------- Windows
+      # MSYS2 MINGW64, as the pin records. The runner image already carries MSYS2; the packages are added with pacman.
+      - name: Windows build packages (MSYS2 MINGW64)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 20
+        run: |
+          $bash = Join-Path $env:SystemDrive 'msys64\usr\bin\bash.exe'
+          & $bash -lc 'pacman -S --needed --noconfirm make python git mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-ccache'
+          if ($LASTEXITCODE -ne 0) { throw "pacman exit $LASTEXITCODE" }
+      - name: Compile the patched Model 2 driver (MinGW g++, SUBTARGET=model2)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 75
+        run: |
+          $env:MSYSTEM = 'MINGW64'
+          $env:MSYS2_PATH_TYPE = 'inherit'
+          $env:CHERE_INVOKING = '1'
+          $bash = Join-Path $env:SystemDrive 'msys64\usr\bin\bash.exe'
+          $script = @'
+          set -eo pipefail
+          cd "$(cygpath -u "$GITHUB_WORKSPACE")/upstream"
+          export CCACHE_DIR="$(cygpath -u "$GITHUB_WORKSPACE")/.ccache"
+          export PATH="/mingw64/lib/ccache/bin:/mingw64/bin:$PATH"
+          make -j"$(nproc)" SUBTARGET=model2 SOURCES=src/mame/sega/model2.cpp PTR64=1 MINGW64=/mingw64 BUILDDIR=build-mingw64 \
+            REGENIE=1 OPTIMIZE=0 SYMBOLS=0 PRECOMPILE=0 NOWERROR=1 NO_USE_MIDI=1 NO_OPENGL=1 USE_SDL=0 USE_SDL3=0 TOOLS=0
+          ls -l model2.exe
+          ccache -s
+          '@
+          $file = Join-Path $env:RUNNER_TEMP 'build-mame.sh'
+          [IO.File]::WriteAllText($file, ($script -replace "`r", '') + "`n")
+          & $bash --login $file
+          if ($LASTEXITCODE -ne 0) { throw "MAME build exit $LASTEXITCODE" }
+      - name: Fetch pinned OpenXR headers (headers only, SHA-256 checked)
+        if: runner.os == 'Windows'
+        shell: python
+        timeout-minutes: 5
+        run: |
+          import hashlib, json, pathlib, time, urllib.request
+          pin = json.loads(pathlib.Path('repo/setups/mame-model2-vr/upstream-pin.json').read_text(encoding='utf-8'))['openxr_headers']
+          tag = 'release-' + pin['version']
+          target = pathlib.Path('build-openxr/include/openxr')
+          target.mkdir(parents=True, exist_ok=True)
+          crlf, lfonly = bytes([13, 10]), bytes([10])
+          for name, expected in sorted(pin['sha256'].items()):
+              url = f'https://raw.githubusercontent.com/KhronosGroup/OpenXR-SDK/{tag}/include/openxr/{name}'
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(url, timeout=60) as response:
+                          data = response.read()
+                      break
+                  except OSError:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+              lf = data.replace(crlf, lfonly)
+              if expected not in (hashlib.sha256(data).hexdigest(), hashlib.sha256(lf.replace(lfonly, crlf)).hexdigest()):
+                  raise SystemExit(f'{name} from {tag} does not match the pin')
+              (target / name).write_bytes(data)
+          print(f'Fetched {len(pin["sha256"])} OpenXR {pin["version"]} headers into {target}')
+      # The VR presenter (model2-viewer) is built against the patched MAME headers, both the default and the shared flavour.
+      - name: Compile the VR presenter against the patched source (MinGW g++, both flavours)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'model2-viewer'
+          foreach ($shared in $false, $true) {
+            try {
+              if ($shared) {
+                ./repo/setups/mame-model2-vr/build-viewer.ps1 -MameSource "$env:GITHUB_WORKSPACE/upstream" -OpenXRInclude "$env:GITHUB_WORKSPACE/build-openxr/include" -OutputDirectory "$out-shared" -SharedPresenter
+              } else {
+                ./repo/setups/mame-model2-vr/build-viewer.ps1 -MameSource "$env:GITHUB_WORKSPACE/upstream" -OpenXRInclude "$env:GITHUB_WORKSPACE/build-openxr/include" -OutputDirectory $out
+              }
+            } finally {
+              foreach ($log in Get-ChildItem "$out*" -Recurse -Filter '*errors.log' -ErrorAction SilentlyContinue) { Write-Host "--- $($log.FullName)"; Get-Content -LiteralPath $log.FullName }
+            }
+          }
+          foreach ($exe in 'model2-viewer.exe', 'model2-viewer-shared.exe') {
+            if (-not (Get-ChildItem -Recurse -Path "$out*" -Filter $exe -ErrorAction SilentlyContinue)) { throw "$exe was not produced" }
+          }

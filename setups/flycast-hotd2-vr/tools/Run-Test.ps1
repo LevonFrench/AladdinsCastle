@@ -24,6 +24,10 @@ param(
     [string]$Poke = '',       # ACVR_POKE "offset:value,...": 16-bit writes every frame
     [double]$PreviewWide = 0, # ACVR_PREVIEW_WIDE: the flat picture shows k times the stock view
     [double]$Quit = 0,        # ACVR_QUIT: end the run at this game time (s)
+    [string]$Ray = '',        # ACVR_RAY "s:px:py:dist:ox:oy:oz:trigger;...": the headset's own gun decision for a ray (needs -Reproject)
+    [string]$Gun2 = '',       # ACVR_GUN2: player 2's gun, same format as -Gun
+    [string]$Rtc = '',        # ACVR_RTC: fixes the Dreamcast clock (seconds since 1950) so two runs repeat exactly
+    [string]$EyeSize = '',    # ACVR_EYE_SIZE, e.g. 2592x2688: build the matrices as if drawing into a headset eye buffer
     [string]$Seed = '',       # a folder whose files replace the saves in RunDir\data first (same start every run)
     [switch]$Reproject,       # rebuild in 3D (vr.Reproject=yes); vr.Yaw / vr.Pitch turn the view
     [switch]$GunPort          # Dreamcast: a light gun in port A
@@ -48,7 +52,7 @@ $base = "config:vr.Xr=no,config:pvr.rend=0,config:rend.NativeDepthInterpolation=
 $base += if ($Reproject) { ',config:vr.Reproject=yes' } else { ',config:vr.Reproject=no' }
 if ($GunPort) { $base += ',input:device1=7' }
 if ($Config) { $base += ',' + (($Config -split ',' | ForEach-Object { if ($_ -match '^[^=]*:') { $_ } else { "config:$_" } }) -join ',') }
-$vars = @{ ACVR_HIDDEN = '1'; ACVR_PRESS = $Press; ACVR_GUN = $Gun; ACVR_SNAP = $Snap; ACVR_RIP = $Rip; ACVR_WATCH = $Watch; ACVR_POKE = $Poke
+$vars = @{ ACVR_HIDDEN = '1'; ACVR_PRESS = $Press; ACVR_GUN = $Gun; ACVR_GUN2 = $Gun2; ACVR_RAY = $Ray; ACVR_RTC = $Rtc; ACVR_EYE_SIZE = $EyeSize; ACVR_SNAP = $Snap; ACVR_RIP = $Rip; ACVR_WATCH = $Watch; ACVR_POKE = $Poke
     ACVR_PREVIEW_WIDE = $(if ($PreviewWide -ge 1) { [string]$PreviewWide } else { '' }); ACVR_QUIT = $(if ($Quit -gt 0) { [string]$Quit } else { '' }) }
 $env:XR_RUNTIME_JSON = Join-Path $RunDir 'no-openxr-runtime.json'   # never created: no OpenXR runtime can load
 foreach ($k in $vars.Keys) { if ($vars[$k]) { Set-Item "Env:$k" $vars[$k] } else { Remove-Item "Env:$k" -ErrorAction SilentlyContinue } }
