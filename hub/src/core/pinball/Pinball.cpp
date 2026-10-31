@@ -3,6 +3,7 @@
 #include "Build.h"
 #include "Identity.h"
 #include "Roms.h"
+#include "RomList.h"
 #include "Script.h"
 #include "core/install/Support.h"
 #include <QFile>
@@ -92,7 +93,9 @@ QVariantMap inspect(const QString &path) {
  try{
   require(!link(QFileInfo(path)));Compound c(path);
   for(const auto &item:{qMakePair(QString("title"),QString("TableName")),qMakePair(QString("authors"),QString("AuthorName")),qMakePair(QString("version"),QString("TableVersion"))}){
-   const auto b=c.stream("TableInfo/"+item.second);if(!b.isEmpty()){require(b.size()%2==0);row[item.first]=display(QString::fromUtf16(reinterpret_cast<const char16_t*>(b.constData()),b.size()/2));}
+   const auto b=c.stream("TableInfo/"+item.second);if(!b.isEmpty()){require(b.size()%2==0);row[item.first]=display(QString::fromUtf16(reinterpret_cast<const char16_t*>(b.constData()),b.size()/2));
+    // The table info's own name, before identify() makes the shown title: the VPS matcher weighs it.
+    if(item.first=="title")row["tableInfoName"]=row[item.first];}
   }
   bool locked=false;const auto script=scriptFrom(c.stream("GameStg/GameData"),locked);
   // A locked script still plays in VPX; the Hub only cannot read what it needs, and says so.
@@ -141,7 +144,9 @@ static QFileInfoList tableFiles(const QString &folder){
 // Raise when the scanner's results change for the same files, so saved scans from an older Hub are redone.
 // 2: locked scripts are listed as startable instead of "Protected script metadata is not classified" (2026-10-20).
 // 3: controller-aware ROMs, aliases, nested inventories, larger scripts and machine-level VPS identity.
-constexpr int kScannerVersion=3;
+// 4: the VPin Studio distance matcher behind the exact VPS rules, and the table info's own name kept (2026-10-28).
+// 5: ROM sets checked file by file against VPinMAME's own lists (2026-10-28).
+constexpr int kScannerVersion=5;
 QString pinmameFolderForExecutable(const QString &executable){return executable.isEmpty()?QString():QDir(QFileInfo(executable).absolutePath()).filePath("VPinMAME");}
 QVariantMap fingerprint(const QString &folder,const QString &database,const QString &romFolder,const QString &pinmameFolder) {
  qint64 newestTable=0;const auto tables=tableFiles(folder);
@@ -151,8 +156,9 @@ QVariantMap fingerprint(const QString &folder,const QString &database,const QStr
  result.insert("database",database.isEmpty()?0:QFileInfo(database).lastModified().toMSecsSinceEpoch());return result;
 }
 QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder,const QString &pinmameFolder) {
- QVariantList rows;QJsonArray db;
- if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());db=doc.array();}
+ QVariantList rows;QJsonArray json;
+ if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());json=doc.array();}
+ const auto db=vpsDatabase(json); // games prepared once, not once a table
  const auto inventory=collectRoms(romFolder,pinmameFolder);
  QDir dir(folder);require(dir.exists());int ready=0;
  for(const auto &file:tableFiles(folder)){
@@ -173,7 +179,14 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
   if(row["vrReady"].toBool()) ++ready;
   rows<<row;
  }
- return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
+ // Then each ready ROM set's files against PinMAME's own list for it, asked once for the whole scan.
+ QVariantMap result{{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
+ if(const auto wanted=romCheckSets(rows,inventory);!wanted.isEmpty()){
+  QString why;const auto sets=expectedRomSets(wanted,pinmameFolder,why);
+  if(!why.isEmpty())result["romCheckNote"]=why;
+  if(!sets.isEmpty()){for(auto &value:rows)value=applyRomCheck(value.toMap(),inventory,sets);result["tables"]=rows;}
+ }
+ return result;
 }
 QVariantMap launchGuidance(bool patched) {
  const QString common="Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables. ";

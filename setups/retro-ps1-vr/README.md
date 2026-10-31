@@ -188,6 +188,12 @@ a fixed head pose and a right hand aimed at (U, V), into `<prefix>-left.png`
 and `<prefix>-right.png`. The log says where the aim ray met the screen,
 which must equal (U, V).
 
+Add `--test-hold P` to the same proof to draw the universal quit's hold ring (U4) as if both stick clicks had been
+held: P is the progress of the 3 s hold, from 0.33 (appears, empty) to 1 (full and flashing); above 1 is the settled
+full ring. The ring comes from `libacvr/src/hold_ring.hpp` and `hold_ring_gl.hpp`, shared with the MAME gun viewer and
+the Model 2 viewers. In the headset it shows from 1 s of holding, fills clockwise, and flashes once at 3 s; the host
+then waits 0.7 s before it saves and quits, so the flash is seen.
+
 Results so far (Beetle PSX 0.9.44.1, hidden runs): Point Blank was played
 from the intro to Training stages using only the gun (calibration, menus,
 hits counted by the game, memory card written). Thirteen other gun games

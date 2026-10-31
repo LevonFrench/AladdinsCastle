@@ -25,6 +25,7 @@ struct StickChordState {
     bool recenter=false, quit=false;    // one-step pulses (U3, U4)
     float quit_progress=0;              // chord held time / quit_ms, 0..1
     bool quit_visible=false;            // chord outlived recenter_ms: show a ring or countdown
+    bool quit_cancelled=false;          // cancel_quit() was called for this hold: the quit will not fire, show no ring
     uint32_t chord_ms=0;
 };
 class StickChord {
@@ -54,11 +55,14 @@ public:
             out.chord=true;out.chord_ms=held>UINT32_MAX?UINT32_MAX:uint32_t(held);
             out.quit_progress=t.quit_ms?std::min(1.f,float(held)/float(t.quit_ms)):1.f;
             out.quit_visible=held>=t.recenter_ms;
+            // One let go: the 3 s hold is over for this chord (the contract is both held), as in acvr-ps1's StickChord.h.
+            if(!(cur[0]&&cur[1])) quit_cancelled=true;
+            out.quit_cancelled=quit_cancelled;
             if(!quit_fired&&!quit_cancelled&&held>=t.quit_ms) {out.quit=true;quit_fired=true;}
             if(!cur[0]&&!cur[1]) {
                 // Both are up: this step is the release.
                 if(!quit_fired&&held<=t.recenter_ms) out.recenter=true;
-                chord_active=false;quit_cancelled=false;out.chord=false;out.quit_visible=false;out.quit_progress=0;out.chord_ms=0;
+                chord_active=false;quit_cancelled=false;out.chord=false;out.quit_visible=false;out.quit_cancelled=false;out.quit_progress=0;out.chord_ms=0;
             }
         } else {
             out.start=(solo[0]&&cur[0])||now<pulse_until[0];

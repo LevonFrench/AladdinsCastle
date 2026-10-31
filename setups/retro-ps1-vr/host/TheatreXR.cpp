@@ -287,6 +287,7 @@ void ThreadBody()
   // Both stick clicks together put the screen in front of you again, and held for 3 s quit and save (the universal layer,
   // StickChord.h); the Home key does the recentre on the PC. The same resolver gives the games Start and Select.
   chord::Resolver sticks; bool recentreWanted = false; bool quitShown = false;
+  acvr::HoldRing holdRingState; acvr::HoldRingView holdRing;   // the U4 ring (libacvr hold_ring.hpp): fills from 1 s to 3 s, flashes once when the quit fires
   while (!s_stop) {
     XrEventDataBuffer ev{ XR_TYPE_EVENT_DATA_BUFFER };
     while (p_xrPollEvent(s_instance, &ev) == XR_SUCCESS) {
@@ -363,6 +364,7 @@ void ThreadBody()
     {
       const auto u = sticks.update(GetTickCount64(), in.stickLeft, in.stickRight);
       in.uStart = u.start; in.uSelect = u.select; in.quitProgress = u.quitProgress;
+      holdRing = holdRingState.update(GetTickCount64(), u.quitProgress);
       if (u.recentre) recentreWanted = true;
       if (u.quit) { s_quitFired = true; Log("both stick clicks held for 3 s: quit and save"); }
       in.quitFired = s_quitFired;
@@ -407,7 +409,7 @@ void ThreadBody()
           s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; scene.hudKeyBlack = s_config.hudKeyBlack; }
         }
         scene.showDot = s_config.aimDot && in.active && !in.offScreen && !in.touchHit; scene.dotU = in.u; scene.dotV = in.v;
-        scene.quitProgress = in.quitProgress;
+        scene.holdRing = holdRing;
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
           scene.showGun = true; scene.trigger = triggerValue;
@@ -640,6 +642,11 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     Slot hud;
     if (config.hud && hudArgb && hudW && hudH) { UploadInto(hud, hudArgb, hudW, hudH); scene.hud = hud.tex; scene.hudPanel = HudPanel(screen, config); scene.hudOpacity = config.hudOpacity; scene.hudKeyBlack = config.hudKeyBlack; }
     scene.showDot = on && config.aimDot && !atPanel; scene.dotU = u; scene.dotV = v;
+    if (config.proofHold > 0) {   // a synthetic held chord: the same HoldRing the headset path feeds, at a fixed moment
+      acvr::HoldRing proofRing;
+      if (config.proofHold > 1.f) { proofRing.update(0, 1.f); scene.holdRing = proofRing.update(2000, 1.f); }   // settled: full, flash over
+      else scene.holdRing = proofRing.update(0, config.proofHold);
+    }
     if (s_gun.loaded()) { scene.showGun = true; scene.gunRoot = s_gun.alignedRoot(aim, aim, 0); }
     const int size = 1440; GLuint fbo = 0, color = 0, depth = 0;
     glGenFramebuffers(1, &fbo); glGenTextures(1, &color); tgl::GenRenderbuffers(1, &depth);

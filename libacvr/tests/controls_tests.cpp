@@ -118,6 +118,9 @@ void chord_recenter_and_quit() {
     // Pinball adjust: moving the hands cancels the quit countdown for this hold only.
     Chord p;p.at(0,true,true);p.c.cancel_quit();check(!p.at(3200,true,true).quit);p.at(3300,false,false);
     p.at(4000,true,true);check(p.at(7000,true,true).quit);
+    // One click let go mid-hold: no quit while the other stays held, and the release still sends no recentre.
+    Chord o;o.at(0,true,true);o.at(1500,true,false);check(!o.at(3500,true,false).quit);
+    s=o.at(3600,false,false);check(!s.quit&&!s.recenter&&!s.chord);
     // Re-pressing one click while the chord is still held changes nothing.
     Chord r;r.at(0,true,true);r.at(200,false,true);s=r.at(500,true,true);check(!s.start&&!s.select&&s.chord);
     // Second click after the window is two solo presses, never a chord.

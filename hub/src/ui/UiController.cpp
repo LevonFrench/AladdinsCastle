@@ -17,6 +17,7 @@
 #include "core/scripted/Scripted.h"
 #include "core/system22/System22.h"
 #include "core/pinball/Gamepad.h"
+#include "core/pinball/Scores.h"
 #include "core/art/Download.h"
 #include "core/launch/UniversalControls.h"
 #include <QFileInfo>
@@ -388,7 +389,14 @@ void UiController::setPinballArt(const QVariantMap &art){
  if(!selected.isEmpty()){m_pinballSelection["artThumb"]=selected.value("thumb");m_pinballSelection["artBackglass"]=selected.value("backglass");}
  emit pinballChanged();
 }
-void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}emit pinballChanged();}
+void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}readPinballScores();emit pinballChanged();}
+// The selected table's saved high scores, read fresh from PinMAME's .nv file: they change with every game, so
+// they are not kept in the scan.
+void UiController::readPinballScores(){
+ if(m_pinballSelection.isEmpty())return;
+ const auto folder=pinball::nvramFolder(pinball::pinmameFolderForExecutable(m_settings->get("pinballExecutable",QString()).toString()),m_settings->get("pinballRoms",QString()).toString());
+ m_pinballSelection["highScores"]=pinball::tableScores(m_pinballSelection,folder);
+}
 void UiController::scanPinball(){if(m_pinballScanning)return;const auto folder=m_settings->get("pinballFolder",QString()).toString();if(folder.isEmpty()){message("Choose your Pinball table folder first.");return;}m_pinballScanning=true;emit pinballChanged();emit pinballScanRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
 void UiController::openPinball(){const auto folder=m_settings->get("pinballFolder",QString()).toString();if(m_pinballScanning||m_pinballRaw.contains("tables")||folder.isEmpty())return;emit pinballRestoreRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
 void UiController::pinballFailed(const QString &error){m_pinballScanning=false;emit pinballChanged();message(error);}
@@ -548,8 +556,9 @@ QVariantList UiController::buildOtherGames()const{
   if(!host.isEmpty()||!core.isEmpty()||!dumps.isEmpty())for(const auto &value:libretro::games()){
    const auto game=value.toMap();const auto id=game.value("id").toString();
    const auto profiles=libretro::profilesFolder(m_settings->get("libretroProfiles",QString()).toString(),QCoreApplication::applicationDirPath());
-   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,dumps)},{"warning",game.value("controls")},
-    {"problem",libretro::problem(id,host,core,dumps,profiles)}},libretro::views());
+   const auto selected=m_settings->get(libretro::gameFileKey(id),QString()).toString();
+   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,selected)},{"warning","User-selected file; content identity is not verified. "+game.value("controls").toString()},
+    {"problem",libretro::problem(id,host,core,selected,profiles)}},libretro::views());
   }
  }
  // Time Crisis: one native program, checked as it is now.
@@ -797,6 +806,7 @@ void UiController::launchFinished(const QString &id,const QString &error,int exi
  }
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();
  m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();
+ if(!m_pinballSelection.isEmpty()){readPinballScores();emit pinballChanged();} // a table may have just saved new scores
  const auto said=m_lastSession.value("text").toString();message(error.isEmpty()?"Game closed.":m_lastSession.value("outcome")=="stopped"?said:error);
  if(restart)emit playRequested(id,variant);
 }
