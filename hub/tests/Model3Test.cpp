@@ -105,9 +105,10 @@ private slots:
     auto env=ac::model3::launchPlan("scud","depth",f.program,f.media).value("env").toMap();
     QCOMPARE(env,(QVariantMap{{"ACVR_XR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_XR_DISTANCE","2.5"},{"ACVR_XR_SIZE","1"},{"ACVR_CONVERGENCE","3.8"},{"ACVR_EYE_SEP","0.02"}}));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model3::launchPlan("swtrilgy","depth",f.program,f.media));
-    // Inside with the wheel drawn (two-grip steering is opt-in, so the Hub does not set ACVR_WHEEL_GRAB); Star Wars Trilogy's stick; the side-by-side window keeps the default separation.
+    // Inside with the wheel drawn: this view is the opt-in for two-grip steering, so it alone sets ACVR_WHEEL_GRAB; Star Wars Trilogy's stick; the side-by-side window keeps the default separation.
     env=ac::model3::launchPlan("scud","inside-wheel",f.program,f.media).value("env").toMap();
-    QCOMPARE(env.value("ACVR_CONTROLS").toString(),QString("1"));QVERIFY(!env.contains("ACVR_WHEEL_GRAB"));QCOMPARE(env.value("ACVR_VR").toString(),QString("1"));
+    QCOMPARE(env.value("ACVR_CONTROLS").toString(),QString("1"));QCOMPARE(env.value("ACVR_WHEEL_GRAB").toString(),QString("1"));QCOMPARE(env.value("ACVR_VR").toString(),QString("1"));
+    for(const auto *other:{"screen","open-frame"})QVERIFY(!ac::model3::launchPlan("scud",other,f.program,f.media).value("env").toMap().contains("ACVR_WHEEL_GRAB"));
     env=ac::model3::launchPlan("swtrilgy","inside-stick",f.program,f.media).value("env").toMap();
     QCOMPARE(env.value("ACVR_STICK_GRAB").toString(),QString("1"));QCOMPARE(env.value("ACVR_INPUT_SCRIPT").toString(),QString("300-312:TestA:1;700-712:TestA:1"));
     const auto sbs=ac::model3::launchPlan("srally2","sbs-monitor",f.program,f.media);
