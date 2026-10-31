@@ -1772,7 +1772,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,874 @@
+@@ -0,0 +1,888 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -1789,6 +1789,8 @@ new file mode 100644
 +#include "GS/PS2VRGunModel.h"
 +#include "GS/PS2VRBackendPolicy.h"
 +#include "GS/PS2VRScreenDepth.h"
++#include "GS/acvr/hold_ring_gl.hpp"   // the U4 hold ring (libacvr), drawn with scissored clears
++#include "GS/acvr/hold_ring_host.hpp"
 +#include <atomic>
 +#include <algorithm>
 +#include <chrono>
@@ -2199,6 +2201,17 @@ new file mode 100644
 + }
 + static PS2VRGun::Mat4 inside_origin=PS2VRGun::Mat4::Identity();
 + #include "GS/PS2VRControllers.h"
++ // U4: the hold ring in the eye image BlitEye has just filled (still bound for drawing). Straight ahead in each eye
++ // of the inside view, so the two rings meet far away; mid-picture on the screen quads, as in acvr-ps1.
++ static void DrawHoldRing(int eye,const GSVector2i& used,const PS2VRInside::Packet& pose)
++ {
++  if(!hold_ring_view.visible || used.x<=0 || used.y<=0)return;
++  const auto& t=pose.eyes[eye].tangents;
++  const acvr::HoldRingSpot at=PS2VRInside::Enabled() && pose.valid ? acvr::hold_ring_eye_spot(t[0],t[1],t[2],t[3],used.x,used.y)
++                                                                    : acvr::hold_ring_screen_spot(used.x,used.y);
++  acvr::draw_hold_ring_gl(hold_ring_view,at.cx,at.cy,at.radius,used.x,used.y);
++  DrainGL("after","hold ring");
++ }
 + static std::uint64_t inside_sequence=0;
 + static void PublishInsidePose(XrTime time)
 + {
@@ -2378,6 +2391,7 @@ new file mode 100644
 +       for(int eye=0;eye<2;eye++) {
 +        used[eye]=UsedExtent(eye);
 +        copied=BlitEye(eye,images[eye][game_acquired[eye].index].image,fbos[0],fbos[1],used[eye]) && copied;
++        if(copied)DrawHoldRing(eye,used[eye],pair_pose);
 +       }
 +       // Protect source reuse with a GPU dependency, never CPU completion
 +       // under the publication lock. GS queues a server-side wait next time.
@@ -2739,7 +2753,7 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,381 @@
+@@ -0,0 +1,391 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2750,6 +2764,9 @@ new file mode 100644
 +static XrSpace aim_space=XR_NULL_HANDLE,grip_space=XR_NULL_HANDLE;
 +static bool gun_attached=false,grip_valid=false;
 +static PS2VRGun::StickChord stick_chord;
++static acvr::HoldRing hold_ring;             // U4: the hold ring (GS/acvr/hold_ring.hpp), as in acvr-ps1
++static acvr::HoldRingView hold_ring_view;    // drawn into both eye images by DrawHoldRing
++static acvr::QuitAfterFlash quit_after_flash; // the quit waits until the ring has flashed
 +static bool recentre_pending=false;
 +static XrPosef grip_pose{},aim_pose{};
 +static uint64_t seen_shot=0;
@@ -2819,6 +2836,8 @@ new file mode 100644
 +static void ReleaseGunInput()
 +{
 + PS2VRGun::Publish({}); stick_chord.Reset(); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
++ hold_ring_view={};
++ if(quit_after_flash.flush())PS2VRGun::RequestQuit(); // the quit had fired: the ring cannot be seen now anyway
 +}
 +static void DestroyGunActions()
 +{
@@ -2854,10 +2873,15 @@ new file mode 100644
 + sample.controls_active=PS2VRGun::MenuEnabled();
 + // U1-U4: lone click Start/Select, both clicks recentre (quick) or quit (3 s). Start/Select wait 150 ms for the other click.
 + const bool chord_before=stick_chord.chord;
-+ const auto clicks=stick_chord.Update(button(menu_start,left_hand),button(menu_select,right_hand),std::chrono::steady_clock::now());
++ const auto click_time=std::chrono::steady_clock::now();
++ const auto click_ms=static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(click_time.time_since_epoch()).count());
++ const auto clicks=stick_chord.Update(button(menu_start,left_hand),button(menu_select,right_hand),click_time);
 + if(!chord_before && stick_chord.chord)LiveLog("Both stick clicks down: release within 1 s to recentre, hold 3 s to quit");
 + if(clicks.recentre){recentre_pending=true;LiveLog("Both stick clicks released: recentre requested");}
-+ if(clicks.quit){PS2VRGun::RequestQuit();LiveLog("Both stick clicks held 3 s: graceful VM quit requested");}
++ // U4 ring: the same count that quits. Hidden for 1 s, fills to 3 s, flashes once; gone as soon as a click lets go.
++ hold_ring_view=hold_ring.update(click_ms,stick_chord.QuitProgress(click_time));
++ if(clicks.quit)LiveLog("Both stick clicks held 3 s: graceful VM quit once the ring has flashed");
++ if(quit_after_flash.update(click_ms,clicks.quit)){PS2VRGun::RequestQuit();LiveLog("Graceful VM quit requested");}
 + sample.start=clicks.start; sample.select=clicks.select;
 + sample.l3=PS2VRGun::L3R3Enabled() && button(pad_l3,left_hand); sample.r3=PS2VRGun::L3R3Enabled() && button(pad_r3,left_hand);
 + auto pose_active=[](XrAction action)
@@ -3644,7 +3668,7 @@ diff --git a/pcsx2/Input/PS2VRStickChord.h b/pcsx2/Input/PS2VRStickChord.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/Input/PS2VRStickChord.h
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,78 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <algorithm>
@@ -3667,6 +3691,14 @@ new file mode 100644
 + bool chord=false,broken=false,quit_fired=false;
 + Time chord_since{};
 + void Reset(){*this=StickChord{};}
++ // 0 to 1 of the 3 s quit hold, read after Update: the U4 ring follows it. 0 outside a chord and as soon as one
++ // click lets go (that ends the countdown); 1 once the quit has fired while both are still held.
++ float QuitProgress(Time now) const {
++  if(!chord || broken || !side[0].down || !side[1].down)return 0.f;
++  if(quit_fired)return 1.f;
++  const float held=std::chrono::duration<float,std::milli>(now-chord_since).count();
++  return std::clamp(held/static_cast<float>(quit_hold.count()),0.f,1.f);
++ }
 + // Call every poll, also while nothing is pressed. Recentre and quit are
 + // one-poll edges; start and select are levels.
 + Output Update(bool left,bool right,Time now) {
@@ -3791,4 +3823,420 @@ new file mode 100644
 + return sample.metres;
 +}
 +inline void Reset(){Invalidate();sample={};}
++}
+diff --git a/pcsx2/GS/acvr/hold_ring.hpp b/pcsx2/GS/acvr/hold_ring.hpp
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/acvr/hold_ring.hpp
+@@ -0,0 +1,147 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// The U4 hold ring (universal controls contract v1): visible feedback while both stick clicks are held to quit.
++//
++// Pure logic and pure geometry, no graphics calls: a host feeds the 0..1 progress of the 3 s quit hold, gets a
++// HoldRingView back, and draws it with whatever it has. hold_ring_gl.hpp is the ready-made GL drawing for hosts
++// that draw their own eye images.
++//
++//   - Nothing is shown for the first second. A recentre chord (both clicks released within 1 s) must never
++//     flash a ring, so the ring only appears once the hold can no longer be a recentre.
++//   - From 1 s to 3 s the ring fills clockwise from 12 o'clock: fill goes 0 to 1 and is 1 exactly when the quit fires.
++//   - Releasing early, or a host cancelling the quit (pinball table adjust), hides the ring at once.
++//   - When the quit fires the ring is full and flashes once: `flash` is 1 at that moment and falls to 0 over flash_ms.
++//     The flash plays out even if the clicks are released at that moment.
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++#include "stick_chord.hpp"
++
++namespace acvr {
++
++struct HoldRingTiming {
++    uint32_t show_ms = 1000;    // the ring appears when the hold passes this (the recentre window)
++    uint32_t quit_ms = 3000;    // the quit fires here; same value as StickChordTiming::quit_ms
++    uint32_t flash_ms = 700;    // how long the one flash lasts
++};
++
++struct HoldRingView {
++    bool visible = false;
++    float fill = 0;     // 0 when it appears (1 s), 1 when the quit fires (3 s); sweeps clockwise from 12 o'clock
++    float flash = 0;    // 1 at the moment the quit fires, down to 0 over flash_ms
++    bool quit = false;  // the quit has fired: the ring is full
++};
++
++class HoldRing {
++public:
++    explicit HoldRing(HoldRingTiming timing = {}) : t(timing) {}
++    // now_ms: any monotonic millisecond clock. quit_progress: 0..1 of the quit hold, 0 when the clicks are not held,
++    // the hold was released or the quit was cancelled.
++    HoldRingView update(uint64_t now_ms, float quit_progress) {
++        HoldRingView v;
++        if (now_ms < last_) reset();   // the clock went backwards: start again
++        last_ = now_ms;
++        const float quit = float(t.quit_ms ? t.quit_ms : 1u);
++        const float held_ms = std::max(0.f, quit_progress) * quit;
++        const bool shown = held_ms + .5f >= float(t.show_ms);
++        const bool full = quit_progress >= .9999f;
++        if (full && !fired_) { fired_ = true; fired_at_ = now_ms; }
++        const bool flashing = fired_ && now_ms - fired_at_ < t.flash_ms;
++        if (fired_ && !full && !flashing) fired_ = false;   // the hold is over and so is the flash: ready for the next one
++        if (flashing) {
++            v.visible = true; v.fill = 1.f; v.quit = true;
++            v.flash = 1.f - float(now_ms - fired_at_) / float(t.flash_ms ? t.flash_ms : 1u);
++        } else if (full) {
++            v.visible = true; v.fill = 1.f; v.quit = true;
++        } else if (shown) {
++            const float span = std::max(1.f, quit - float(t.show_ms));
++            v.visible = true; v.fill = std::min(1.f, std::max(0.f, (held_ms - float(t.show_ms)) / span));
++        }
++        return v;
++    }
++    // From the shared chord resolver. A hold the host cancelled shows nothing.
++    HoldRingView update(uint64_t now_ms, const StickChordState &s) {
++        return update(now_ms, s.quit_cancelled || !s.chord ? 0.f : s.quit_progress);
++    }
++    void reset() { fired_ = false; fired_at_ = 0; last_ = 0; }
++private:
++    HoldRingTiming t;
++    bool fired_ = false;
++    uint64_t fired_at_ = 0, last_ = 0;
++};
++
++// ---- geometry: pixel rectangles, so a host can fill them with a clear, a quad or a sprite -------------------------
++// A ring of square "beads" round a circle (y up, origin at the bottom left, like GL framebuffers), painted in order:
++// a dark outline under every bead, then the beads, dim when unlit and bright when lit.
++struct HoldRingRect {
++    float x = 0, y = 0, w = 0, h = 0;   // pixels; x, y is the bottom left corner
++    float rgb[3]{};                      // display values (already in the colours the player should see)
++};
++constexpr int kHoldRingBeads = 48;
++constexpr int kHoldRingMaxRects = kHoldRingBeads * 2;
++struct HoldRingRects {
++    HoldRingRect r[kHoldRingMaxRects];
++    int n = 0;
++};
++
++// cx, cy: ring centre in pixels. radius: ring radius in pixels (to the middle of the bead).
++inline HoldRingRects hold_ring_rects(const HoldRingView &v, float cx, float cy, float radius) {
++    HoldRingRects out;
++    if (!v.visible || !(radius >= 6.f)) return out;
++    const float bead = std::max(3.f, std::floor(radius * .16f));
++    const float grow = 1.f + .5f * std::max(0.f, v.flash);
++    const float outline = 2.f;
++    const int lit = std::min(kHoldRingBeads, std::max(0, int(std::floor(v.fill * kHoldRingBeads + .5f))));
++    const float tau = 6.28318530718f;
++    auto at = [&](int i, float &x, float &y) {
++        const float a = float(i) * tau / float(kHoldRingBeads);   // clockwise from 12 o'clock
++        x = cx + radius * std::sin(a); y = cy + radius * std::cos(a);
++    };
++    for (int i = 0; i < kHoldRingBeads; ++i) {
++        float x, y; at(i, x, y);
++        const float s = bead * (i < lit ? grow : 1.f) + 2.f * outline;
++        HoldRingRect &q = out.r[out.n++];
++        q.x = x - s * .5f; q.y = y - s * .5f; q.w = q.h = s; q.rgb[0] = q.rgb[1] = q.rgb[2] = .02f;
++    }
++    // Amber while it fills, green once it has fired, whitened by the flash.
++    const float amber[3]{1.f, .78f, .18f}, green[3]{.25f, 1.f, .4f};
++    for (int i = 0; i < kHoldRingBeads; ++i) {
++        float x, y; at(i, x, y);
++        const bool on = i < lit;
++        const float s = bead * (on ? grow : 1.f);
++        HoldRingRect &q = out.r[out.n++];
++        q.x = x - s * .5f; q.y = y - s * .5f; q.w = q.h = s;
++        for (int c = 0; c < 3; ++c) {
++            if (!on) { q.rgb[c] = .28f; continue; }
++            const float base = v.quit ? green[c] : amber[c];
++            q.rgb[c] = base + (1.f - base) * std::min(1.f, std::max(0.f, v.flash));
++        }
++    }
++    return out;
++}
++
++// Where a ring goes in an eye image. m: the 4x4 clip-from-local matrix, column-major (a view-projection times the
++// anchor's own frame). centre and edge: two points in the anchor's local space, the edge one radius away from the
++// centre, sideways. fb_w, fb_h: the eye image in pixels. ok is false when the centre is behind the eye.
++struct HoldRingPlacement {
++    float cx = 0, cy = 0, radius = 0;
++    bool ok = false;
++};
++inline HoldRingPlacement place_hold_ring(const float m[16], const float centre[3], const float edge[3], int fb_w, int fb_h) {
++    HoldRingPlacement p;
++    auto project = [&](const float q[3], float &x, float &y) {
++        const float cxp = m[0] * q[0] + m[4] * q[1] + m[8] * q[2] + m[12];
++        const float cyp = m[1] * q[0] + m[5] * q[1] + m[9] * q[2] + m[13];
++        const float cwp = m[3] * q[0] + m[7] * q[1] + m[11] * q[2] + m[15];
++        if (!(cwp > 1e-4f)) return false;
++        x = (cxp / cwp * .5f + .5f) * float(fb_w); y = (cyp / cwp * .5f + .5f) * float(fb_h);
++        return true;
++    };
++    float ex = 0, ey = 0;
++    if (!project(centre, p.cx, p.cy) || !project(edge, ex, ey)) return p;
++    p.radius = std::sqrt((ex - p.cx) * (ex - p.cx) + (ey - p.cy) * (ey - p.cy));
++    p.ok = p.radius >= 1.f && std::isfinite(p.cx) && std::isfinite(p.cy) && std::isfinite(p.radius);
++    return p;
++}
++
++}  // namespace acvr
+diff --git a/pcsx2/GS/acvr/hold_ring_gl.hpp b/pcsx2/GS/acvr/hold_ring_gl.hpp
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/acvr/hold_ring_gl.hpp
+@@ -0,0 +1,63 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// Draws the U4 hold ring (hold_ring.hpp) into the framebuffer that is bound for drawing, with no shaders, no
++// textures and no loader: each bead is a scissored glClear. Only OpenGL 1.x entry points are used (glClear,
++// glScissor, glClearColor, glColorMask and the state queries), which every host already links, so the same call
++// works in a core-profile eye renderer, the Model 2 quad-layer copy and the MAME gun viewer.
++//
++// Include it AFTER your own GL declarations (windows.h with GL/gl.h, a loader header, ...). It uses the names
++// GLint, GLfloat, GLboolean and GL_SCISSOR_TEST etc. as they come from there.
++//
++// Colours are display values: the helper switches GL_FRAMEBUFFER_SRGB off while it clears, so the numbers land in the
++// image as written whether the target is an sRGB or a plain RGBA8 image (an sRGB image stores them as encoded values).
++// The caller's scissor, clear colour, colour mask and sRGB state are put back.
++// windows.h defines min and max as macros unless NOMINMAX is set, which breaks std::min and std::max; emulator
++// sources often include it first, so they are set aside for this header and put back at its end.
++#pragma push_macro("min")
++#pragma push_macro("max")
++#undef min
++#undef max
++#include "hold_ring.hpp"
++
++#ifndef GL_FRAMEBUFFER_SRGB
++#define GL_FRAMEBUFFER_SRGB 0x8DB9
++#endif
++
++namespace acvr {
++
++// cx, cy, radius in pixels of the bound drawing target (y up). fb_w, fb_h: its size, so nothing is cleared outside it.
++inline void draw_hold_ring_gl(const HoldRingView &view, float cx, float cy, float radius, int fb_w, int fb_h) {
++    if (!view.visible || fb_w <= 0 || fb_h <= 0) return;
++    const HoldRingRects rects = hold_ring_rects(view, cx, cy, radius);
++    if (!rects.n) return;
++    const GLboolean was_scissor = glIsEnabled(GL_SCISSOR_TEST), was_srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
++    GLint box[4]{};
++    GLfloat clear[4]{};
++    GLboolean mask[4]{};
++    glGetIntegerv(GL_SCISSOR_BOX, box);
++    glGetFloatv(GL_COLOR_CLEAR_VALUE, clear);
++    glGetBooleanv(GL_COLOR_WRITEMASK, mask);
++    glColorMask(1, 1, 1, 1);
++    glDisable(GL_FRAMEBUFFER_SRGB);
++    glEnable(GL_SCISSOR_TEST);
++    for (int i = 0; i < rects.n; ++i) {
++        const HoldRingRect &q = rects.r[i];
++        int x0 = int(std::floor(q.x + .5f)), y0 = int(std::floor(q.y + .5f));
++        int x1 = int(std::floor(q.x + q.w + .5f)), y1 = int(std::floor(q.y + q.h + .5f));
++        x0 = std::max(0, x0); y0 = std::max(0, y0); x1 = std::min(fb_w, x1); y1 = std::min(fb_h, y1);
++        if (x1 <= x0 || y1 <= y0) continue;
++        glScissor(x0, y0, x1 - x0, y1 - y0);
++        glClearColor(q.rgb[0], q.rgb[1], q.rgb[2], 1.f);
++        glClear(GL_COLOR_BUFFER_BIT);
++    }
++    glScissor(box[0], box[1], box[2], box[3]);
++    glClearColor(clear[0], clear[1], clear[2], clear[3]);
++    glColorMask(mask[0], mask[1], mask[2], mask[3]);
++    if (!was_scissor) glDisable(GL_SCISSOR_TEST);
++    if (was_srgb) glEnable(GL_FRAMEBUFFER_SRGB);
++}
++
++}  // namespace acvr
++
++#pragma pop_macro("max")
++#pragma pop_macro("min")
+diff --git a/pcsx2/GS/acvr/hold_ring_host.hpp b/pcsx2/GS/acvr/hold_ring_host.hpp
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/acvr/hold_ring_host.hpp
+@@ -0,0 +1,102 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// Small pieces an emulator host needs to show the U4 hold ring (hold_ring.hpp) in its own VR eye images. Pure logic,
++// no graphics calls, so the emulator patches (Supermodel, Flycast, PCSX2, DolphinXR) can copy it and the libacvr
++// tests can check it.
++//
++//   - Where the ring goes: the middle of a flat picture (a screen or quad layer, as in acvr-ps1), or straight ahead
++//     in an eye image drawn for an OpenXR field of view (headsets use asymmetric fields of view, so the image middle
++//     is a few degrees off straight ahead, outwards for each eye; rings there would make the eyes diverge).
++//   - Holding the quit back until the ring's one flash has played, as acvr-ps1 does.
++//   - The progress of a plain "both clicks held 3 s" hold, for hosts whose quit has no chord window (DolphinXR's
++//     Exit hotkey, hold(left & right, 3.0)).
++// windows.h defines min and max as macros unless NOMINMAX is set, which breaks std::min and std::max; emulator
++// sources often include it first, so they are set aside for this header and put back at its end.
++#pragma push_macro("min")
++#pragma push_macro("max")
++#undef min
++#undef max
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++#include "hold_ring.hpp"
++
++namespace acvr {
++
++// A ring's centre and radius in pixels of an image, y up from the bottom left (GL). A host whose images have y down
++// (Direct3D) flips: top = height - (y + h).
++struct HoldRingSpot {
++    float cx = 0, cy = 0, radius = 0;
++};
++
++// The ring's size in every host: 12 % of the picture's shorter side (acvr-ps1: 12 % of the screen height).
++constexpr float kHoldRingRadiusOfShortSide = .12f;
++
++// The middle of a flat picture.
++inline HoldRingSpot hold_ring_screen_spot(int w, int h) {
++    HoldRingSpot s;
++    if (w <= 0 || h <= 0) return s;
++    s.cx = float(w) * .5f; s.cy = float(h) * .5f;
++    s.radius = float(std::min(w, h)) * kHoldRingRadiusOfShortSide;
++    return s;
++}
++
++// Straight ahead in an eye image of w x h pixels drawn for an OpenXR field of view, given as the tangents of its four
++// angles (tan(angleLeft) and tan(angleDown) are negative). Falls back to the middle for a degenerate field of view.
++inline HoldRingSpot hold_ring_eye_spot(float tan_left, float tan_right, float tan_down, float tan_up, int w, int h) {
++    HoldRingSpot s = hold_ring_screen_spot(w, h);
++    const float sx = tan_right - tan_left, sy = tan_up - tan_down;
++    if (s.radius <= 0 || !std::isfinite(sx) || !std::isfinite(sy) || !(sx > 1e-4f) || !(sy > 1e-4f)) return s;
++    const float u = -tan_left / sx, v = -tan_down / sy;   // 0..1 across the image when straight ahead is inside it
++    if (!(u > 0.f && u < 1.f && v > 0.f && v < 1.f)) return s;
++    s.cx = u * float(w); s.cy = v * float(h);
++    return s;
++}
++
++// Holds a host's own quit back until the ring's flash has played (HoldRingTiming::flash_ms after the quit fired), so
++// the player sees the full ring flash before the picture goes. Feed it every frame.
++class QuitAfterFlash {
++public:
++    explicit QuitAfterFlash(uint32_t delay_ms = HoldRingTiming{}.flash_ms) : delay_(delay_ms) {}
++    // quit_fired: the host's quit edge (or level). True once, delay_ms after the first frame it was true.
++    bool update(uint64_t now_ms, bool quit_fired) {
++        if (done_) return false;
++        if (quit_fired && !armed_) { armed_ = true; at_ = now_ms; }
++        if (armed_ && (now_ms < at_ || now_ms - at_ >= delay_)) { done_ = true; return true; }
++        return false;
++    }
++    // The ring cannot be shown any more (focus or input lost): a quit that has fired goes now. True once.
++    bool flush() {
++        if (!armed_ || done_) return false;
++        done_ = true;
++        return true;
++    }
++    bool pending() const { return armed_ && !done_; }
++    void reset() { armed_ = done_ = false; at_ = 0; }
++private:
++    uint32_t delay_;
++    bool armed_ = false, done_ = false;
++    uint64_t at_ = 0;
++};
++
++// 0..1 progress of "both clicks held for hold_ms", restarting whenever either click is up. For hosts whose quit is a
++// plain hold with no chord window, so the ring follows exactly the same count as the quit.
++class BothHeldProgress {
++public:
++    explicit BothHeldProgress(uint32_t hold_ms = HoldRingTiming{}.quit_ms) : hold_(hold_ms ? hold_ms : 1u) {}
++    float update(uint64_t now_ms, bool both_down) {
++        if (!both_down) { held_ = false; return 0.f; }
++        if (!held_ || now_ms < since_) { held_ = true; since_ = now_ms; }
++        return std::min(1.f, float(now_ms - since_) / float(hold_));
++    }
++    void reset() { held_ = false; since_ = 0; }
++private:
++    uint32_t hold_;
++    bool held_ = false;
++    uint64_t since_ = 0;
++};
++
++}  // namespace acvr
++
++#pragma pop_macro("max")
++#pragma pop_macro("min")
+diff --git a/pcsx2/GS/acvr/stick_chord.hpp b/pcsx2/GS/acvr/stick_chord.hpp
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/acvr/stick_chord.hpp
+@@ -0,0 +1,84 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <algorithm>
++#include <cstdint>
++namespace acvr {
++// Universal stick-click layer (controls contract v1, U1-U4). Header-only and
++// dependency-free so the runtime, the theatre presenter and host patches share
++// one resolver. Feed it the RAW left and right stick-click levels once per
++// display frame with a monotonic millisecond clock; use only its outputs.
++//
++//   left click alone            -> start   (U1)  held for as long as the click is held
++//   right click alone           -> select  (U2)  coin / Minus / Back
++//   both clicks, close together -> chord: no start or select at all
++//     released within recenter_ms        -> recenter pulse (U3)
++//     still held at quit_ms              -> quit pulse     (U4), and no recenter
++//
++// A click is held back for window_ms to see whether the other click follows.
++// A tap shorter than window_ms still produces a start/select of min_pulse_ms.
++struct StickChordTiming {
++    uint32_t window_ms=150, recenter_ms=1000, quit_ms=3000, min_pulse_ms=50;
++};
++struct StickChordState {
++    bool start=false, select=false;     // resolved levels (U1, U2)
++    bool chord=false;                   // both clicks held as one chord
++    bool recenter=false, quit=false;    // one-step pulses (U3, U4)
++    float quit_progress=0;              // chord held time / quit_ms, 0..1
++    bool quit_visible=false;            // chord outlived recenter_ms: show a ring or countdown
++    bool quit_cancelled=false;          // cancel_quit() was called for this hold: the quit will not fire, show no ring
++    uint32_t chord_ms=0;
++};
++class StickChord {
++public:
++    explicit StickChord(StickChordTiming timing={}) : t(timing) {}
++    StickChordState step(uint64_t now,bool left,bool right) {
++        now=std::max(now,last);last=now;
++        const bool cur[2]{left,right};
++        StickChordState out;
++        for(int i=0;i<2;++i) if(cur[i]&&!prev[i]) {down_at[i]=now;decided[i]=false;}
++        if(!chord_active) {
++            if(cur[0]&&cur[1]&&!decided[0]&&!decided[1]&&
++               (down_at[0]>down_at[1]?down_at[0]-down_at[1]:down_at[1]-down_at[0])<=t.window_ms) {
++                chord_active=true;chord_start=std::max(down_at[0],down_at[1]);
++                quit_fired=false;
++                decided[0]=decided[1]=true;
++                solo[0]=solo[1]=false;pulse_until[0]=pulse_until[1]=0;
++            } else for(int i=0;i<2;++i) {
++                if(cur[i]&&!decided[i]&&now-down_at[i]>=t.window_ms) {decided[i]=true;solo[i]=true;}
++                // Released before the window closed with no chord: a tap.
++                if(!cur[i]&&prev[i]&&!decided[i]) {decided[i]=true;solo[i]=false;pulse_until[i]=now+t.min_pulse_ms;}
++                if(!cur[i]) solo[i]=false;
++            }
++        }
++        if(chord_active) {
++            const uint64_t held=now-chord_start;
++            out.chord=true;out.chord_ms=held>UINT32_MAX?UINT32_MAX:uint32_t(held);
++            out.quit_progress=t.quit_ms?std::min(1.f,float(held)/float(t.quit_ms)):1.f;
++            out.quit_visible=held>=t.recenter_ms;
++            // One let go: the 3 s hold is over for this chord (the contract is both held), as in acvr-ps1's StickChord.h.
++            if(!(cur[0]&&cur[1])) quit_cancelled=true;
++            out.quit_cancelled=quit_cancelled;
++            if(!quit_fired&&!quit_cancelled&&held>=t.quit_ms) {out.quit=true;quit_fired=true;}
++            if(!cur[0]&&!cur[1]) {
++                // Both are up: this step is the release.
++                if(!quit_fired&&held<=t.recenter_ms) out.recenter=true;
++                chord_active=false;quit_cancelled=false;out.chord=false;out.quit_visible=false;out.quit_cancelled=false;out.quit_progress=0;out.chord_ms=0;
++            }
++        } else {
++            out.start=(solo[0]&&cur[0])||now<pulse_until[0];
++            out.select=(solo[1]&&cur[1])||now<pulse_until[1];
++        }
++        for(int i=0;i<2;++i) prev[i]=cur[i];
++        return out;
++    }
++    // A host that lets the hands do something else while the chord is held
++    // (pinball's table adjust) calls this when the hands move: no quit this hold.
++    void cancel_quit() {quit_cancelled=true;}
++    void reset() {*this=StickChord(t);}
++private:
++    StickChordTiming t;
++    bool prev[2]{},decided[2]{},solo[2]{};
++    uint64_t down_at[2]{},pulse_until[2]{},last=0,chord_start=0;
++    bool chord_active=false,quit_fired=false,quit_cancelled=false;
++};
 +}
