@@ -210,6 +210,10 @@ add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h src/app/
 target_link_libraries(hubapp PUBLIC hubui)
 ac_project_warnings(hubapp)
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)
+if(WIN32)
+    # The castle as the program's icon in Explorer, shortcuts and the taskbar.
+    target_sources(aladdinscastle-hub PRIVATE resources/hub.rc)
+endif()
 target_link_libraries(aladdinscastle-hub PRIVATE hubapp huboverlay Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources")
 configure_file("../docs/ui/theme.toml" "resources/theme.toml" COPYONLY)
