@@ -24,6 +24,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QImage>
 #include <QFile>
 #include <QFileInfo>
@@ -92,6 +93,8 @@ int main(int argc,char **argv){
     }
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
+    // The castle on the window and taskbar; the program file carries the same picture (resources/hub.rc).
+    QGuiApplication::setWindowIcon(QIcon(app.applicationDirPath()+"/resources/overlay-thumbnail.png"));
     QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
     const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
     if(catalogRoot.isEmpty()){err<<"Catalog missing.\n";return 2;}
@@ -202,10 +205,12 @@ int main(int argc,char **argv){
                 overlay.shutdown();
                 return false;},
             [&overlay]{QTimer::singleShot(0,&overlay,[&overlay]{overlay.shutdown();});});
-        QObject::connect(panel.get(),&ac::PanelAttacher::attachedChanged,&app,[&out](bool attached){out<<(attached?"Joined SteamVR's dashboard as a panel.\n":"Left SteamVR's dashboard; the window carries on.\n");out.flush();});
-        QObject::connect(panel.get(),&ac::PanelAttacher::gaveUp,&app,[&err](const QString &reason){err<<"Not a SteamVR panel this time: "<<reason<<'\n';});
-        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,panel.get(),&ac::PanelAttacher::steamVrQuit);
-        QObject::connect(&overlay,&ac::OverlayHost::failed,panel.get(),[&err,p=panel.get()](const QString &error){err<<error<<'\n';p->steamVrQuit();});
+        // Each step also goes to the input log, so a panel that never came back leaves a trail.
+        QObject::connect(panel.get(),&ac::PanelAttacher::attachedChanged,&app,[&out,&overlay](bool attached){out<<(attached?"Joined SteamVR's dashboard as a panel.\n":"Left SteamVR's dashboard; the window carries on.\n");out.flush();overlay.notePanel(attached?"joined":"left");});
+        QObject::connect(panel.get(),&ac::PanelAttacher::gaveUp,&app,[&err,&overlay](const QString &reason){err<<"Not a SteamVR panel this time: "<<reason<<'\n';overlay.notePanel("gave-up "+reason);});
+        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,panel.get(),[&overlay,p=panel.get()]{overlay.notePanel("steamvr-quit");p->steamVrQuit();});
+        QObject::connect(&overlay,&ac::OverlayHost::failed,panel.get(),[&err,&overlay,p=panel.get()](const QString &error){err<<error<<'\n';overlay.notePanel("failed "+error);p->steamVrQuit();});
+        QObject::connect(&ui,&ac::UiController::steamVrRunningChanged,&overlay,[&ui,&overlay]{overlay.notePanel(ui.steamVrRunning()?"steamvr-seen":"steamvr-gone");});
         QObject::connect(&ui,&ac::UiController::steamVrRunningChanged,panel.get(),[&ui,p=panel.get()]{p->setSteamVrRunning(ui.steamVrRunning());});
     }
     // Explicit operator diagnostics capture this application's own Qt surface.

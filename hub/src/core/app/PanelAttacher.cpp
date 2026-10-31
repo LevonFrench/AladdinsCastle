@@ -10,7 +10,18 @@ PanelAttacher::PanelAttacher(std::function<bool(QString *)> attach, std::functio
     if (running_ && !attached_ && !waitForStop_)
       tryAttach();
   });
+  // Seen running all along after a quit or a failure: a SteamVR restarted between two looks, or the
+  // panel failed while SteamVR stayed up. Either way, try again rather than wait for a stop that never comes.
+  rejoin_.setSingleShot(true);
+  rejoin_.setInterval(20000);
+  connect(&rejoin_, &QTimer::timeout, this, [this] {
+    waitForStop_ = false;
+    tries_ = 0;
+    if (running_ && !attached_)
+      tryAttach();
+  });
 }
+void PanelAttacher::setRejoin(int intervalMs) { rejoin_.setInterval(intervalMs); }
 void PanelAttacher::setRetry(int intervalMs, int attempts) {
   retry_.setInterval(intervalMs);
   attempts_ = attempts;
@@ -22,16 +33,18 @@ void PanelAttacher::setSteamVrRunning(bool running) {
     waitForStop_ = false;
     tries_ = 0;
     retry_.stop();
+    rejoin_.stop();
     detach();
     return;
   }
-  if (!attached_ && !waitForStop_ && !retry_.isActive())
+  if (!attached_ && !waitForStop_ && !retry_.isActive() && !rejoin_.isActive())
     tryAttach();
 }
 void PanelAttacher::steamVrQuit() {
   // SteamVR's server lingers for a moment after asking apps to quit; wait for it to stop first.
   waitForStop_ = true;
   retry_.stop();
+  rejoin_.start();
   detach();
 }
 void PanelAttacher::tryAttach() {
@@ -44,10 +57,13 @@ void PanelAttacher::tryAttach() {
     return;
   }
   // SteamVR's server runs a little before its dashboard accepts panels: try again for a while.
-  if (tries_ < attempts_)
+  if (tries_ < attempts_) {
     retry_.start();
-  else
-    emit gaveUp(error.isEmpty() ? QString("SteamVR did not accept the panel.") : error);
+    return;
+  }
+  // Rest, then start over: a SteamVR that is up for good takes the panel in the end.
+  rejoin_.start();
+  emit gaveUp(error.isEmpty() ? QString("SteamVR did not accept the panel.") : error);
 }
 void PanelAttacher::detach() {
   if (!attached_)
