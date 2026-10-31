@@ -17,7 +17,8 @@ struct TheatreFrame {
  float trigger=0;
  // start/coin are the universal stick clicks (U1/U2). quitHeld is both clicks held as a chord,
  // recenter pulses for one frame when the chord is released inside a second (U3). quitProgress is
- // 0..1 toward the 3 s quit and stays 0 until the chord has been held past the recentre window.
+ // 0..1 toward the 3 s quit and stays 0 until the chord has been held past the recentre window (and while a host
+ // has cancelled the quit). Feed it to acvr::HoldRing (libacvr/src/hold_ring.hpp) for the U4 ring a client draws.
  bool focused=false,button2=false,start=false,coin=false,quitHeld=false,recenter=false;
  unsigned chordMs=0;float quitProgress=0;
 };
