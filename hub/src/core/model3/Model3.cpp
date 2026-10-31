@@ -42,9 +42,10 @@ const QList<View> &table(){
   {"depth","Depth trial","The 3D screen with the depth from the overnight measurement, to compare with Screen.",
    {{"ACVR_XR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_XR_DISTANCE","2.5"},{"ACVR_XR_SIZE","1"}},screenArgs},
   {"inside-wheel","Inside the game, with the wheel","Inside the game, with the cabinet's wheel (or handlebars) drawn in front of you; it turns with your steering.",
-   {{"ACVR_CONTROLS","1"},{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}},
+   // The wheel view is the named opt-in for two-hand steering (owner, 2026-10-26): hold both grips and turn the hands, or use the left stick.
+   {{"ACVR_CONTROLS","1"},{"ACVR_WHEEL_GRAB","1"},{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}},
    {"-window","-res=1344,1344","-stretch","-ss=2","-input-system=xinput"}},
-  {"inside-stick","Inside the game, grab the stick","Inside the game with 1:1 pointing by a laser; grabbing the stick is optional.",
+  {"inside-stick","Inside the game, laser or grip stick","Inside the game, aiming with a laser. Holding the right grip switches to the older tilt stick, which does not follow your hand 1:1.",
    {{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"},{"ACVR_STICK_GRAB","1"}},
    {"-window","-res=1344,1344","-stretch","-ss=2","-input-system=xinput"}},
   {"sbs-monitor","Side by side on the monitor","Both eye views side by side in a window on the PC monitor. Needs no headset.",
@@ -84,9 +85,9 @@ QString viewControls(const QString &game,const QString &view){
  const QString keys="Keys: 1 = start, 3 = coin, arrows = steer and pedals, Esc = quit.";
  const QString sit=view.startsWith("inside")?"Sit how you will play before you recentre.":"";
  if(view=="sbs-monitor")return "Needs no headset. "+keys;
- if(view=="inside-wheel")return QString("The drawn %1 turns as you steer with the left stick. Triggers = pedals. ").arg(game=="harley"?"handlebars":"wheel")+vr(sit);
- if(view=="inside-stick")return "Point the right controller: the game's crosshair goes where the red laser ends. Right trigger = fire, A = event button. Holding the right grip still takes the old tilt stick. "+vr(sit);
- if(game=="swtrilgy")return vr("Point the right controller to aim, right trigger = fire. Right B shows or hides the laser.");
+ if(view=="inside-wheel")return QString("Hold both grips and turn your hands to steer the drawn %1, or steer with the left stick. Triggers = pedals. ").arg(game=="harley"?"handlebars":"wheel")+vr(sit);
+ if(view=="inside-stick")return "Point the right controller: the game's crosshair sits where the red laser points. Right trigger = fire, A = event button. Holding the right grip takes the older tilt stick instead. "+vr(sit);
+ if(game=="swtrilgy")return vr("Point the right controller to aim; inside the game a red laser shows where. Right trigger = fire, right grip = event button. Right B shows or hides the laser.");
  if(QStringList{"vf3","fvipers2","spikeout","vs2"}.contains(game))return vr("VR: the game's buttons are on the pad.");
  return vr("VR: left stick = steering, right trigger = accelerator, left trigger = brake. A and B also start and insert a coin.");
 }

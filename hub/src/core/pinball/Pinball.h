@@ -12,7 +12,8 @@ QVariantMap scan(const QString &folder,const QString &database={},const QString 
 // ROM or database changed, including nested ROM entries and VPMAlias.txt content.
 // Reads bounded ROM metadata, names and dates (no table is opened).
 QVariantMap fingerprint(const QString &folder,const QString &database={},const QString &romFolder={},const QString &pinmameFolder={});
-QVariantMap launchGuidance();
+// patched: the AladdinsCastle VPX build (Build.h), which quits after both stick clicks are held 3 s.
+QVariantMap launchGuidance(bool patched=false);
 // With vr and an owned root the plan asks VPX for the headset explicitly: it adds
 // -TableIni <ownedRoot>/user/pinball/<table id>.ini, a Hub-owned per-table settings
 // file that VPX layers over the user's own settings. Planning creates nothing.

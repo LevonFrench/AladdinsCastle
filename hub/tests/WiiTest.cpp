@@ -81,6 +81,57 @@ private slots:
     QVERIFY_THROWS_EXCEPTION(std::exception, ac::wii::launchPlan(t.filePath("discs/umbrella.iso"), t.filePath("none/Dolphin.exe")));
     QVERIFY_THROWS_EXCEPTION(std::exception, ac::wii::launchPlan(t.filePath("discs/gone.iso"), program));
   }
+  void oldUserFolderGetsTheUniversalControlsOnce() {
+    QTemporaryDir t;
+    const auto user = t.filePath("build/User");
+    const auto text = [](const QString &path) {
+      QFile file(path);
+      return file.open(QIODevice::ReadOnly) ? QString::fromUtf8(file.readAll()) : QString();
+    };
+    const auto oldChord = QString::fromUtf8("pulse(!`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & !`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.1) & pulse(pulse(`OpenXR/0/OpenXR Controller:Left Button Thumbstick`, 0.25) & pulse(`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.25) & `OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 1.0)");
+    const auto oldHotkeys = "[Hotkeys]\r\nDevice = DInput/0/Keyboard Mouse\r\nGeneral/Toggle Pause = @(F10)\r\nVR/Reset VR Position = @(Shift+R) | (" + oldChord.toUtf8() + ")\r\n";
+    const QByteArray oldDolphin = "[General]\r\nISOPaths = 0\r\n[Interface]\r\nConfirmStop = True\r\n[Input]\r\nBackgroundInput = True\r\n";
+    const QByteArray pad = "[GCPad1]\nButtons/A = `Right Button A`\n";
+    write(user + "/Config/Hotkeys.ini", oldHotkeys);
+    write(user + "/Config/Dolphin.ini", oldDolphin);
+    write(user + "/Config/GCPadNew.ini", pad);
+    write(user + "/GameSettings/GALE01.ini", "[Core]\nCPUCore = 1\n");
+    const auto changed = ac::wii::refreshUniversalControls(user);
+    QCOMPARE(changed.size(), 4);
+    const auto hotkeys = text(user + "/Config/Hotkeys.ini");
+    QVERIFY(hotkeys.contains("General/Toggle Pause = @(F10)\r\n"));            // the user's own binding stays
+    QVERIFY(hotkeys.contains("VR/Reset VR Position = @(Shift+R) | (pulse("));  // upgraded in place
+    QVERIFY(!hotkeys.contains("0.25"));
+    QVERIFY(hotkeys.contains("General/Exit = hold("));
+    QVERIFY(!hotkeys.contains("\n\n") && hotkeys.count("\r\n") == hotkeys.count("\n"));
+    const auto dolphin = text(user + "/Config/Dolphin.ini");
+    QVERIFY(dolphin.contains("ConfirmStop = False\r\n"));
+    QVERIFY(dolphin.contains("HotkeysRequireFocus = False\r\n"));
+    QVERIFY(dolphin.contains("BackgroundInput = True\r\n"));
+    // First copies kept, once.
+    QCOMPARE(text(user + "/Config/Hotkeys.ini.before-universal-controls").toUtf8(), oldHotkeys);
+    QCOMPARE(text(user + "/Config/Dolphin.ini.before-universal-controls").toUtf8(), oldDolphin);
+    // Other files untouched.
+    QCOMPARE(text(user + "/Config/GCPadNew.ini").toUtf8(), pad);
+    QVERIFY(!QFileInfo::exists(user + "/Config/GCPadNew.ini.before-universal-controls"));
+    QCOMPARE(text(user + "/GameSettings/GALE01.ini"), QString("[Core]\nCPUCore = 1\n"));
+    // Second run: nothing to do, files and backups unchanged.
+    QVERIFY(ac::wii::refreshUniversalControls(user).isEmpty());
+    QCOMPARE(text(user + "/Config/Hotkeys.ini"), hotkeys);
+    QCOMPARE(text(user + "/Config/Hotkeys.ini.before-universal-controls").toUtf8(), oldHotkeys);
+    // A user's own Exit key is kept and the chord is added next to it.
+    write(user + "/Config/Hotkeys.ini", "[Hotkeys]\nDevice = DInput/0/Keyboard Mouse\nGeneral/Exit = @(Alt+F4)\n");
+    QCOMPARE(ac::wii::refreshUniversalControls(user).size(), 2);
+    QVERIFY(text(user + "/Config/Hotkeys.ini").contains("General/Exit = (@(Alt+F4)) | (hold("));
+    // A file that mixes LF and CRLF lines keeps each line's own ending; new lines follow their neighbour.
+    write(user + "/Config/Dolphin.ini", "[General]\nISOPaths = 0\n[Input]\r\nBackgroundInput = True\r\n");
+    QCOMPARE(ac::wii::refreshUniversalControls(user).size(), 2);
+    QCOMPARE(text(user + "/Config/Dolphin.ini"),
+             QString("[General]\nISOPaths = 0\nHotkeysRequireFocus = False\n[Input]\r\nBackgroundInput = True\r\n[Interface]\r\nConfirmStop = False\r\n"));
+    // A folder with no Config folder is left alone, and none is invented.
+    QVERIFY(ac::wii::refreshUniversalControls(t.filePath("empty/User")).isEmpty());
+    QVERIFY(!QFileInfo::exists(t.filePath("empty/User")));
+  }
   void setupReportSaysWhatEachGameNeeds() {
     QTemporaryDir t;
     const auto program = t.filePath("build/Dolphin.exe"), folder = t.filePath("wii");

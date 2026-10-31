@@ -277,6 +277,19 @@ rule in words; and, for a folder that fits nothing, a note of what it holds and
 suggested folders with **Use this folder**. An "update available" flag per
 system is shown the same way. The fields are listed in `src/core/setup/Setup.h`.
 
+## Updates and problem reports
+
+- **Check for updates** (in the emulators dialog) asks GitHub's public release
+  list whether a newer release of each tool the Hub knows from `data/emulators/`
+  exists. It says so on the tool and on the Set-up rows built from it, and does
+  nothing else: nothing is downloaded, installed or changed. A tool with no
+  GitHub release to ask about makes no request, and an answer the Hub cannot
+  decide is shown as unknown, never as an update.
+- **Save a problem report** (Settings and the help panel) writes one ZIP of the
+  Hub's logs and the last game's log. Folder names, the account name, emails and
+  keys are taken out; game files and saves are never included. Look inside the
+  ZIP before sending it.
+
 ## Systems
 
 | System | Folder setting | Program setting | How a game is checked |
@@ -287,7 +300,7 @@ system is shown the same way. The fields are listed in `src/core/setup/Setup.h`.
 | Visual Pinball | `pinballFolder` | `pinballExecutable` | The table scan: VR-ready, readable, ROM present |
 | Sony PlayStation 2 | `ps2GameFolder` | `ps2Launcher` (the user's launcher script, run with the `ps2Python` it needs; `ps2StopFile` is the file that asks a running game to quit) | The PS2 BOOT2 serial in SYSTEM.CNF, read through supported plain, CUE/M3U, CHD, CISO and gzip containers; exact public index match only. PS1 BOOT serials remain PS1. A game is startable when the launcher has an entry for it. Views: 3D screen, and Inside the game for the games listed in `data/disc-profiles.json` (`insideGames`, with the launcher's flag in `insideFlag`), none until each is confirmed; the choice is kept per game The launcher plays its own disc copies. Exit and Stop write the stop file and wait; SteamVR must already be running |
 | Sega Dreamcast | `dreamcastGameFolder` | `dreamcastExecutable` | The disc's own product number, read from supported `.chd`, `.gdi`, `.cdi`, `.cue` or first-disc `.m3u` metadata; exact public index match only |
-| Nintendo 3DS | `threedsGameFolder` | `libretroHost` (acvr-ps1.exe), plus `threedsCore` (Azahar's libretro dll) and optional `libretroProfiles` (the profile folder; empty = found above the Hub) | Each game's own dump found by title (`.3ds`, `.cci`, `.cxi`, `.3dsx`) and its profile file in the profile folder; the Hub starts them through acvr-ps1 with `--profile`. Star Fox 64 3D and Mario Kart 7; not yet checked in a headset |
+| Nintendo 3DS | No game-folder picker; explicit files below | `libretroHost` (acvr-ps1.exe), plus `threedsCore` (Azahar's libretro dll) and optional `libretroProfiles` | Choose the exact file for each game in Set-up: `threedsStarFoxFile` and `threedsMarioKartFile` (`.3ds`, `.cci`, `.cxi`, `.3dsx`). Filenames never identify games. These are user-selected files with unverified content identity; the Hub starts them with the game's profile. Existing folders/settings do not silently pick a file. Not yet checked in a headset |
 | Nintendo Wii | `wiiGameFolder` | `wiiExecutable` (the DolphinXR build's Dolphin.exe; its User folder beside it holds its settings) | The exact ID in readable disc metadata (.iso, .wbfs, .rvz, .wia, .gcz) or WAD ticket title ID; each supported region is explicitly listed in data. What the build still lacks per profiled game is said |
 
 

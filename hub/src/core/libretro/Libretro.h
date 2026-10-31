@@ -10,23 +10,26 @@ namespace ac::libretro {
 // the program, the core and the game file come from Hub settings (chosen in Set-up) and are never named by the repo:
 //   libretroHost       acvr-ps1.exe (a build that reads --profile)
 //   threedsCore        the Nintendo 3DS core (Azahar's libretro dll)
-//   threedsGameFolder  the user's own 3DS dumps (decrypted, as Azahar needs them)
+//   threedsGameFolder  optional library folder; never used to infer a game's file
+//   threedsStarFoxFile / threedsMarioKartFile  explicit per-game file choices, identity unverified
 //   libretroProfiles   the profile folder; when empty, setups/retro-ps1-vr/profiles is looked for above the Hub
 // Each game's id is its catalog id (games/<id>/game.toml), so the Hub's row and the catalog card are one game.
 QVariantList games(); // id, title, year, system ("3ds"), profile (file name), controls (a plain sentence)
 // The profile file name of a game; empty for a game not listed.
 QString profileName(const QString &game);
+// Per-game explicit file setting; empty for an unsupported game.
+QString gameFileKey(const QString &game);
 // The profile folder: the chosen one when it is a folder; otherwise setups/retro-ps1-vr/profiles looked for in
 // startFrom and the folders above it (the Hub's own folder in a source tree). Empty when there is none. Read-only.
 QString profilesFolder(const QString &chosen, const QString &startFrom);
-// The game's file in the dumps folder: the file whose name is the game's title (spaces, case and punctuation
-// ignored), with a 3DS dump extension. Empty when the folder has none. Read-only; folders below it are not entered.
-QString gameFile(const QString &game, const QString &folder);
+// Validate an explicitly selected absolute regular file with a supported extension.
+// Never search folders or infer identity from names. Content identity remains unverified.
+QString gameFile(const QString &game, const QString &selectedFile);
 // The views, usual one first, each {id, label, help}. "theatre" is the profile's own default view and passes no --view.
 QVariantList views();
 QString viewLabel(const QString &view);
 // Empty when the game can start; otherwise "What is wrong. What to do."
-QString problem(const QString &game, const QString &host, const QString &core, const QString &gameFolder, const QString &profiles);
+QString problem(const QString &game, const QString &host, const QString &core, const QString &selectedFile, const QString &profiles);
 // executable (the host), cwd (the host's folder) and args:
 //   --core <core> --game <file> --system <dataFolder>/system --saves <dataFolder>/saves --profile <file> [--view <view>]
 // The Hub creates dataFolder (its own, under user/) before the start. Throws install::Error.

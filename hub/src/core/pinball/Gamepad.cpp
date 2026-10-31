@@ -155,7 +155,8 @@ QByteArray headsetControls(const QByteArray &settings){
   {"Start","Key;30",{"OpenXR;"+left}},
   {"Credit1","Key;34",{"OpenXR;"+right}},
   {"LaunchBall","Key;40",{"OpenXR;"+a}},
-  // Exit is the Hub's: both stick clicks held for 3 s, so the table closes the ordinary way and saves.
+  // No controller exit: the patched VPX (setups/vpx-vr) presses Exit Game itself after both stick clicks are held 3 s
+  // with the hands still, so the table closes the ordinary way and saves. Standard VPX: the Hub panel's Exit game.
   {"ExitGame","Key;41",{}},
   // VPX's own "Align VR view using controllers": with both held the table follows the hands, apart or together scales it,
   // turning the pair turns it, moving both moves it; letting go keeps it. A tap re-seats it at the hands.

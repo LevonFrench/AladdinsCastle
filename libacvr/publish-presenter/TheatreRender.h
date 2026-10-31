@@ -6,6 +6,7 @@
 #pragma once
 #include "WinGL.h"
 #include "MiniJson.h"
+#include "../src/hold_ring_gl.hpp"   // the shared U4 hold ring, drawn with scissored clears
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -337,6 +338,7 @@ struct EyeScene {
   ScreenGeometry screen;
   bool showGun = false; Mat4 gunRoot = Mat4::Identity(); float trigger = 0; float recoil = 0;   // slide travel 0..1
   bool showDot = false; float dotU = .5f, dotV = .5f;
+  acvr::HoldRingView holdRing;   // the two-stick-click quit hold (U4): a ring in the middle of the screen, from 1 s, full and flashing at 3 s
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
   // Soft edges (opt-in, 0 = off): the screen continues past the picture by these fractions of
@@ -427,6 +429,13 @@ public:
     }
     if (s.showDot) drawDot(s, vp, encode);
     if (s.showGun && m_gun && m_gun->loaded()) m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil);
+    if (s.holdRing.visible) {   // drawn last, over everything, at the screen's depth so both eyes see it with the right parallax
+      const float ringR = s.screen.height * .12f;
+      const auto c = s.screen.local(.5f, .5f), e = s.screen.local(.5f + ringR / s.screen.width, .5f);
+      const Mat4 mvp = vp * s.screen.frame;
+      const auto at = acvr::place_hold_ring(mvp.m.data(), c.data(), e.data(), w, h);
+      if (at.ok) acvr::draw_hold_ring_gl(s.holdRing, at.cx, at.cy, at.radius, w, h);
+    }
     tgl::BindVertexArray(0); tgl::UseProgram(0);
   }
 private:

@@ -94,6 +94,7 @@ class Viewer:public TheatreClient {
  bool placed=false,previousTrigger=false;
  std::atomic<bool> stopRequested{false};
  CleanQuit quit;
+ acvr::HoldRing holdRing;
  body_motion::Mapper bodyMapper;
  acvr_mono::motion body{};
  FILE* trace=nullptr;
@@ -133,7 +134,9 @@ public:
   scene.showDot=!options.motion && frame.focused && frame.aim.valid && on;scene.dotU=u;scene.dotV=v;scene.trigger=frame.trigger;
   if(scene.showGun)scene.gunRoot=gun.alignedRoot(Mat4::FromPose(frame.grip.position,frame.grip.orientation),aim,0);
   quit.poll(GetTickCount64(),frame.focused && frame.quitHeld,stopRequested || (!options.stop.empty() && fs::exists(options.stop)));
-  // U4 has no drawn ring in this viewer: say so in the log once the hold outlives the recentre window.
+  // U4: the hold ring (libacvr hold_ring.hpp) follows the same 3 s count that quits, so it can never disagree with the quit.
+  scene.holdRing=holdRing.update(GetTickCount64(),frame.focused?quit.progress(GetTickCount64()):0.f);
+  // And a log line once the hold outlives the recentre window.
   if(frame.quitProgress>0 && !quitLogged){std::fprintf(stderr,"viewer: both stick clicks held; quit and save in %.0f s if still held\n",3*(1-quit.progress(GetTickCount64())));quitLogged=true;}
   if(!frame.quitHeld)quitLogged=false;
   acvr_mono::controls input{};input.heartbeat_ms=GetTickCount64();
@@ -216,7 +219,7 @@ public:
   auto save=[&](std::string name,const std::vector<std::uint32_t>& pixels,unsigned w,unsigned h){if(!acvr_png::write((folder/name).string().c_str(),pixels.data(),w,h))throw std::runtime_error("proof write failed");};
   save("source.png",snapshot.pixels,snapshot.w,snapshot.h);
   auto original=scene;
-  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{},recoilCount[2]{};
+  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{},recoilCount[2]{},ringCount[2]{};
   for(unsigned eye=0;eye<2;++eye){
    GLuint colour=0;glGenTextures(1,&colour);glBindTexture(GL_TEXTURE_2D,colour);glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8_ALPHA8,frame.width[eye],frame.height[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
    scene=original;scene.showGun=scene.showDot=false;draw_eye(eye,colour,frame,true);auto picture=readback(eye,frame);save(eye?"right-picture.png":"left-picture.png",picture,frame.width[eye],frame.height[eye]);
@@ -226,15 +229,19 @@ public:
    scene.gunRoot.m[14]-=5;draw_eye(eye,colour,frame,true);auto behind=readback(eye,frame);save(eye?"right-behind.png":"left-behind.png",behind,frame.width[eye],frame.height[eye]);
    scene=original;scene.showGun=false;draw_eye(eye,colour,frame,true);auto dot=readback(eye,frame);save(eye?"right-dot.png":"left-dot.png",dot,frame.width[eye],frame.height[eye]);
    scene=original;scene.showDot=false;scene.recoil=1;draw_eye(eye,colour,frame,true);auto recoil=readback(eye,frame);save(eye?"right-recoil.png":"left-recoil.png",recoil,frame.width[eye],frame.height[eye]);
+   {acvr::HoldRing proofRing;proofRing.update(0,1.f);   // the U4 hold ring, settled: full, flash over
+    scene=original;scene.showGun=scene.showDot=false;scene.holdRing=proofRing.update(2000,1.f);draw_eye(eye,colour,frame,true);auto ring=readback(eye,frame);save(eye?"right-hold-ring.png":"left-hold-ring.png",ring,frame.width[eye],frame.height[eye]);
+    for(std::size_t i=0;i<picture.size();++i)ringCount[eye]+=(ring[i]!=picture[i]);}
    for(std::size_t i=0;i<picture.size();++i){nearCount[eye]+=(front[i]!=picture[i]);recoilCount[eye]+=(recoil[i]!=front[i]);farCount[eye]+=(behind[i]!=picture[i]);dotCount[eye]+=(dot[i]!=picture[i]);}
    glDeleteTextures(1,&colour);
    if(!options.motion && (nearCount[eye]<100 || farCount[eye]!=0 || dotCount[eye]<4))throw std::runtime_error("gun/dot depth proof failed");
    if(!options.motion && gun.hasRecoil() && recoilCount[eye]==0)throw std::runtime_error("recoil proof failed: the slide did not move");
+   if(ringCount[eye]<400)throw std::runtime_error("hold ring proof failed: the ring did not draw");
   }
   scene=original;glFinish();if(glGetError()!=GL_NO_ERROR)throw std::runtime_error("GL error during proof");
   if(GetModuleHandleA("openxr_loader.dll"))throw std::runtime_error("offline proof opened an XR loader");
   std::ofstream f(folder/"native-proof.json");
-  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"recoil_pixels\":["<<recoilCount[0]<<","<<recoilCount[1]<<"],\"soft_edges\":"<<(options.soft?"true":"false")<<",\"soft_x\":"<<scene.softX<<",\"soft_y\":"<<scene.softY<<",\"screen_width_m\":"<<scene.screen.width<<",\"screen_height_m\":"<<scene.screen.height<<",\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
+  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"recoil_pixels\":["<<recoilCount[0]<<","<<recoilCount[1]<<"],\"hold_ring_pixels\":["<<ringCount[0]<<","<<ringCount[1]<<"],\"soft_edges\":"<<(options.soft?"true":"false")<<",\"soft_x\":"<<scene.softX<<",\"soft_y\":"<<scene.softY<<",\"screen_width_m\":"<<scene.screen.width<<",\"screen_height_m\":"<<scene.screen.height<<",\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
   ++captures;
  }
  void shutdown()override{
