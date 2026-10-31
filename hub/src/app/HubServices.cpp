@@ -592,6 +592,8 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
         }else if(id.startsWith("wii-")){
             // The authored DolphinXR route: the build's own User folder, OpenXR on, the disc where it is.
             const auto plan=wii::launchPlan(file,settings_->get("wiiExecutable",QString()).toString());
+            // An older User folder keeps its old hotkeys: add the both-click recentre and quit, with a one-time backup.
+            wii::refreshUniversalControls(QFileInfo(settings_->get("wiiExecutable",QString()).toString()).absolutePath()+"/User");
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:wii::games())if("wii-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · In the headset";
             hint="Aim with your right controller. Remote 2 is a quick press of left Y; Home is left Y held for half a second.";
