@@ -28,6 +28,13 @@ def nl_of(s):
 shutil.copyfile(os.path.join(HERE, 'ACVRXR.cpp'), 'Src/OSD/SDL/ACVRXR.cpp')
 shutil.copyfile(os.path.join(HERE, 'ACVRStereo.h'), 'Src/OSD/ACVRStereo.h')
 shutil.copyfile(os.path.join(HERE, 'ACVRChord.h'), 'Src/OSD/ACVRChord.h')
+# The U4 hold ring (libacvr, MIT): one copy of the shared headers, so the ring looks and times the same as acvr-ps1.
+LIBACVR = os.path.normpath(os.path.join(HERE, '..', '..', '..', 'libacvr', 'src'))
+os.makedirs('Src/OSD/acvr', exist_ok=True)
+for name in ('stick_chord.hpp', 'hold_ring.hpp', 'hold_ring_gl.hpp', 'hold_ring_host.hpp'):
+    if not os.path.isfile(os.path.join(LIBACVR, name)):
+        raise SystemExit('libacvr header missing (run this script from a repository checkout): ' + name)
+    shutil.copyfile(os.path.join(LIBACVR, name), os.path.join('Src/OSD/acvr', name))
 
 # ---------------------------------------------------------------- New3D.cpp
 p = 'Src/Graphics/New3D/New3D.cpp'

@@ -67,5 +67,19 @@ int main(){
   Run r;r.Play(300,held(0,1000),held(0,1000));r.chord.Reset();
   const auto out=r.chord.Update(false,false,r.t0+milliseconds(400));assert(!out.start&&!out.select&&!out.recentre&&!out.quit);
  }
- std::puts("PASS stick chord: U1 Start, U2 Select, U3 recentre, U4 quit, 150 ms window, tap pulse, cancel, reset");
+ { // QuitProgress drives the U4 ring: 0..1 over the 3 s hold, 1 once fired, 0 as soon as one click lets go
+  StickChord c;const auto t0=StickChord::Clock::now();
+  auto at=[&](int ms,bool l,bool r){c.Update(l,r,t0+milliseconds(ms));return c.QuitProgress(t0+milliseconds(ms));};
+  assert(at(0,true,false)==0.f);                 // one click: no chord yet
+  assert(at(50,true,true)==0.f);                 // the chord starts at the second press
+  const float half=at(1550,true,true);assert(half>0.49f && half<0.51f);
+  assert(at(3050,true,true)==1.f && at(4000,true,true)==1.f); // fired, still held: full
+  assert(at(4010,true,false)==0.f);              // one let go: gone
+  StickChord d;const auto t1=StickChord::Clock::now();
+  d.Update(true,true,t1);d.Update(true,true,t1+milliseconds(2000));assert(d.QuitProgress(t1+milliseconds(2000))>0.6f);
+  d.Update(false,true,t1+milliseconds(2010));assert(d.QuitProgress(t1+milliseconds(2010))==0.f);
+  d.Update(true,true,t1+milliseconds(2100));assert(d.QuitProgress(t1+milliseconds(2100))==0.f); // re-pressed: the countdown stays ended
+  assert(StickChord{}.QuitProgress(t1)==0.f);
+ }
+ std::puts("PASS stick chord: U1 Start, U2 Select, U3 recentre, U4 quit and its ring progress, 150 ms window, tap pulse, cancel, reset");
 }

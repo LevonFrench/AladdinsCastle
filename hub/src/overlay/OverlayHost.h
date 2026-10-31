@@ -26,6 +26,8 @@ public:
     Q_INVOKABLE void dismissKeyboard();
     // The page's answer to one B press, for the input log: "back: <what happened>" or "ignored: <why>".
     Q_INVOKABLE void noteBack(const QString &outcome);
+    // Joining and leaving SteamVR's dashboard, for the same log: a panel that never came back can be told apart.
+    void notePanel(const QString &text);
     // Public input boundary: tests inject synthetic events through the same path.
     void handleRuntimeEvent(const vr::VREvent_t &event);
     // Public button boundary: tests feed the per-frame button state through the same path as tick().
