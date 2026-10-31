@@ -34,6 +34,10 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | No widescreen in the headset | `core/rend/transform_matrix.cpp`, `core/rend/vr_reproject.cpp/.h` | `rend.WideScreen` is ignored while the 3D rebuild runs in the headset (`vr::ignoreWidescreen`): it squeezed the picture to 3/4 and shifted it sideways there, and the light gun aimed in the unsqueezed picture (see Findings 2026-10-21). |
 | Universal controls | `core/rend/vr/xr_host.cpp`, `core/rend/vr/acvr_chord.h`, `core/input/udp_lightgun.cpp` | The stick clicks are Start, Coin, recentre and quit (see Controls below); the menu buttons and left X no longer do anything. `lightgunSet` bit 9 presses the pad's D, the coin of Naomi and Atomiswave games. |
 | Eye-buffer test | `core/rend/gles/gles.cpp`, `core/rend/vr_reproject.cpp` | `ACVR_EYE_SIZE=2592x2688` makes the renderer build its matrices as if it drew into a headset eye buffer of that size (a PC test of the line above); `ACVR_NO_WIDE_FIX=1` switches the fix off to see the old picture. |
+| Virtua Cop 2 (Japan) profile | `core/rend/vr_reproject.cpp` | Game id `HDR-0061`: an aim trim only. The game reads the beam at 0x5CDCF8 / 0x5CDCFC (16-bit x, y) as 0.998 x + 13.0 and 0.999 y - 8.9 (six points, 2026-10-26); the trim moves the beam so the reading is the pixel aimed at (a 5 x 3 grid: 16.4 px max error before, 2.8 px after). |
+| Aim follows the game's zoom | `core/rend/vr_reproject.cpp` | Confidential Mission's profile sets `stockFollowsGame`: the view its light gun hit test uses is the game's live projection (read from its RAM, with our own viewport widening taken back out), not a fixed 540.8 px focal. The game zooms its camera all the time (a focal of 455 to 1900 px in the first minutes); the fixed focal sent shots up to 173 px (of 640) away from the dot. `ACVR_STOCK_FIXED=1` brings the old rule back, for comparison. |
+| Pulls in the widened band reload | `core/rend/vr/xr_host.cpp`, `core/rend/vr_reproject.cpp` | With a widened game view (`vr.FovScale`) the band around the original frame is seen but cannot be hit. For a profile with `stockFollowsGame`, a pull there counts as a pull off the screen and reloads (motion rule M3) instead of doing nothing. Other games keep the old rule. |
+| Headset gun decision test | `core/rend/vr/xr_host.cpp`, `core/rend/vr/debug_shots.cpp`, `core/rend/gles/gles.cpp` | `ACVR_RAY="seconds:px:py:dist:ox:oy:oz:trigger;..."` (with `vr.Reproject`) runs the headset's own gun decision offline: a muzzle at ox, oy, oz (metres from the head) aims at the point `dist` metres along the eye ray through DC pixel px, py (outside 0..640 x 0..480: past the frame), the trigger held or not. It uses the frame the renderer drew last (`aimAtScene`) and sends what the headset sends: the pixel for the game's hit test, or the reload bit off the screen. Each trigger edge is logged (`ACVR ray: ...`). The reload bit and shot logic moved into one function (`aimButtons`) shared by the headset and this test. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
 
@@ -93,12 +97,14 @@ presses and a turned view (`config:vr.Yaw=25`) to see the 3D rebuild beyond the 
 
 `tools/Run-Test.ps1` is the newer runner for all the `ACVR_*` aids: `-Exe`, `-RunDir` (a scratch copy, so play
 settings and saves are untouched), `-Out`, `-Game`, and `-Gun`, `-Snap`, `-Quit`, `-Seed` (the same saves every
-run), `-Watch`, `-Poke`, `-Rip`, `-PreviewWide`, `-StopFile`. It never lets an OpenXR runtime load. Helpers (Python,
+run), `-Watch`, `-Poke`, `-Rip`, `-PreviewWide`, `-StopFile`, and `-Gun2`, `-Rtc` (a fixed clock), `-EyeSize` (a headset-shaped eye buffer) and `-Ray` (the headset gun test). It never lets an OpenXR runtime load. Helpers (Python,
 Pillow, numpy): `sheet.py` contact sheets, `compare.py` picture-by-picture comparison of two runs (identical or
 where they differ), `aimplan.py` and `sweep.py` gun scripts over nine points or a grid, `marks.py` crops around
 where the gun was sent, `gunram.py` finds where a game keeps the gun position it read (RAM dumps at known points),
 `findcam.py` looks for screen and viewport matrices in a RAM dump, `openframe.py` marks the original 4:3 frame in a
 wide picture and measures how much of the rest holds picture.
+`aimstat.py` compares a gun-grid run's targets with the game's own reading of the beam; `raystat.py` and `probestat.py`
+summarise `ACVR_RAY` runs (pulls, and one-per-second probes); `hits.py` lists the game's hit reports of a grid run.
 
 ## Findings (2026-10-19)
 
@@ -181,6 +187,44 @@ wide picture and measures how much of the rest holds picture.
   this game keeps only the 3D view.
 - Older lines above that say the open frame came "with `rend.WideScreen`" describe the flat PC picture; in the
   headset that flag was the bug above.
+
+- Confidential Mission after the owner's headset report, second look (2026-10-26, offline). The aim fix of 2026-10-20
+  was right for the game's own reading of the beam but missed the game's zoom. Its camera changes the field of view all
+  the time: the focal length in its projection runs from 455 to 1900 px within the first minutes (cut scenes, and a
+  push-in on each enemy that steps out: 540 px to 879 px within three seconds of play). The headset's hit decision turned
+  the point the ray hits into a screen pixel with a fixed 540.8 px focal, so the pixel sent drifted away from the dot as
+  soon as the camera zoomed. A headset-decision test (`ACVR_RAY`, above) aimed through pixels of the drawn picture: the old
+  rule sent the shot 50 px off (rms; at most 173 px of 640) over a 2.5 minute run, 78 px off in the grid run while the focal was 880 px. With
+  the game's live focal as the stock view, the pixel sent is the pixel aimed at (0.0 px, 266 probes, focal 455 to 1606 px,
+  four plays of the first room in 420 s of game time), and the game's own reading of the beam is within 4.1 px of it (rms
+  2.6) in every shot of a grid run while the zoom ran from 541 to 879 px. Pointing at the game's 2D plane (menus, HUD) is a
+  different mapping and is not counted.
+  Reload: aimed past the frame (left, right, above, below; muzzle 0.20, -0.25, -0.35 m off the eye) the decision sent the
+  reload bit 4 of 4 times, and the game's "Shoot outside of the screen!" prompt with an empty magazine turned into a full
+  magazine in each play window. With `vr.FovScale 1.5`, every pull in the seen band (10 of 10) reloads too.
+  Open frame: in play the picture beyond the frame is real scenery at 99 to 100 percent, with or without widening
+  (`tools/openframe.py`, `ACVR_PREVIEW_WIDE=2`). Story scenes fall short: bodies at the sides are cut into floating
+  pieces. A 1.5 times wider game view (`vr.FovScale 1.5`, through the viewport) keeps those people whole; 2 times does
+  too but enlarges the HUD. The game's own hit test does not change with the wider view: the same gun script gave the
+  same hit report in the same 9 pictures with `vr.FovScale` 1 and 2 (`tools/hits.py`). The private launcher's open-frame
+  view now sets `vr.FovScale=1.5` instead of `rend.WideScreen`, which the headset path ignores, so the two views had been
+  the same picture.
+
+- Death Crimson OX, Death Crimson 2 and Virtua Cop 2 (2026-10-26, offline).
+  Death Crimson 2 and Virtua Cop 2 (Japan discs) stopped at the console's "Set Date/Time" screen. Cause: a disc image
+  played from a shared collection folder that holds a real BIOS (`dc_bios.bin`) and a blank flash (`dc_flash.bin`) beside the discs, and Flycast
+  looks for those beside the disc. The other Dreamcast games lived in the setup's own `games` folder, which has neither, so
+  Flycast uses its built-in BIOS and the setup's initialised `dc_nvmem.bin`. Fix: the owner's launcher plays copies of the two
+  discs from the setup's own `games` folder (the same pattern as the other Dreamcast games). Both then reach play.
+  Death Crimson OX skips its story intro with B (Start there only pauses it); play starts about 36 s in.
+  Virtua Cop 2: the game's reading of the beam is offset (see the patch table); trimmed. Its RELOAD prompt with an empty
+  revolver clears after a pull off the screen. Death Crimson OX: the ammunition bar goes 10 to 1 over twelve shots and
+  back to 10 after a pull off the screen. Death Crimson 2 shows no magazine; its pull is sent but not observable.
+  For all three the headset decision sends the pixel aimed at (0.0 px, `ACVR_RAY` pulls) and the reload bit off the screen.
+  The games' own reading of the beam was found only for Virtua Cop 2 (`tools/findgun.py` over RAM dumps with the gun
+  at six points); Death Crimson 2 and OX keep nothing linear in the gun's x, y, so their absolute aim offset is unmeasured.
+  No 3D projection matrix was found in their RAM (only the 640 x 480 screen one), so they keep the fixed focal for build and
+  aim; they cannot show the Confidential Mission drift, and their camera zoom, if any, is unmeasured.
 
 ## Historical status (2026-10-14)
 
