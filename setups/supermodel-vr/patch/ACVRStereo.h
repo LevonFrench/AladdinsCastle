@@ -6,6 +6,8 @@
 #ifndef INCLUDED_ACVRSTEREO_H
 #define INCLUDED_ACVRSTEREO_H
 
+#include "OSD/acvr/hold_ring_host.hpp"   // the U4 hold ring (libacvr): what ACVRPublish carries to the presenter
+
 // One eye as the headset reports it: position in metres and orientation in the reference space,
 // and the field of view as tangents (left, right, down, up)
 struct ACVREyeView
@@ -86,6 +88,7 @@ struct ACVRPublish
   ACVREyeView views[2];
   float       originPos[3]; // where the player's head was at recentre
   float       originYaw;    // and which way it faced, radians
+  acvr::HoldRingView ring;  // U4: both stick clicks held to quit; drawn over both eye pictures
 };
 
 // The two VR controllers as the headset runtime reports them. Index 0 = left hand, 1 = right hand.

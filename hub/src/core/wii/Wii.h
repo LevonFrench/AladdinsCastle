@@ -5,6 +5,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <atomic>
+namespace ac::scan{class DiscMemo;}
 namespace ac::wii {
 // Wii gun games through the user's own DolphinXR build (decisions D52-D54). Only public titles and
 // game ids are listed; discs and the build are found through Hub settings and never named here.
@@ -19,9 +20,9 @@ QString discId(const QString &file,std::atomic_bool &cancel);
 QString gameFor(const QString &discId);
 // What one disc image is: {file, id (game id), game, title, verified}. Read-only.
 QVariantMap identify(const QString &file);
-QVariantMap identify(const QString &file,std::atomic_bool &cancel);
+QVariantMap identify(const QString &file,std::atomic_bool &cancel,scan::DiscMemo *memo=nullptr);
 // The Wii disc images directly inside a folder, identified. Subfolders are not entered.
-QVariantList discs(const QString &folder, std::atomic_bool &cancel);
+QVariantList discs(const QString &folder, std::atomic_bool &cancel, scan::DiscMemo *memo = nullptr);
 // What a game is still missing in this DolphinXR build, said plainly: its own VR settings
 // (User/GameSettingsVR/<game id>.ini) and, for a game held docked, its docked controls. Empty when
 // nothing is missing.
