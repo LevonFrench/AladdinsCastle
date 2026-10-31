@@ -79,7 +79,7 @@ index 11bc267..444ccf7 100644
  		NOTICE_LOG(INPUT, "Light gun P%d at %d,%d: trigger %d reload %d start %d d-pad %x B %d 2D %d", player + 1,
  				mo_x_abs[player], mo_y_abs[player], buttons & 1, (buttons >> 1) & 1, (buttons >> 2) & 1,
 diff --git a/core/rend/gles/gles.cpp b/core/rend/gles/gles.cpp
-index 7aba717..c74269f 100644
+index 7aba717..8d7a6e0 100644
 --- a/core/rend/gles/gles.cpp
 +++ b/core/rend/gles/gles.cpp
 @@ -1202,7 +1202,9 @@ bool OpenGLRenderer::renderFrame(int width, int height)
@@ -93,6 +93,21 @@ index 7aba717..c74269f 100644
  	ShaderUniforms.ndcMat = gl.matrices.GetNormalMatrix();
  	{
  		const vr::ReprojectParams& vrParams = vr::update(*gl.rendContext);
+@@ -1587,6 +1589,14 @@ void OpenGLRenderer::RenderVrEye(int width, int height)
+ 
+ bool OpenGLRenderer::Render()
+ {
++	// ACVR: ACVR_RAY (rend/vr/debug_shots.cpp) tests the headset's gun decision offline, which reads the last
++	// frame drawn (gles_vr_frame): keep a copy of every frame, as the headset does, without showing it.
++	static const bool keepFrames = getenv("ACVR_RAY") != nullptr;
++	if (keepFrames && !gl.rendContext->isRTT && !config::EmulateFramebuffer && !vr::xr::enabled())
++	{
++		vrFrame = *gl.rendContext;
++		vrFrameValid = true;
++	}
+ 	if (vr::xr::enabled() && !gl.rendContext->isRTT && !config::EmulateFramebuffer)
+ 	{
+ 		// shown from the next Present on (gles_vr_present)
 diff --git a/core/rend/transform_matrix.cpp b/core/rend/transform_matrix.cpp
 index 847cbd3..401563d 100644
 --- a/core/rend/transform_matrix.cpp
@@ -217,15 +232,16 @@ index 0000000..4b0b2bc
 +
 +}  // namespace acvr_chord
 diff --git a/core/rend/vr/debug_shots.cpp b/core/rend/vr/debug_shots.cpp
-index 417e6c9..e7937f7 100644
+index 417e6c9..d4aa6b0 100644
 --- a/core/rend/vr/debug_shots.cpp
 +++ b/core/rend/vr/debug_shots.cpp
-@@ -10,10 +10,20 @@
+@@ -10,10 +10,21 @@
  #include "hw/pvr/Renderer_if.h"
  #include "hw/sh4/sh4_sched.h"
  #include "ui/gui.h"
 +#include "input/gamepad_device.h"
 +#include "input/udp_lightgun.h"
++#include "rend/vr/xr_host.h"
 +#include "hw/sh4/sh4_mem.h"
 +#include "log/Log.h"
 +#include <cstring>
@@ -241,7 +257,7 @@ index 417e6c9..e7937f7 100644
  #include <vector>
  
  namespace vr
-@@ -36,6 +46,228 @@ void onEvent(Event event, void *)
+@@ -36,6 +47,272 @@ void onEvent(Event event, void *)
  		lastShot = -1;
  		return;
  	}
@@ -312,6 +328,50 @@ index 417e6c9..e7937f7 100644
 +			if (cur != nullptr)
 +				lightgunSet(player, cur->x, cur->y, cur->buttons);
 +		}
++	}
++	// ACVR: a scripted headset gun: ACVR_RAY="t:px:py:dist:ox:oy:oz:trigger;..." from game time t (until the
++	// next entry) aims from a muzzle at ox, oy, oz (metres from the head, y up, -z ahead) at the point dist metres
++	// along the eye ray through DC pixel px, py (the stock 640 x 480 framing; outside it: past the frame), with
++	// the trigger held (1), not held (0) or not held and the decision only logged (2, a probe). It runs the headset's own gun decision (xr_host.cpp testGunRay) on the
++	// frames the renderer draws, so it needs vr.Reproject and the renderer keeping them (gles.cpp). Use it in
++	// place of ACVR_GUN.
++	{
++		struct RayStep { double at; float px, py, dist, ox, oy, oz; int trigger; };
++		static std::vector<RayStep> rays;
++		static bool parsed = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_RAY"))
++			{
++				RayStep r; int used;
++				while (sscanf(s, "%lf:%f:%f:%f:%f:%f:%f:%d%n", &r.at, &r.px, &r.py, &r.dist, &r.ox, &r.oy, &r.oz, &r.trigger, &used) == 8)
++				{
++					rays.push_back(r);
++					s += used;
++					if (*s != ';')
++						break;
++					s++;
++				}
++			}
++		}
++		const double now = gameSeconds() - startedAt;
++		const RayStep *cur = nullptr;
++		for (const RayStep& r : rays)
++			if (now >= r.at)
++				cur = &r;
++		static const RayStep *lastProbe = nullptr;
++		if (cur != nullptr && cur->trigger == 2)
++		{
++			// a probe is looked at once, when its step starts
++			if (cur != lastProbe)
++			{
++				lastProbe = cur;
++				xr::testGunRay(now, cur->px, cur->py, cur->dist, cur->ox, cur->oy, cur->oz, 2);
++			}
++		}
++		else if (cur != nullptr)
++			xr::testGunRay(now, cur->px, cur->py, cur->dist, cur->ox, cur->oy, cur->oz, cur->trigger);
 +	}
 +	// ACVR: snapshots at exact game times: ACVR_SNAP="t;t;..." (seconds) writes
 +	// snap_<centiseconds>.png the first frame at or after each.
@@ -574,19 +634,21 @@ index e4ddf02..f66049b 100644
  	smoke.clear();
  	lastShot[0] = lastShot[1] = 0;
 diff --git a/core/rend/vr/xr_host.cpp b/core/rend/vr/xr_host.cpp
-index 1295144..7a6a528 100644
+index 1295144..dfdcd46 100644
 --- a/core/rend/vr/xr_host.cpp
 +++ b/core/rend/vr/xr_host.cpp
-@@ -44,6 +44,8 @@
+@@ -44,6 +44,10 @@
  #include "cfg/cfg.h"
  #include "stdclass.h"
  #include "emulator.h"
 +#include "ui/gui.h"
 +#include "acvr_chord.h"
++#include "acvr/hold_ring_gl.hpp"	// the U4 hold ring (libacvr), drawn with scissored clears
++#include "acvr/hold_ring_host.hpp"
  #include "log/Log.h"
  
  #include <glm/gtc/matrix_transform.hpp>
-@@ -93,8 +95,10 @@ XrPath handPaths[2];
+@@ -93,8 +97,10 @@ XrPath handPaths[2];
  XrSpace aimSpaces[2];
  XrSpace gripSpaces[2];		// the hand on the handle (grip pose): where the gun's grip goes
  XrActionSet actionSet = XR_NULL_HANDLE;
@@ -598,7 +660,7 @@ index 1295144..7a6a528 100644
  PFN_xrPerfSettingsSetPerformanceLevelEXT setPerformanceLevel;
  
  bool initTried;
-@@ -151,7 +155,11 @@ struct Gun
+@@ -151,7 +157,28 @@ struct Gun
  Gun guns[2] { { 0 }, { 1, Left } };
  bool dualWield;
  XrTime dualSince;
@@ -608,10 +670,27 @@ index 1295144..7a6a528 100644
 +// for 3 s quit through the emulator's normal exit (which saves the VMU and NVRAM).
 +acvr_chord::Resolver stickClicks;
 +bool quitCounting, quitSent;
++acvr::HoldRing holdRing;	// U4: the ring shown while both clicks are held (acvr/hold_ring.hpp, as in acvr-ps1)
++acvr::HoldRingView holdRingView;
++acvr::QuitAfterFlash quitAfterFlash;	// the quit waits until the ring has flashed
++
++// Quits through the emulator's normal exit (which saves the VMU and NVRAM), once.
++void quitNow()
++{
++	if (quitSent)
++		return;
++	quitSent = true;
++#ifndef __ANDROID__
++	NOTICE_LOG(INPUT, "XR: quitting (the game saves as on a normal exit)");
++	gui_runOnUiThread([]() { dc_exit(); });
++#else
++	NOTICE_LOG(INPUT, "XR: both stick clicks held for 3 seconds; this build has no desktop exit (leave from the headset's own menu)");
++#endif
++}
  // A game (re)started: one gun again (EventManager calls on the emulator's thread).
  std::atomic<bool> newGame;
  struct NewGameRegistration
-@@ -176,6 +184,35 @@ bool check(XrResult result, const char *what)
+@@ -176,6 +203,35 @@ bool check(XrResult result, const char *what)
  }
  #define XRCHECK(call) check((call), #call)
  
@@ -647,7 +726,7 @@ index 1295144..7a6a528 100644
  XrPath path(const char *s)
  {
  	XrPath p = XR_NULL_PATH;
-@@ -211,15 +248,16 @@ bool initActions()
+@@ -211,15 +267,16 @@ bool initActions()
  			|| !createAction(triggerAction, "trigger", "Fire", XR_ACTION_TYPE_FLOAT_INPUT, true)
  			|| !createAction(startAction, "start", "Start (left: player 2 joins)", XR_ACTION_TYPE_BOOLEAN_INPUT, true)
  			|| !createAction(skipAction, "skip", "Skip, back (the gun's B)", XR_ACTION_TYPE_BOOLEAN_INPUT, true)
@@ -669,7 +748,7 @@ index 1295144..7a6a528 100644
  	// Thumbstick: the gun's D-pad (menus); with a grip held, up/down sizes the world. The
  	// other hand's grip racks the game pistol's slide.
  	auto suggest = [](const char *profile, std::initializer_list<std::pair<XrAction, const char *>> list) {
-@@ -244,20 +282,19 @@ bool initActions()
+@@ -244,20 +301,19 @@ bool initActions()
  		{ triggerAction, "/user/hand/left/input/trigger/value" },
  		{ triggerAction, "/user/hand/right/input/trigger/value" },
  		{ startAction, "/user/hand/right/input/a/click" },
@@ -697,7 +776,7 @@ index 1295144..7a6a528 100644
  	any |= suggest("/interaction_profiles/valve/index_controller", {
  		{ stickAction, "/user/hand/left/input/thumbstick" },
  		{ stickAction, "/user/hand/right/input/thumbstick" },
-@@ -270,11 +307,10 @@ bool initActions()
+@@ -270,11 +326,10 @@ bool initActions()
  		{ triggerAction, "/user/hand/left/input/trigger/value" },
  		{ triggerAction, "/user/hand/right/input/trigger/value" },
  		{ startAction, "/user/hand/right/input/a/click" },
@@ -711,7 +790,7 @@ index 1295144..7a6a528 100644
  		{ hapticAction, "/user/hand/left/output/haptic" },
  		{ hapticAction, "/user/hand/right/output/haptic" },
  	});
-@@ -289,10 +325,8 @@ bool initActions()
+@@ -289,10 +344,8 @@ bool initActions()
  		{ handAction, "/user/hand/right/input/grip/pose" },
  		{ triggerAction, "/user/hand/left/input/trigger/value" },
  		{ triggerAction, "/user/hand/right/input/trigger/value" },
@@ -724,7 +803,7 @@ index 1295144..7a6a528 100644
  		{ hapticAction, "/user/hand/left/output/haptic" },
  		{ hapticAction, "/user/hand/right/output/haptic" },
  	});
-@@ -307,12 +341,10 @@ bool initActions()
+@@ -307,12 +360,10 @@ bool initActions()
  		{ handAction, "/user/hand/right/input/grip/pose" },
  		{ triggerAction, "/user/hand/left/input/trigger/value" },
  		{ triggerAction, "/user/hand/right/input/trigger/value" },
@@ -739,7 +818,7 @@ index 1295144..7a6a528 100644
  		{ hapticAction, "/user/hand/left/output/haptic" },
  		{ hapticAction, "/user/hand/right/output/haptic" },
  	});
-@@ -473,7 +505,10 @@ bool init()
+@@ -473,7 +524,10 @@ bool init()
  	if (!XRCHECK(xrCreateInstance(&createInfo, &instance)))
  		return false;
  	if (refreshRates)
@@ -750,7 +829,7 @@ index 1295144..7a6a528 100644
  	if (perfSettings)
  		xrGetInstanceProcAddr(instance, "xrPerfSettingsSetPerformanceLevelEXT", (PFN_xrVoidFunction *)&setPerformanceLevel);
  	XrInstanceProperties instanceProps { XR_TYPE_INSTANCE_PROPERTIES };
-@@ -566,7 +601,7 @@ void pollEvents()
+@@ -566,7 +620,7 @@ void pollEvents()
  				{
  					sessionRunning = true;
  					if (requestRefreshRate)
@@ -759,42 +838,96 @@ index 1295144..7a6a528 100644
  					if (setPerformanceLevel)
  					{
  						XRCHECK(setPerformanceLevel(session, XR_PERF_SETTINGS_DOMAIN_CPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT));
-@@ -1313,6 +1348,8 @@ void updateLightgun(XrTime time)
+@@ -1103,6 +1157,27 @@ void updateOtherHand(XrTime time, int hand, bool tracked, const XrSpaceLocation&
+ 	gunView.slide = slide.back;
+ }
+ 
++// What the trigger sends for this aim (the game's A for a shot, its reload bit away from the screen).
++// What a pull does is decided when it starts. One started in the grey margin (aimOutside) never
++// fires. One started on screen (a shot) or off it (a reload) keeps the game's A held
++// without a break until it is let go, also while crossing the margin: the reload bit is
++// A held too (maple_lightgun::transform_kcode), so no new press reaches the game and a
++// held trigger never fires again by sweeping. Shared with the offline ray test (testGunRay).
++u32 aimButtons(Gun& g, bool trigger, bool onScreen)
++{
++	if (trigger && !g.triggerWas)
++		g.pullOutside = !onScreen && aimOutside && !aimBandReloads();
++	u32 buttons = 0;
++	if (trigger && !g.pullOutside)
++		// pointing away from the screen fires off-screen: that's how you reload
++		buttons |= onScreen ? 1 : 2;
++	// A shot at the 2D plane (menus, text, a flat screen): the game's own shot marker lands
++	// right where it hit, so it stays (vr::dropShotMarker).
++	if (trigger && onScreen && (!strcmp(aimHow, "2D") || !strcmp(aimHow, "menu") || !strcmp(aimHow, "screen")))
++		buttons |= 256;
++	return buttons;
++}
++
+ // One gun for a headset frame: where it points (handed to the game's hit test at its stock
+ // framing), how it's drawn, and the buttons that go to its player's light gun. `extra` are
+ // the buttons that aren't the trigger's (Start, B, the D-pad). With `slide`, the other hand
+@@ -1217,22 +1292,8 @@ void updateGun(Gun& g, XrTime time, const XrSpaceLocation *locations, const bool
+ 	}
+ 
+ 	// Seen but outside the game's view: the trigger does nothing (no shot, no reload).
+-	const bool outside = !onScreen && aimOutside;
+-	// What a pull does is decided when it starts. One started in the grey margin never
+-	// fires. One started on screen (a shot) or off it (a reload) keeps the game's A held
+-	// without a break until it is let go, also while crossing the margin: the reload bit is
+-	// A held too (maple_lightgun::transform_kcode), so no new press reaches the game and a
+-	// held trigger never fires again by sweeping.
+-	if (trigger && !g.triggerWas)
+-		g.pullOutside = outside;
+-	u32 buttons = 0;
+-	if (trigger && !g.pullOutside)
+-		// pointing away from the screen fires off-screen: that's how you reload
+-		buttons |= onScreen ? 1 : 2;
+-	// A shot at the 2D plane (menus, text, a flat screen): the game's own shot marker lands
+-	// right where it hit, so it stays (vr::dropShotMarker).
+-	if (trigger && onScreen && (!strcmp(aimHow, "2D") || !strcmp(aimHow, "menu") || !strcmp(aimHow, "screen")))
+-		buttons |= 256;
++	const bool outside = !onScreen && aimOutside && !aimBandReloads();
++	u32 buttons = aimButtons(g, trigger, onScreen);
+ 	buttons |= extra;
+ 	// A reload (the slide racked, the gun pointed down): the trigger let go for a moment,
+ 	// then pulled off the screen. A trigger held through it waits to be let go, so it
+@@ -1313,6 +1374,11 @@ void updateLightgun(XrTime time)
  				lightgunSet(g.player, OffScreen, OffScreen, 0);
  		for (Gun& g : guns)
  			g.triggerWas = false;
 +		stickClicks.reset();
 +		quitCounting = false;
++		holdRingView = {};
++		if (quitAfterFlash.flush())
++			quitNow();	// the quit had fired: the ring cannot be seen now anyway
  		return;
  	}
  	const XrActiveActionSet active { actionSet, XR_NULL_PATH };
-@@ -1321,6 +1358,25 @@ void updateLightgun(XrTime time)
+@@ -1321,6 +1387,23 @@ void updateLightgun(XrTime time)
  	sync.activeActionSets = &active;
  	if (!XR_SUCCEEDED(xrSyncActions(session, &sync)))
  		return;
 +	// The universal stick-click layer, before anything else so a quit always works. A click waits
 +	// 150 ms for the other one; a chord sends neither Start nor Coin.
-+	const acvr_chord::Output clicks = stickClicks.step((uint64_t)time / 1'000'000, boolAction(stickClickAction, Left),
++	const uint64_t nowMs = (uint64_t)time / 1'000'000;
++	const acvr_chord::Output clicks = stickClicks.step(nowMs, boolAction(stickClickAction, Left),
 +			boolAction(stickClickAction, Right));
 +	if (clicks.recentre)
 +		recenterRequested = true;
 +	if (clicks.bothHeld && !quitCounting)
 +		NOTICE_LOG(INPUT, "XR: both stick clicks down; quit in 3 seconds if held");
 +	quitCounting = clicks.bothHeld;
-+	if (clicks.quit && !quitSent)
-+	{
-+		quitSent = true;
-+#ifndef __ANDROID__
-+		NOTICE_LOG(INPUT, "XR: both stick clicks held for 3 seconds; quitting (the game saves as on a normal exit)");
-+		gui_runOnUiThread([]() { dc_exit(); });
-+#else
-+		NOTICE_LOG(INPUT, "XR: both stick clicks held for 3 seconds; this build has no desktop exit (leave from the headset's own menu)");
-+#endif
-+	}
++	// U4 ring (acvr/hold_ring.hpp): the same count that quits. Hidden for 1 s, fills to 3 s, flashes once; gone as soon
++	// as a click lets go. The quit itself waits for the flash, as in acvr-ps1.
++	holdRingView = holdRing.update(nowMs, clicks.bothHeld ? clicks.quitProgress : 0.f);
++	if (clicks.quit)
++		NOTICE_LOG(INPUT, "XR: both stick clicks held for 3 seconds; quitting once the ring has flashed");
++	if (quitAfterFlash.update(nowMs, clicks.quit))
++		quitNow();
  	if (preparing)
  	{
  		// B (or Y): not now, the arcade gun this time
-@@ -1335,10 +1391,6 @@ void updateLightgun(XrTime time)
+@@ -1335,10 +1418,6 @@ void updateLightgun(XrTime time)
  		return;
  	}
  
@@ -805,7 +938,7 @@ index 1295144..7a6a528 100644
  	const glm::vec2 stick = stickAction2();
  	const u32 dpad = adjustWorldSize(time, stick) ? dpadFromStick(glm::vec2(0.f)) : dpadFromStick(stick);
  
-@@ -1352,8 +1404,8 @@ void updateLightgun(XrTime time)
+@@ -1352,8 +1431,8 @@ void updateLightgun(XrTime time)
  				&& (locations[hand].locationFlags & valid) == valid;
  		pulls[hand] = tracked[hand] ? floatAction(triggerAction, hand) : 0.f;
  	}
@@ -816,7 +949,7 @@ index 1295144..7a6a528 100644
  	// Joining takes both controllers (with one, the left Start stays player 1's) and a game
  	// that shows when player 2 is out again (its profile knows the prompt).
  	const bool canJoin = config::VrDualWield && player2PromptKnown() && tracked[Left] && tracked[Right];
-@@ -1398,7 +1450,7 @@ void updateLightgun(XrTime time)
+@@ -1398,7 +1477,7 @@ void updateLightgun(XrTime time)
  	// left one lets player 2 join), either B too (the gun's B: HOTD2 skips a story scene and
  	// backs out of menus with it). Two guns: each hand's are its player's. The D-pad (menus)
  	// is player 1's.
@@ -825,7 +958,7 @@ index 1295144..7a6a528 100644
  	if (dualWield)
  	{
  		p1 |= (rightStart ? 4 : 0) | (boolAction(skipAction, Right) ? 128 : 0);
-@@ -1682,15 +1734,18 @@ void term()
+@@ -1682,15 +1761,23 @@ void term()
  	session = XR_NULL_HANDLE;
  	localSpace = aimSpaces[Left] = aimSpaces[Right] = gripSpaces[Left] = gripSpaces[Right] = XR_NULL_HANDLE;
  	actionSet = XR_NULL_HANDLE;
@@ -842,15 +975,115 @@ index 1295144..7a6a528 100644
 -	dualWield = leftStartWas = recenterWas = false;
 +	dualWield = leftStartWas = false;
 +	stickClicks.reset();
++	if (quitAfterFlash.flush())
++		quitNow();	// the session ended during the ring's flash: the quit still goes
++	quitAfterFlash.reset();
++	holdRing.reset();
++	holdRingView = {};
 +	quitCounting = quitSent = false;
  	initTried = false;
  }
  
+@@ -1859,6 +1946,15 @@ bool frame()
+ 					first = false;
+ 				}
+ 		}
++		if (holdRingView.visible)
++		{
++			// U4: over everything, straight ahead in each eye, so the two rings meet far away
++			glBindFramebuffer(GL_FRAMEBUFFER, c.fbos[index]);
++			const acvr::HoldRingSpot at = acvr::hold_ring_eye_spot(std::tan(views[i].fov.angleLeft),
++					std::tan(views[i].fov.angleRight), std::tan(views[i].fov.angleDown), std::tan(views[i].fov.angleUp),
++					c.width, c.height);
++			acvr::draw_hold_ring_gl(holdRingView, at.cx, at.cy, at.radius, c.width, c.height);
++		}
+ 		if (i == 0)
+ 			captureIfRequested(c.fbos[index], c.width, c.height);
+ 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+@@ -1888,5 +1984,47 @@ bool frame()
+ 	return render && ok;
+ }
+ 
++// ACVR: the headset's gun decision for a ray given by hand, for offline tests (debug_shots.cpp, ACVR_RAY). The
++// player aims from a muzzle (ox, oy, oz: metres from the head, y up, -z ahead, as the aim pose is) at the point
++// distM metres along the eye ray through DC pixel (px, py) of the picture the game draws now (the 3D world the player
++// sees), and holds the trigger or not.
++// It runs aimAtScene on the frame the renderer drew last and sends what updateGun would: the pixel the game's hit
++// test gets, or the reload bit away from the screen. Logs each trigger edge.
++void testGunRay(double gameTime, float px, float py, float distM, float ox, float oy, float oz, int mode)
++{
++	// mode 0: trigger up, 1: trigger held, 2: a probe (trigger up, the decision is logged every time)
++	const bool trigger = mode == 1;
++	static Gun g { 0 };
++	const rend_context *ctx = gles_vr_frame();
++	if (ctx == nullptr)
++		return;
++	const GameCamera cam = gameCamera(*ctx);
++	const float s = worldScale();
++	const glm::vec2 ndc(px * 2.f / cam.dcSize.x - 1.f, py * 2.f / cam.dcSize.y - 1.f);
++	const glm::vec3 target = glm::normalize(glm::vec3(ndc.x * cam.tanHalf.x, ndc.y * cam.tanHalf.y, -1.f)) * (distM / s);
++	const glm::vec3 og = glm::vec3(ox, -oy, oz) / s;
++	const glm::vec3 dg = glm::normalize(target - og);
++	glm::vec2 screen(-1.f);
++	float dist = -1.f;
++	aimOutside = false;
++	aimHow = "";
++	const bool onScreen = aimAtScene(*ctx, og, dg, screen, dist);
++	if (mode == 2)
++	{
++		NOTICE_LOG(INPUT, "ACVR ray probe t=%.3f: toward %.0f,%.0f -> %s, screen %.1f,%.1f, hit %s, focal %.1f vs stock %.1f", gameTime, px, py,
++				onScreen ? "on screen" : "off screen", screen.x * 640.f, screen.y * 480.f, aimHow, cam.dcSize.x * 0.5f / cam.tanHalf.x,
++				cam.dcSize.x * 0.5f / cam.stockTan.x);
++		return;
++	}
++	const u32 buttons = aimButtons(g, trigger, onScreen);
++	const glm::ivec2 pos = onScreen ? glm::ivec2(screen * 10000.f) : glm::ivec2(OffScreen);
++	if (trigger != g.triggerWas)
++		NOTICE_LOG(INPUT, "ACVR ray t=%.3f: toward %.0f,%.0f from %.2f,%.2f,%.2f trigger %d -> %s, screen %.1f,%.1f, hit %s %u W %.1f, outside %d, buttons %u",
++				gameTime, px, py, ox, oy, oz, trigger ? 1 : 0, onScreen ? "on screen" : "off screen", screen.x * 640.f, screen.y * 480.f,
++				aimHow, aimHit.poly, aimHit.w[0], aimOutside && !onScreen ? 1 : 0, buttons);
++	g.triggerWas = trigger;
++	lightgunSet(0, pos.x, pos.y, buttons);
++}
++
+ }	// namespace vr::xr
+ #endif
+diff --git a/core/rend/vr/xr_host.h b/core/rend/vr/xr_host.h
+index 4f5b761..21b7be7 100644
+--- a/core/rend/vr/xr_host.h
++++ b/core/rend/vr/xr_host.h
+@@ -34,11 +34,14 @@ const Eye *currentEye();
+ // The render context is going away (app in the background, renderer restart): drop the
+ // session bound to it. The next frame() starts a new one on the new context.
+ void term();
++// ACVR test aid: the gun decision for a ray (xr_host.cpp; debug_shots.cpp, ACVR_RAY).
++void testGunRay(double gameTime, float px, float py, float distM, float ox, float oy, float oz, int trigger);
+ #else
+ inline bool enabled() { return false; }
+ inline bool frame() { return false; }
+ inline const Eye *currentEye() { return nullptr; }
+ inline void term() {}
++inline void testGunRay(double, float, float, float, float, float, float, int) {}
+ #endif
+ 
+ }
 diff --git a/core/rend/vr_reproject.cpp b/core/rend/vr_reproject.cpp
-index 6314981..39d7326 100644
+index 6314981..01daa2b 100644
 --- a/core/rend/vr_reproject.cpp
 +++ b/core/rend/vr_reproject.cpp
-@@ -235,6 +235,10 @@ struct GameProfile
+@@ -211,6 +211,11 @@ struct GameProfile
+ 	// plane (0: vr.Focal).
+ 	u32 stockFocalAddr = 0;
+ 	float focal = 0.f;
++	// The game's own camera changes its field of view (zoom-ins on a scene's enemy, story shots), and its light
++	// gun hit test follows it: the stock view is whatever the game's projection is now, before our widening
++	// (Confidential Mission: its focal runs from 450 to 1900 px within a few seconds; a fixed one aimed up to
++	// 60 percent of the half screen off while it zoomed).
++	bool stockFollowsGame = false;
+ 	// Written every frame once the game's code is there (its fovPatch words stock or patched).
+ 	Poke pokes[12] {};
+ 	// The textures of the game's own hit marker (VRAM addresses) and the W it is drawn at:
+@@ -235,6 +240,10 @@ struct GameProfile
  	// The player's own model from the game, in a file of its own (hands_rip.h): the agent's
  	// hands and pistol, the hero's staff, or none (the arcade gun).
  	hands::Source model {};
@@ -861,7 +1094,7 @@ index 6314981..39d7326 100644
  };
  
  static std::vector<GameProfile> makeProfiles()
-@@ -276,6 +280,17 @@ static std::vector<GameProfile> makeProfiles()
+@@ -276,6 +285,17 @@ static std::vector<GameProfile> makeProfiles()
  	p.p2PromptTextures[0] = 0x53c400;
  	p.p2PromptTextures[1] = 0x572000;
  	p.model.pistol = { { 0x5fc800, 0x5fe800 }, 0x603800, 0x600800 };	// (the same hands.bin as PAL's)
@@ -879,7 +1112,7 @@ index 6314981..39d7326 100644
  	list.push_back(p);
  	// The Maze of the Kings (NAOMI, Hitmaker 2002; worked out from rips, RAM dumps and its
  	// code, see hotd2-vr/README). Its field of view changes from scene to scene (60 degrees
-@@ -343,6 +358,39 @@ static std::vector<GameProfile> makeProfiles()
+@@ -343,6 +363,47 @@ static std::vector<GameProfile> makeProfiles()
  	p.model.file = "staff-mok.bin";
  	p.model.staff = { { { 0xC1C000, 0xCB0800 }, { 0xD87000, 0xDA9800 } } };
  	list.push_back(p);
@@ -906,11 +1139,19 @@ index 6314981..39d7326 100644
 +	p.projAddr = 0x2F0C20;
 +	p.viewportAddr = 0x2F0D58;
 +	p.focal = 540.8f;
++	p.stockFollowsGame = true;
 +	p.aim = { 317.67f, 249.55f, 1.0732f, 1.0732f, 1.1517f, 1.1517f };
 +	// Its units are bigger than HOTD2's: a guard 340 px tall at W 25 is 15.7 units, so 1.8 m is
 +	// 0.115 m a unit, 4.6 times HOTD2's 0.025. Without it the world stood 20-60 cm from the eyes,
 +	// behind the gun's muzzle, and the aim ray started past what it was meant to hit.
 +	p.unitScale = 4.6f;
++	list.push_back(p);
++	// ACVR: Virtua Cop 2 (Dreamcast, Japan, HDR-0061). It keeps the position it read at 0x5CDCF8 / 0x5CDCFC (16-bit
++	// x, y): x = 0.998 beam + 13.0, y = 0.999 beam - 8.9 (six points over the screen, 2026-10-26), up to 13 px off in x
++	// and 9 px in y. The trim moves the beam to where the game reads the intended pixel.
++	p = GameProfile();
++	p.gameId = "HDR-0061";
++	p.aim = { 307.51f, 249.0f, 0.99827f, 0.99827f, 0.99943f, 0.99943f };
 +	list.push_back(p);
 +	p = GameProfile();
 +	p.gameId = "RANGER MISSION";
@@ -919,7 +1160,7 @@ index 6314981..39d7326 100644
  	return list;
  }
  static const std::vector<GameProfile> profiles = makeProfiles();
-@@ -393,23 +441,25 @@ static void applyGameProfile(Event, void *)
+@@ -393,23 +454,25 @@ static void applyGameProfile(Event, void *)
  		}
  		std::copy(std::begin(prof.markerTextures), std::end(prof.markerTextures), std::begin(markerTextures));
  		std::copy(std::begin(prof.p2PromptTextures), std::end(prof.p2PromptTextures), std::begin(p2PromptTextures));
@@ -960,7 +1201,7 @@ index 6314981..39d7326 100644
  }
  
  static struct GameProfileRegistration
-@@ -471,6 +521,38 @@ static struct ProfileWritesRegistration
+@@ -471,6 +534,38 @@ static struct ProfileWritesRegistration
  	}
  } profileWritesRegistration;
  
@@ -999,7 +1240,36 @@ index 6314981..39d7326 100644
  float worldScale()
  {
  	const GameProfile *prof = activeProfile;
-@@ -688,11 +770,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
+@@ -481,6 +576,16 @@ float worldScale()
+ static float stockFocal()
+ {
+ 	const GameProfile *prof = activeProfile;
++	// (ACVR_STOCK_FIXED=1, a test aid: the old fixed stock focal, to measure what it did)
++	static const bool fixedForTest = getenv("ACVR_STOCK_FIXED") != nullptr;
++	if (prof != nullptr && prof->stockFollowsGame && !fixedForTest)
++	{
++		// the live focal, with our own viewport widening (widenGameView) taken back out
++		const float widen = config::VrReproject && config::VrFovScale > 1.f && !widensGameFov() ? (float)config::VrFovScale : 1.f;
++		const float f = readGameFocal().x * widen;
++		if (plausible(f, 10.f, 20000.f))
++			return f;
++	}
+ 	if (prof != nullptr && prof->stockFocalAddr != 0)
+ 	{
+ 		const float f = readFloat(prof->stockFocalAddr);
+@@ -490,6 +595,11 @@ static float stockFocal()
+ 	return config::VrFocal;
+ }
+ 
++bool aimBandReloads()
++{
++	return activeProfile != nullptr && activeProfile->stockFollowsGame;
++}
++
+ GameCamera gameCamera(const rend_context& ctx)
+ {
+ 	int dcWidth, dcHeight;
+@@ -688,11 +798,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
  {
  	if (activeProfile != nullptr && activeProfile->letterboxW > 0.f)
  		hudW = activeProfile->letterboxW;
@@ -1034,7 +1304,7 @@ index 6314981..39d7326 100644
  		u32 i = pp.first;
  		while (i < pp.first + pp.count && onOverlay(ctx.verts[i], hudW) && opaqueBlack(ctx.verts[i]))
  			i++;
-@@ -1186,9 +1291,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
+@@ -1186,9 +1319,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
  			}
  			const bool big = size.x >= fbWidth * 0.5f && size.y >= fbHeight * 0.5f && size.x < fbWidth * 4.f && size.y < fbHeight * 4.f;
  			if (diag && (((all2D || markerLike) && offset <= MarkerMaxOffset) || (big && (all2D || bright))))
@@ -1046,7 +1316,7 @@ index 6314981..39d7326 100644
  						(unsigned)(pp.tcw.TexAddr << 3), pp.tsp.full, c[0], c[1], c[2], c[3], hide ? " DROPPED" : "");
  			if (!hide)
  				continue;
-@@ -1263,7 +1368,15 @@ const ReprojectParams& update(const rend_context& ctx)
+@@ -1263,7 +1396,15 @@ const ReprojectParams& update(const rend_context& ctx)
  			* glm::rotate(glm::mat4(1.f), glm::radians(pitch), glm::vec3(1, 0, 0));
  	// The renderer's ndc y points down the image; flip into y-up space for the pose.
  	const glm::mat4 flipY = glm::scale(glm::mat4(1.f), glm::vec3(1, -1, 1));
@@ -1064,10 +1334,21 @@ index 6314981..39d7326 100644
  	return params;
  }
 diff --git a/core/rend/vr_reproject.h b/core/rend/vr_reproject.h
-index 3ceb8c0..052d359 100644
+index 3ceb8c0..1f73cb6 100644
 --- a/core/rend/vr_reproject.h
 +++ b/core/rend/vr_reproject.h
-@@ -93,11 +93,25 @@ const hands::Source *gameModelSource();
+@@ -86,6 +86,10 @@ struct GameCamera
+ };
+ GameCamera gameCamera(const rend_context& ctx);
+ 
++// The game's profile says a pull aimed at the seen-but-not-hittable band around its frame (a widened view) is a pull
++// off the screen: it reloads, as the motion rule M3 wants, instead of doing nothing.
++bool aimBandReloads();
++
+ // What the game being played makes its own model from (hands_rip.h: the agent's hands and
+ // pistol, the hero's staff), or nullptr when its profile has none.
+ const hands::Source *gameModelSource();
+@@ -93,11 +97,25 @@ const hands::Source *gameModelSource();
  // The game asks for player 2 in its corner ("PRESS START BUTTON"): player 2 isn't playing.
  // Seen in the last half second (when the game's profile knows the picture).
  bool player2Prompting();
@@ -1159,3 +1440,423 @@ index e80c0da..b89f8b2 100644
  	__debugbreak();
  	std::abort();
  }
+diff --git a/core/rend/vr/acvr/hold_ring.hpp b/core/rend/vr/acvr/hold_ring.hpp
+new file mode 100644
+index 0000000..e5cbb18
+--- /dev/null
++++ b/core/rend/vr/acvr/hold_ring.hpp
+@@ -0,0 +1,147 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// The U4 hold ring (universal controls contract v1): visible feedback while both stick clicks are held to quit.
++//
++// Pure logic and pure geometry, no graphics calls: a host feeds the 0..1 progress of the 3 s quit hold, gets a
++// HoldRingView back, and draws it with whatever it has. hold_ring_gl.hpp is the ready-made GL drawing for hosts
++// that draw their own eye images.
++//
++//   - Nothing is shown for the first second. A recentre chord (both clicks released within 1 s) must never
++//     flash a ring, so the ring only appears once the hold can no longer be a recentre.
++//   - From 1 s to 3 s the ring fills clockwise from 12 o'clock: fill goes 0 to 1 and is 1 exactly when the quit fires.
++//   - Releasing early, or a host cancelling the quit (pinball table adjust), hides the ring at once.
++//   - When the quit fires the ring is full and flashes once: `flash` is 1 at that moment and falls to 0 over flash_ms.
++//     The flash plays out even if the clicks are released at that moment.
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++#include "stick_chord.hpp"
++
++namespace acvr {
++
++struct HoldRingTiming {
++    uint32_t show_ms = 1000;    // the ring appears when the hold passes this (the recentre window)
++    uint32_t quit_ms = 3000;    // the quit fires here; same value as StickChordTiming::quit_ms
++    uint32_t flash_ms = 700;    // how long the one flash lasts
++};
++
++struct HoldRingView {
++    bool visible = false;
++    float fill = 0;     // 0 when it appears (1 s), 1 when the quit fires (3 s); sweeps clockwise from 12 o'clock
++    float flash = 0;    // 1 at the moment the quit fires, down to 0 over flash_ms
++    bool quit = false;  // the quit has fired: the ring is full
++};
++
++class HoldRing {
++public:
++    explicit HoldRing(HoldRingTiming timing = {}) : t(timing) {}
++    // now_ms: any monotonic millisecond clock. quit_progress: 0..1 of the quit hold, 0 when the clicks are not held,
++    // the hold was released or the quit was cancelled.
++    HoldRingView update(uint64_t now_ms, float quit_progress) {
++        HoldRingView v;
++        if (now_ms < last_) reset();   // the clock went backwards: start again
++        last_ = now_ms;
++        const float quit = float(t.quit_ms ? t.quit_ms : 1u);
++        const float held_ms = std::max(0.f, quit_progress) * quit;
++        const bool shown = held_ms + .5f >= float(t.show_ms);
++        const bool full = quit_progress >= .9999f;
++        if (full && !fired_) { fired_ = true; fired_at_ = now_ms; }
++        const bool flashing = fired_ && now_ms - fired_at_ < t.flash_ms;
++        if (fired_ && !full && !flashing) fired_ = false;   // the hold is over and so is the flash: ready for the next one
++        if (flashing) {
++            v.visible = true; v.fill = 1.f; v.quit = true;
++            v.flash = 1.f - float(now_ms - fired_at_) / float(t.flash_ms ? t.flash_ms : 1u);
++        } else if (full) {
++            v.visible = true; v.fill = 1.f; v.quit = true;
++        } else if (shown) {
++            const float span = std::max(1.f, quit - float(t.show_ms));
++            v.visible = true; v.fill = std::min(1.f, std::max(0.f, (held_ms - float(t.show_ms)) / span));
++        }
++        return v;
++    }
++    // From the shared chord resolver. A hold the host cancelled shows nothing.
++    HoldRingView update(uint64_t now_ms, const StickChordState &s) {
++        return update(now_ms, s.quit_cancelled || !s.chord ? 0.f : s.quit_progress);
++    }
++    void reset() { fired_ = false; fired_at_ = 0; last_ = 0; }
++private:
++    HoldRingTiming t;
++    bool fired_ = false;
++    uint64_t fired_at_ = 0, last_ = 0;
++};
++
++// ---- geometry: pixel rectangles, so a host can fill them with a clear, a quad or a sprite -------------------------
++// A ring of square "beads" round a circle (y up, origin at the bottom left, like GL framebuffers), painted in order:
++// a dark outline under every bead, then the beads, dim when unlit and bright when lit.
++struct HoldRingRect {
++    float x = 0, y = 0, w = 0, h = 0;   // pixels; x, y is the bottom left corner
++    float rgb[3]{};                      // display values (already in the colours the player should see)
++};
++constexpr int kHoldRingBeads = 48;
++constexpr int kHoldRingMaxRects = kHoldRingBeads * 2;
++struct HoldRingRects {
++    HoldRingRect r[kHoldRingMaxRects];
++    int n = 0;
++};
++
++// cx, cy: ring centre in pixels. radius: ring radius in pixels (to the middle of the bead).
++inline HoldRingRects hold_ring_rects(const HoldRingView &v, float cx, float cy, float radius) {
++    HoldRingRects out;
++    if (!v.visible || !(radius >= 6.f)) return out;
++    const float bead = std::max(3.f, std::floor(radius * .16f));
++    const float grow = 1.f + .5f * std::max(0.f, v.flash);
++    const float outline = 2.f;
++    const int lit = std::min(kHoldRingBeads, std::max(0, int(std::floor(v.fill * kHoldRingBeads + .5f))));
++    const float tau = 6.28318530718f;
++    auto at = [&](int i, float &x, float &y) {
++        const float a = float(i) * tau / float(kHoldRingBeads);   // clockwise from 12 o'clock
++        x = cx + radius * std::sin(a); y = cy + radius * std::cos(a);
++    };
++    for (int i = 0; i < kHoldRingBeads; ++i) {
++        float x, y; at(i, x, y);
++        const float s = bead * (i < lit ? grow : 1.f) + 2.f * outline;
++        HoldRingRect &q = out.r[out.n++];
++        q.x = x - s * .5f; q.y = y - s * .5f; q.w = q.h = s; q.rgb[0] = q.rgb[1] = q.rgb[2] = .02f;
++    }
++    // Amber while it fills, green once it has fired, whitened by the flash.
++    const float amber[3]{1.f, .78f, .18f}, green[3]{.25f, 1.f, .4f};
++    for (int i = 0; i < kHoldRingBeads; ++i) {
++        float x, y; at(i, x, y);
++        const bool on = i < lit;
++        const float s = bead * (on ? grow : 1.f);
++        HoldRingRect &q = out.r[out.n++];
++        q.x = x - s * .5f; q.y = y - s * .5f; q.w = q.h = s;
++        for (int c = 0; c < 3; ++c) {
++            if (!on) { q.rgb[c] = .28f; continue; }
++            const float base = v.quit ? green[c] : amber[c];
++            q.rgb[c] = base + (1.f - base) * std::min(1.f, std::max(0.f, v.flash));
++        }
++    }
++    return out;
++}
++
++// Where a ring goes in an eye image. m: the 4x4 clip-from-local matrix, column-major (a view-projection times the
++// anchor's own frame). centre and edge: two points in the anchor's local space, the edge one radius away from the
++// centre, sideways. fb_w, fb_h: the eye image in pixels. ok is false when the centre is behind the eye.
++struct HoldRingPlacement {
++    float cx = 0, cy = 0, radius = 0;
++    bool ok = false;
++};
++inline HoldRingPlacement place_hold_ring(const float m[16], const float centre[3], const float edge[3], int fb_w, int fb_h) {
++    HoldRingPlacement p;
++    auto project = [&](const float q[3], float &x, float &y) {
++        const float cxp = m[0] * q[0] + m[4] * q[1] + m[8] * q[2] + m[12];
++        const float cyp = m[1] * q[0] + m[5] * q[1] + m[9] * q[2] + m[13];
++        const float cwp = m[3] * q[0] + m[7] * q[1] + m[11] * q[2] + m[15];
++        if (!(cwp > 1e-4f)) return false;
++        x = (cxp / cwp * .5f + .5f) * float(fb_w); y = (cyp / cwp * .5f + .5f) * float(fb_h);
++        return true;
++    };
++    float ex = 0, ey = 0;
++    if (!project(centre, p.cx, p.cy) || !project(edge, ex, ey)) return p;
++    p.radius = std::sqrt((ex - p.cx) * (ex - p.cx) + (ey - p.cy) * (ey - p.cy));
++    p.ok = p.radius >= 1.f && std::isfinite(p.cx) && std::isfinite(p.cy) && std::isfinite(p.radius);
++    return p;
++}
++
++}  // namespace acvr
+diff --git a/core/rend/vr/acvr/hold_ring_gl.hpp b/core/rend/vr/acvr/hold_ring_gl.hpp
+new file mode 100644
+index 0000000..6d05311
+--- /dev/null
++++ b/core/rend/vr/acvr/hold_ring_gl.hpp
+@@ -0,0 +1,63 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// Draws the U4 hold ring (hold_ring.hpp) into the framebuffer that is bound for drawing, with no shaders, no
++// textures and no loader: each bead is a scissored glClear. Only OpenGL 1.x entry points are used (glClear,
++// glScissor, glClearColor, glColorMask and the state queries), which every host already links, so the same call
++// works in a core-profile eye renderer, the Model 2 quad-layer copy and the MAME gun viewer.
++//
++// Include it AFTER your own GL declarations (windows.h with GL/gl.h, a loader header, ...). It uses the names
++// GLint, GLfloat, GLboolean and GL_SCISSOR_TEST etc. as they come from there.
++//
++// Colours are display values: the helper switches GL_FRAMEBUFFER_SRGB off while it clears, so the numbers land in the
++// image as written whether the target is an sRGB or a plain RGBA8 image (an sRGB image stores them as encoded values).
++// The caller's scissor, clear colour, colour mask and sRGB state are put back.
++// windows.h defines min and max as macros unless NOMINMAX is set, which breaks std::min and std::max; emulator
++// sources often include it first, so they are set aside for this header and put back at its end.
++#pragma push_macro("min")
++#pragma push_macro("max")
++#undef min
++#undef max
++#include "hold_ring.hpp"
++
++#ifndef GL_FRAMEBUFFER_SRGB
++#define GL_FRAMEBUFFER_SRGB 0x8DB9
++#endif
++
++namespace acvr {
++
++// cx, cy, radius in pixels of the bound drawing target (y up). fb_w, fb_h: its size, so nothing is cleared outside it.
++inline void draw_hold_ring_gl(const HoldRingView &view, float cx, float cy, float radius, int fb_w, int fb_h) {
++    if (!view.visible || fb_w <= 0 || fb_h <= 0) return;
++    const HoldRingRects rects = hold_ring_rects(view, cx, cy, radius);
++    if (!rects.n) return;
++    const GLboolean was_scissor = glIsEnabled(GL_SCISSOR_TEST), was_srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
++    GLint box[4]{};
++    GLfloat clear[4]{};
++    GLboolean mask[4]{};
++    glGetIntegerv(GL_SCISSOR_BOX, box);
++    glGetFloatv(GL_COLOR_CLEAR_VALUE, clear);
++    glGetBooleanv(GL_COLOR_WRITEMASK, mask);
++    glColorMask(1, 1, 1, 1);
++    glDisable(GL_FRAMEBUFFER_SRGB);
++    glEnable(GL_SCISSOR_TEST);
++    for (int i = 0; i < rects.n; ++i) {
++        const HoldRingRect &q = rects.r[i];
++        int x0 = int(std::floor(q.x + .5f)), y0 = int(std::floor(q.y + .5f));
++        int x1 = int(std::floor(q.x + q.w + .5f)), y1 = int(std::floor(q.y + q.h + .5f));
++        x0 = std::max(0, x0); y0 = std::max(0, y0); x1 = std::min(fb_w, x1); y1 = std::min(fb_h, y1);
++        if (x1 <= x0 || y1 <= y0) continue;
++        glScissor(x0, y0, x1 - x0, y1 - y0);
++        glClearColor(q.rgb[0], q.rgb[1], q.rgb[2], 1.f);
++        glClear(GL_COLOR_BUFFER_BIT);
++    }
++    glScissor(box[0], box[1], box[2], box[3]);
++    glClearColor(clear[0], clear[1], clear[2], clear[3]);
++    glColorMask(mask[0], mask[1], mask[2], mask[3]);
++    if (!was_scissor) glDisable(GL_SCISSOR_TEST);
++    if (was_srgb) glEnable(GL_FRAMEBUFFER_SRGB);
++}
++
++}  // namespace acvr
++
++#pragma pop_macro("max")
++#pragma pop_macro("min")
+diff --git a/core/rend/vr/acvr/hold_ring_host.hpp b/core/rend/vr/acvr/hold_ring_host.hpp
+new file mode 100644
+index 0000000..46c81ad
+--- /dev/null
++++ b/core/rend/vr/acvr/hold_ring_host.hpp
+@@ -0,0 +1,102 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// Small pieces an emulator host needs to show the U4 hold ring (hold_ring.hpp) in its own VR eye images. Pure logic,
++// no graphics calls, so the emulator patches (Supermodel, Flycast, PCSX2, DolphinXR) can copy it and the libacvr
++// tests can check it.
++//
++//   - Where the ring goes: the middle of a flat picture (a screen or quad layer, as in acvr-ps1), or straight ahead
++//     in an eye image drawn for an OpenXR field of view (headsets use asymmetric fields of view, so the image middle
++//     is a few degrees off straight ahead, outwards for each eye; rings there would make the eyes diverge).
++//   - Holding the quit back until the ring's one flash has played, as acvr-ps1 does.
++//   - The progress of a plain "both clicks held 3 s" hold, for hosts whose quit has no chord window (DolphinXR's
++//     Exit hotkey, hold(left & right, 3.0)).
++// windows.h defines min and max as macros unless NOMINMAX is set, which breaks std::min and std::max; emulator
++// sources often include it first, so they are set aside for this header and put back at its end.
++#pragma push_macro("min")
++#pragma push_macro("max")
++#undef min
++#undef max
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++#include "hold_ring.hpp"
++
++namespace acvr {
++
++// A ring's centre and radius in pixels of an image, y up from the bottom left (GL). A host whose images have y down
++// (Direct3D) flips: top = height - (y + h).
++struct HoldRingSpot {
++    float cx = 0, cy = 0, radius = 0;
++};
++
++// The ring's size in every host: 12 % of the picture's shorter side (acvr-ps1: 12 % of the screen height).
++constexpr float kHoldRingRadiusOfShortSide = .12f;
++
++// The middle of a flat picture.
++inline HoldRingSpot hold_ring_screen_spot(int w, int h) {
++    HoldRingSpot s;
++    if (w <= 0 || h <= 0) return s;
++    s.cx = float(w) * .5f; s.cy = float(h) * .5f;
++    s.radius = float(std::min(w, h)) * kHoldRingRadiusOfShortSide;
++    return s;
++}
++
++// Straight ahead in an eye image of w x h pixels drawn for an OpenXR field of view, given as the tangents of its four
++// angles (tan(angleLeft) and tan(angleDown) are negative). Falls back to the middle for a degenerate field of view.
++inline HoldRingSpot hold_ring_eye_spot(float tan_left, float tan_right, float tan_down, float tan_up, int w, int h) {
++    HoldRingSpot s = hold_ring_screen_spot(w, h);
++    const float sx = tan_right - tan_left, sy = tan_up - tan_down;
++    if (s.radius <= 0 || !std::isfinite(sx) || !std::isfinite(sy) || !(sx > 1e-4f) || !(sy > 1e-4f)) return s;
++    const float u = -tan_left / sx, v = -tan_down / sy;   // 0..1 across the image when straight ahead is inside it
++    if (!(u > 0.f && u < 1.f && v > 0.f && v < 1.f)) return s;
++    s.cx = u * float(w); s.cy = v * float(h);
++    return s;
++}
++
++// Holds a host's own quit back until the ring's flash has played (HoldRingTiming::flash_ms after the quit fired), so
++// the player sees the full ring flash before the picture goes. Feed it every frame.
++class QuitAfterFlash {
++public:
++    explicit QuitAfterFlash(uint32_t delay_ms = HoldRingTiming{}.flash_ms) : delay_(delay_ms) {}
++    // quit_fired: the host's quit edge (or level). True once, delay_ms after the first frame it was true.
++    bool update(uint64_t now_ms, bool quit_fired) {
++        if (done_) return false;
++        if (quit_fired && !armed_) { armed_ = true; at_ = now_ms; }
++        if (armed_ && (now_ms < at_ || now_ms - at_ >= delay_)) { done_ = true; return true; }
++        return false;
++    }
++    // The ring cannot be shown any more (focus or input lost): a quit that has fired goes now. True once.
++    bool flush() {
++        if (!armed_ || done_) return false;
++        done_ = true;
++        return true;
++    }
++    bool pending() const { return armed_ && !done_; }
++    void reset() { armed_ = done_ = false; at_ = 0; }
++private:
++    uint32_t delay_;
++    bool armed_ = false, done_ = false;
++    uint64_t at_ = 0;
++};
++
++// 0..1 progress of "both clicks held for hold_ms", restarting whenever either click is up. For hosts whose quit is a
++// plain hold with no chord window, so the ring follows exactly the same count as the quit.
++class BothHeldProgress {
++public:
++    explicit BothHeldProgress(uint32_t hold_ms = HoldRingTiming{}.quit_ms) : hold_(hold_ms ? hold_ms : 1u) {}
++    float update(uint64_t now_ms, bool both_down) {
++        if (!both_down) { held_ = false; return 0.f; }
++        if (!held_ || now_ms < since_) { held_ = true; since_ = now_ms; }
++        return std::min(1.f, float(now_ms - since_) / float(hold_));
++    }
++    void reset() { held_ = false; since_ = 0; }
++private:
++    uint32_t hold_;
++    bool held_ = false;
++    uint64_t since_ = 0;
++};
++
++}  // namespace acvr
++
++#pragma pop_macro("max")
++#pragma pop_macro("min")
+diff --git a/core/rend/vr/acvr/stick_chord.hpp b/core/rend/vr/acvr/stick_chord.hpp
+new file mode 100644
+index 0000000..3b70bfa
+--- /dev/null
++++ b/core/rend/vr/acvr/stick_chord.hpp
+@@ -0,0 +1,84 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <algorithm>
++#include <cstdint>
++namespace acvr {
++// Universal stick-click layer (controls contract v1, U1-U4). Header-only and
++// dependency-free so the runtime, the theatre presenter and host patches share
++// one resolver. Feed it the RAW left and right stick-click levels once per
++// display frame with a monotonic millisecond clock; use only its outputs.
++//
++//   left click alone            -> start   (U1)  held for as long as the click is held
++//   right click alone           -> select  (U2)  coin / Minus / Back
++//   both clicks, close together -> chord: no start or select at all
++//     released within recenter_ms        -> recenter pulse (U3)
++//     still held at quit_ms              -> quit pulse     (U4), and no recenter
++//
++// A click is held back for window_ms to see whether the other click follows.
++// A tap shorter than window_ms still produces a start/select of min_pulse_ms.
++struct StickChordTiming {
++    uint32_t window_ms=150, recenter_ms=1000, quit_ms=3000, min_pulse_ms=50;
++};
++struct StickChordState {
++    bool start=false, select=false;     // resolved levels (U1, U2)
++    bool chord=false;                   // both clicks held as one chord
++    bool recenter=false, quit=false;    // one-step pulses (U3, U4)
++    float quit_progress=0;              // chord held time / quit_ms, 0..1
++    bool quit_visible=false;            // chord outlived recenter_ms: show a ring or countdown
++    bool quit_cancelled=false;          // cancel_quit() was called for this hold: the quit will not fire, show no ring
++    uint32_t chord_ms=0;
++};
++class StickChord {
++public:
++    explicit StickChord(StickChordTiming timing={}) : t(timing) {}
++    StickChordState step(uint64_t now,bool left,bool right) {
++        now=std::max(now,last);last=now;
++        const bool cur[2]{left,right};
++        StickChordState out;
++        for(int i=0;i<2;++i) if(cur[i]&&!prev[i]) {down_at[i]=now;decided[i]=false;}
++        if(!chord_active) {
++            if(cur[0]&&cur[1]&&!decided[0]&&!decided[1]&&
++               (down_at[0]>down_at[1]?down_at[0]-down_at[1]:down_at[1]-down_at[0])<=t.window_ms) {
++                chord_active=true;chord_start=std::max(down_at[0],down_at[1]);
++                quit_fired=false;
++                decided[0]=decided[1]=true;
++                solo[0]=solo[1]=false;pulse_until[0]=pulse_until[1]=0;
++            } else for(int i=0;i<2;++i) {
++                if(cur[i]&&!decided[i]&&now-down_at[i]>=t.window_ms) {decided[i]=true;solo[i]=true;}
++                // Released before the window closed with no chord: a tap.
++                if(!cur[i]&&prev[i]&&!decided[i]) {decided[i]=true;solo[i]=false;pulse_until[i]=now+t.min_pulse_ms;}
++                if(!cur[i]) solo[i]=false;
++            }
++        }
++        if(chord_active) {
++            const uint64_t held=now-chord_start;
++            out.chord=true;out.chord_ms=held>UINT32_MAX?UINT32_MAX:uint32_t(held);
++            out.quit_progress=t.quit_ms?std::min(1.f,float(held)/float(t.quit_ms)):1.f;
++            out.quit_visible=held>=t.recenter_ms;
++            // One let go: the 3 s hold is over for this chord (the contract is both held), as in acvr-ps1's StickChord.h.
++            if(!(cur[0]&&cur[1])) quit_cancelled=true;
++            out.quit_cancelled=quit_cancelled;
++            if(!quit_fired&&!quit_cancelled&&held>=t.quit_ms) {out.quit=true;quit_fired=true;}
++            if(!cur[0]&&!cur[1]) {
++                // Both are up: this step is the release.
++                if(!quit_fired&&held<=t.recenter_ms) out.recenter=true;
++                chord_active=false;quit_cancelled=false;out.chord=false;out.quit_visible=false;out.quit_cancelled=false;out.quit_progress=0;out.chord_ms=0;
++            }
++        } else {
++            out.start=(solo[0]&&cur[0])||now<pulse_until[0];
++            out.select=(solo[1]&&cur[1])||now<pulse_until[1];
++        }
++        for(int i=0;i<2;++i) prev[i]=cur[i];
++        return out;
++    }
++    // A host that lets the hands do something else while the chord is held
++    // (pinball's table adjust) calls this when the hands move: no quit this hold.
++    void cancel_quit() {quit_cancelled=true;}
++    void reset() {*this=StickChord(t);}
++private:
++    StickChordTiming t;
++    bool prev[2]{},decided[2]{},solo[2]{};
++    uint64_t down_at[2]{},pulse_until[2]{},last=0,chord_start=0;
++    bool chord_active=false,quit_fired=false,quit_cancelled=false;
++};
++}

@@ -19,14 +19,17 @@ const QList<Game> &table(){
  return games;
 }
 const Game *find(const QString &id){for(const auto &game:table())if(id==QLatin1String(game.id))return &game;return nullptr;}
-// A name for comparing file names with titles: letters and digits only, lower case.
-QString plain(const QString &text){QString out;for(const auto ch:text.toLower())if(ch.isLetterOrNumber())out+=ch;return out;}
 }
 QString profileName(const QString &game){return find(game)?game+".toml":QString();}
+QString gameFileKey(const QString &game){
+ if(game=="3ds-star-fox-64-3d")return "threedsStarFoxFile";
+ if(game=="3ds-mario-kart-7")return "threedsMarioKartFile";
+ return {};
+}
 QVariantList games(){
  QVariantList result;
  for(const auto &game:table())result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"system",QString::fromLatin1(game.system)},
-  {"profile",profileName(QString::fromLatin1(game.id))},{"controls",universal::with(QString::fromUtf8(game.controls))}};
+  {"profile",profileName(QString::fromLatin1(game.id))},{"fileKey",gameFileKey(QString::fromLatin1(game.id))},{"controls",universal::with(QString::fromUtf8(game.controls))}};
  return result;
 }
 QString profilesFolder(const QString &chosen,const QString &startFrom){
@@ -40,17 +43,12 @@ QString profilesFolder(const QString &chosen,const QString &startFrom){
  }
  return {};
 }
-QString gameFile(const QString &game,const QString &folder){
- const auto *entry=find(game);if(!entry||folder.isEmpty())return {};
- const auto want=plain(QString::fromUtf8(entry->title));
- QString found;
- for(const auto &file:QDir(folder).entryInfoList({"*.3ds","*.cci","*.cxi","*.3dsx"},QDir::Files,QDir::Name)){
-  if(file.isSymLink()||file.isJunction())continue;
-  const auto name=plain(file.completeBaseName());
-  if(name==want)return file.absoluteFilePath(); // The exact name wins over a longer one.
-  if(found.isEmpty()&&name.contains(want))found=file.absoluteFilePath();
- }
- return found;
+QString gameFile(const QString &game,const QString &selectedFile){
+ if(!find(game)||selectedFile.isEmpty())return {};
+ const QFileInfo file(selectedFile);
+ if(!file.isAbsolute()||!file.isFile()||!file.isReadable()||file.isSymLink()||file.isJunction())return {};
+ if(!QStringList{"3ds","cci","cxi","3dsx"}.contains(file.suffix().toLower()))return {};
+ return file.absoluteFilePath(); // Explicit user selection; content identity remains unverified.
 }
 QString viewLabel(const QString &view){
  if(view=="theatre")return "Theatre screen";
@@ -61,19 +59,20 @@ QVariantList views(){
  return {QVariantMap{{"id","theatre"},{"label",viewLabel("theatre")},{"help","Both eyes of the game's top screen in stereo on a big screen in front of you."}},
          QVariantMap{{"id","swap-eyes"},{"label",viewLabel("swap-eyes")},{"help","The same with the eyes exchanged: for checking depth, if distant scenery comes towards you."}}};
 }
-QString problem(const QString &game,const QString &host,const QString &core,const QString &gameFolder,const QString &profiles){
+QString problem(const QString &game,const QString &host,const QString &core,const QString &selectedFile,const QString &profiles){
  if(!find(game))return "This game is not in the list of games the Hub starts through acvr-ps1.";
  if(host.isEmpty()||!QFileInfo(host).isFile())return "The acvr-ps1 program is not set up. Choose it in Set-up.";
  if(core.isEmpty()||!QFileInfo(core).isFile())return "The Nintendo 3DS core is not set up. Choose Azahar's libretro dll in Set-up.";
  if(profiles.isEmpty()||!QFileInfo(QDir(profiles).filePath(profileName(game))).isFile())return "The game's profile file was not found. Choose the profile folder (setups/retro-ps1-vr/profiles) in Set-up.";
- if(gameFile(game,gameFolder).isEmpty())return "The game file was not found. Put your own decrypted dump, named after the game, in the 3DS folder you chose in Set-up.";
+ if(selectedFile.isEmpty())return "No game file is chosen. Choose this game's file in Set-up; the Hub does not identify 3DS games by filename.";
+ if(gameFile(game,selectedFile).isEmpty())return "The chosen game file is missing, unreadable or unsupported. Choose its .3ds, .cci, .cxi or .3dsx file again in Set-up.";
  return {};
 }
 QVariantMap launchPlan(const QString &game,const QString &host,const QString &core,const QString &file,const QString &dataFolder,const QString &profiles,const QString &view){
  if(!find(game))throw install::Error("E_LIBRETRO_GAME","This game is not in the list of games the Hub starts through acvr-ps1.");
  if(host.isEmpty()||!QFileInfo(host).isFile())throw install::Error("E_LIBRETRO_SETUP","The acvr-ps1 program is not set up. Choose it in Set-up.");
  if(core.isEmpty()||!QFileInfo(core).isFile())throw install::Error("E_LIBRETRO_CORE","The Nintendo 3DS core is not set up. Choose Azahar's libretro dll in Set-up.");
- if(file.isEmpty()||!QFileInfo(file).isFile())throw install::Error("E_LIBRETRO_GAME_FILE","The game file is no longer where it was. Use Rescan in Set-up.");
+ if(gameFile(game,file).isEmpty())throw install::Error("E_LIBRETRO_GAME_FILE","Choose this game's readable .3ds, .cci, .cxi or .3dsx file in Set-up.");
  const QFileInfo profile(QDir(profiles).filePath(profileName(game)));
  if(profiles.isEmpty()||!profile.isFile())throw install::Error("E_LIBRETRO_PROFILE","The game's profile file was not found. Check the profile folder in Set-up.");
  if(view!="theatre"&&view!="swap-eyes")throw install::Error("E_LIBRETRO_VIEW","This game has no such view. Choose another view.");

@@ -6,6 +6,7 @@
 #include <QVariantMap>
 #include <atomic>
 #include <functional>
+namespace ac::scan{class DiscMemo;}
 namespace ac::setup {
 // What the user has for one system, in three groups:
 //   ready    [{id,title,detail}]   the game, everything it needs and its program were found
@@ -34,7 +35,9 @@ QVariantMap supermodelFiles(const QString &gamesXml,const QString &game);
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel);
 // settings: the Hub's own settings values (folders and programs per system).
 // context: data a system needs beside them, such as a saved table scan.
-QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel);
+// memo: the identities PS2, Dreamcast and Wii discs gave when last read; unchanged discs are not opened again, and
+// what is read now is added to it.
+QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel,scan::DiscMemo *memo=nullptr);
 // What a Set-up report was made from: the report's version, the systems read, the settings it reads, and the
 // times of each chosen folder and of each launcher's games.json (names and times only, nothing opened). Saved
 // with the report; a saved report whose stamp differs from the one now is out of date and is read again.

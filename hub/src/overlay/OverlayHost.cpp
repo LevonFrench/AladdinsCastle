@@ -76,6 +76,7 @@ void OverlayHost::logLine(const QByteArray &text) {
     m_inputLog.write(QByteArray::number(m_clock.isValid()?m_clock.elapsed():0)+" "+text+"\n");m_inputLog.flush();++m_inputLines;
 }
 void OverlayHost::noteBack(const QString &outcome) { logLine("b-outcome "+outcome.toUtf8()); }
+void OverlayHost::notePanel(const QString &text) { logLine("panel "+text.toUtf8()); }
 void OverlayHost::handleButtons(const HubButtons &buttons,bool panelVisible,qint64 nowMs) {
     Q_UNUSED(nowMs);
     // The log says whether B can reach the Hub at all (manifest accepted, B bound) whenever that changes while

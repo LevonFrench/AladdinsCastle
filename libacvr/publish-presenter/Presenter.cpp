@@ -1,6 +1,8 @@
 #include "Presenter.h"
 #include "TheatreClient.h"
 #include "../src/stick_chord.hpp"
+#include "../src/hold_ring.hpp"
+#include <algorithm>
 #include <exception>
 /*
  * ACVR shared publish OpenXR presenter, extracted from Model 2 (AladdinsCastle project). GPL v3 or later, like Supermodel.
@@ -30,6 +32,7 @@
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <windows.h>
 #include "WinGL.h"
+#include "../src/hold_ring_gl.hpp"
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
@@ -70,6 +73,10 @@ namespace
   XrAction s_leftClick=XR_NULL_HANDLE,s_rightClick=XR_NULL_HANDLE;
   acvr::StickChord s_chord;
   bool s_chordLogged=false;
+  // U4 hold ring: resolved on the XR thread with the chord, burned into the eye pictures when they are copied (XR thread only).
+  acvr::HoldRing s_ring;
+  acvr::HoldRingView s_ringView;
+  bool s_ringDrawn=false;
   std::atomic<bool> s_recentreRequested{false}; // U3 from the Model 2 path, consumed by the frame loop next to the Home key
   unsigned s_theatreW[2]{},s_theatreH[2]{};
   std::atomic<bool> s_wantViews{false};
@@ -299,6 +306,7 @@ namespace
       const auto stick=s_chord.step(GetTickCount64(),click(s_leftClick,s_left),click(s_rightClick,s_right));
       input.start=input.start||stick.start; input.coin=input.coin||stick.select;
       input.quitHeld=stick.chord; // the viewer's CleanQuit counts the 3 s
+      s_ringView=s_ring.update(GetTickCount64(),stick);
       if(stick.chord&&!s_chordLogged) { s_chordLogged=true; Log("both stick clicks down; quit in 3 seconds if held"); }
       if(!stick.chord) s_chordLogged=false;
       if(stick.recenter) { s_recentreRequested=true; Log("both stick clicks released: recentring the screen"); }
@@ -313,7 +321,7 @@ namespace
         input.trigger=triggerOK && trigger.isActive && trigger.currentState>=.55f;
       }
     }
-    if(!chordRead) { s_chord.step(GetTickCount64(),false,false); s_chordLogged=false; } // focus loss or a failed sync releases every click
+    if(!chordRead) { s_chord.step(GetTickCount64(),false,false); s_chordLogged=false; s_ringView=s_ring.update(GetTickCount64(),0.f); } // focus loss or a failed sync releases every click
     DispatchHaptics(input.active);
     s_input.publish(GetTickCount64(),input);
   }
@@ -473,13 +481,19 @@ namespace
     const auto info=s_pair.peek();
     if(!info.serial || s_stop) return false;
     if(!EnsureChains(info.w,info.h)) return false;
-    if(shownSerial==info.serial) return true;
+    // A picture already shown is copied again while the hold ring is up (it animates) and once more when it goes (to clean it off).
+    const acvr::HoldRingView ring=s_ringView;
+    if(shownSerial==info.serial && !ring.visible && !s_ringDrawn) return true;
     if(!AcquireImages())return false;
     if(s_stop) return false;
     const GLuint destination[]={s_images[0][s_imageIndex[0]].image,s_images[1][s_imageIndex[1]].image};
     std::uint64_t copied=0;
     ProjectionPacket stamped;
-    const bool complete=CopyPair(destination,info.w,info.h,copied,{},&stamped);
+    const bool complete=CopyPair(destination,info.w,info.h,copied,[&](int) {
+      // The draw framebuffer holds this eye's finished picture: the ring goes over its middle.
+      if(ring.visible) acvr::draw_hold_ring_gl(ring,float(info.w)*.5f,float(info.h)*.5f,float(std::min(info.w,info.h))*.12f,int(info.w),int(info.h));
+    },&stamped);
+    if(complete) s_ringDrawn=ring.visible;
     // A resize before CopyPair takes ownership declines this frame atomically.
     // Both images have completed their waits and may now be released safely.
     bool released=true;
@@ -506,6 +520,7 @@ namespace
     if(s_leftGripSpace)p_xrDestroySpace(s_leftGripSpace);s_leftGripSpace=XR_NULL_HANDLE;
     s_grip=s_secondary=s_leftGrip=s_leftTrigger=s_leftStick=s_rightStick=s_leftClick=s_rightClick=XR_NULL_HANDLE;
     s_chord.reset(); s_recentreRequested=false; s_chordLogged=false;
+    s_ring.reset(); s_ringView={}; s_ringDrawn=false;
     if(s_aimSpace) p_xrDestroySpace(s_aimSpace);
     if(s_viewSpace) p_xrDestroySpace(s_viewSpace);
     if(s_space) p_xrDestroySpace(s_space);
