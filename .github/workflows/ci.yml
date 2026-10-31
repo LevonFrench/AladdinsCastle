@@ -84,6 +84,9 @@ jobs:
           .local/chord-ci/model2-chord
           g++ -std=c++17 -Wall -Wextra -Werror -I setups/supermodel-vr/patch setups/supermodel-vr/tools/chord_resolver_test.cpp -o .local/chord-ci/model3-chord
           .local/chord-ci/model3-chord
+          # Pinball (VPX patch): libacvr's own chord header plus the 5 cm hand-travel cancel.
+          g++ -std=c++17 -Wall -Wextra -Werror -I libacvr/src -I setups/vpx-vr/patch/acvr setups/vpx-vr/tests/hold_to_quit_test.cpp -o .local/chord-ci/vpx-hold-to-quit
+          .local/chord-ci/vpx-hold-to-quit
       - name: Offline Wii scorecard tooling (synthetic CPU only)
         working-directory: setups/dolphin-vr/scorecard
         timeout-minutes: 2
@@ -129,6 +132,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+      - name: Heavy-run lease tests (Windows Job Objects, synthetic CPU only)
+        # The catalog job covers Linux; Windows also exercises native Job Objects.
+        if: runner.os == 'Windows'
+        working-directory: tools
+        timeout-minutes: 2
+        run: python -B -m unittest -v test_heavy_lease
       - name: Offline Wii scorecard tooling (Windows synthetic CPU only)
         if: runner.os == 'Windows'
         working-directory: setups/dolphin-vr/scorecard

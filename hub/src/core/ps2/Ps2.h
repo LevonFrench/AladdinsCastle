@@ -5,6 +5,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <atomic>
+namespace ac::scan{class DiscMemo;}
 namespace ac::ps2 {
 // PlayStation 2 games through the user's own stereo PCSX2 build and its launcher
 // script, which holds each game's settings and disc copy and is started with the
@@ -16,10 +17,10 @@ namespace ac::ps2 {
 QVariantList games(); // id (the launcher's key), title, year, controls (a plain sentence)
 // The listed game a disc serial belongs to (such as "SLES-51229"), or empty.
 QString gameForSerial(const QString &serial);
-// What one disc image is: {file, serial, game, title, verified}. Read-only.
-QVariantMap identify(const QString &file,std::atomic_bool &cancel);
+// What one disc image is: {file, serial, game, title, verified}. Read-only. With a memo, an unchanged disc is not opened again.
+QVariantMap identify(const QString &file,std::atomic_bool &cancel,scan::DiscMemo *memo=nullptr);
 // The disc images directly inside a folder, identified. Subfolders are not entered.
-QVariantList discs(const QString &folder,std::atomic_bool &cancel);
+QVariantList discs(const QString &folder,std::atomic_bool &cancel,scan::DiscMemo *memo=nullptr);
 // The keys the user's launcher knows, from the games.json beside it. Read-only.
 QStringList launcherKeys(const QString &launcher);
 // The games whose launcher entry has an inside profile, so it can open the game around you: the one
