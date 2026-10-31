@@ -34,6 +34,7 @@ struct Config {
   float touchWidth = .8f, touchDistance = 1.f, touchLift = -.55f;   // panel width, distance ahead, height against the eyes (metres)
   float touchPanelAspect = 4.f / 3.f;   // the bottom screen's width over its height as drawn in the frame (the host works it out; the core sends new geometry later)
   bool proofAtPanel = false;       // the offline theatre proof aims the right hand at the panel instead of the screen
+  float proofHold = 0;             // the offline theatre proof draws the U4 hold ring: 0 none, 0.33..1 the quit hold's progress (1 also flashes), above 1 full and settled
 };
 struct Input {
   float u = .5f, v = .5f;

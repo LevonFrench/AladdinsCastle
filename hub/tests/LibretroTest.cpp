@@ -51,6 +51,8 @@ private slots:
       const auto id = row.value("id").toString();
       QCOMPARE(row.value("system").toString(), QString("3ds"));
       QCOMPARE(row.value("profile").toString(), id + ".toml");
+      QCOMPARE(row.value("fileKey").toString(), ac::libretro::gameFileKey(id));
+      QVERIFY(!row.value("fileKey").toString().isEmpty());
       QVERIFY(!row.value("controls").toString().isEmpty());
       // The id is the catalog's own, and the repo carries the profile it names; neither names a path of the owner's.
       QVERIFY(QFileInfo(root() + "/games/" + id + "/game.toml").isFile());
@@ -104,29 +106,38 @@ private slots:
   void problemSaysWhatToDo() {
     QTemporaryDir t;
     const Setup s(t.path());
-    QVERIFY(ac::libretro::problem(game, s.host, s.core, s.dumps, s.profiles).isEmpty());
-    QVERIFY(ac::libretro::problem(kart, s.host, s.core, s.dumps, s.profiles).isEmpty());
+    QVERIFY(ac::libretro::problem(game, s.host, s.core, s.dumps+"/Star Fox 64 3D.3ds", s.profiles).isEmpty());
+    QVERIFY(ac::libretro::problem(kart, s.host, s.core, s.dumps+"/Mario Kart 7.cia.3ds", s.profiles).isEmpty());
     // Each says where to put it right: the Set-up page, in the words its fields use.
     const auto noHost = ac::libretro::problem(game, {}, s.core, s.dumps, s.profiles), noCore = ac::libretro::problem(game, s.host, {}, s.dumps, s.profiles);
     const auto noProfiles = ac::libretro::problem(game, s.host, s.core, s.dumps, {}), noDump = ac::libretro::problem(game, s.host, s.core, t.filePath("empty"), s.profiles);
     QVERIFY(noHost.contains("acvr-ps1 program") && noHost.contains("Set-up"));
     QVERIFY(noCore.contains("3DS core") && noCore.contains("Set-up"));
     QVERIFY(noProfiles.contains("profile folder") && noProfiles.contains("Set-up"));
-    QVERIFY(noDump.contains("3DS folder") && noDump.contains("Set-up"));
-    QVERIFY(ac::libretro::problem(kart, s.host, s.core, t.filePath("empty"), s.profiles).contains("game file was not found"));
+    QVERIFY(noDump.contains("chosen game file") && noDump.contains("Set-up"));
+    QVERIFY(ac::libretro::problem(kart, s.host, s.core, {}, s.profiles).contains("No game file is chosen"));
     QVERIFY(!ac::libretro::problem("point-blank", s.host, s.core, s.dumps, s.profiles).isEmpty());
   }
-  void findsTheDumpByTitle() {
+  void onlyExplicitFilesAreSelectedAndNamesNeverIdentifyContent() {
     QTemporaryDir t;
     write(t.filePath("Other Game.3ds"), "synthetic");
     write(t.filePath("notes.txt"), "synthetic");
     QVERIFY(ac::libretro::gameFile(game, t.path()).isEmpty());
     write(t.filePath("starfox64-3d prepared.cci"), "synthetic");
-    QCOMPARE(ac::libretro::gameFile(game, t.path()), QFileInfo(t.filePath("starfox64-3d prepared.cci")).absoluteFilePath());
+    QVERIFY(ac::libretro::gameFile(game, t.path()).isEmpty());
     write(t.filePath("STAR FOX 64 3D.3ds"), "synthetic"); // The exact name wins over a longer one.
-    QCOMPARE(QFileInfo(ac::libretro::gameFile(game, t.path())).fileName().toLower(), QString("star fox 64 3d.3ds"));
+    QVERIFY(ac::libretro::gameFile(game, t.path()).isEmpty()); // Even an exact title cannot identify a file.
     write(t.filePath("Mario Kart 7 (Europe).3ds"), "synthetic");
-    QCOMPARE(ac::libretro::gameFile(kart, t.path()), QFileInfo(t.filePath("Mario Kart 7 (Europe).3ds")).absoluteFilePath());
+    QVERIFY(ac::libretro::gameFile(kart, t.path()).isEmpty());
+    const auto selected=t.filePath("starfox64-3d prepared.cci");
+    QCOMPARE(ac::libretro::gameFile(game, selected), QFileInfo(selected).absoluteFilePath());
+    write(t.filePath("arbitrary backup.CCI"),"synthetic");
+    QCOMPARE(ac::libretro::gameFile(game,t.filePath("arbitrary backup.CCI")),QFileInfo(t.filePath("arbitrary backup.CCI")).absoluteFilePath());
+    QVERIFY(ac::libretro::gameFile(game,t.filePath("notes.txt")).isEmpty());
+    QVERIFY(ac::libretro::gameFile(game,"STAR FOX 64 3D.3ds").isEmpty()); // Relative settings are refused.
+    QVERIFY(ac::libretro::gameFile(game,t.filePath("missing.3ds")).isEmpty());
+    QVERIFY(ac::libretro::gameFileKey("point-blank").isEmpty());
+    QVERIFY(ac::libretro::gameFileKey(game)!=ac::libretro::gameFileKey(kart));
     QVERIFY(ac::libretro::gameFile(game, {}).isEmpty());
     QVERIFY(ac::libretro::gameFile("point-blank", t.path()).isEmpty());
   }
