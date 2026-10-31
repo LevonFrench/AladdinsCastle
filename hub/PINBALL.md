@@ -47,10 +47,21 @@ and clicking both sticks aligns the table (keep them held and move your hands to
 scale, turn and move it). The menu buttons and left Y are not bound; a tap of Y
 no longer exits. VPX cannot time a hold, and Hub cannot read the controllers while
 VPX has them (a SteamVR action of Hub's would take the stick clicks away from the
-table), so the hold-both-sticks quit is not available in a table. To leave, press
-the left Menu button (it opens the SteamVR dashboard), open the Hub panel, and
-choose Exit game: Hub closes the table the ordinary way, so scores and settings
-are saved. Esc on the keyboard also exits. For headset launches Hub always passes
+table), so in the standard VPX the hold-both-sticks quit is not available in a
+table. To leave, press the left Menu button (it opens the SteamVR dashboard), open
+the Hub panel, and choose Exit game: Hub closes the table the ordinary way, so
+scores and settings are saved.
+
+The patched AladdinsCastle build of VPX (`setups/vpx-vr`, built by CI) adds the
+quit: hold both stick clicks for 3 seconds with your hands still, and VPX closes
+the table through its own Exit Game, so scores and settings are saved the same
+way. If a hand moves more than 5 cm during the hold, you are adjusting the table
+and it does not quit. In that build the table also follows your hands only while
+both clicks are held, and stays put when you let go; in the standard VPX each
+double click switches following on or off. It works only after you install that
+build. Hub reads the program's version information (never runs it): a product
+version ending in `-acvr` is the patched build, and the Pinball page and the
+now-playing hint then describe that build's controls. Esc on the keyboard also exits. For headset launches Hub always passes
 its settings copy (below) with these bindings.
 
 ## Gamepad

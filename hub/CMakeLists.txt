@@ -63,8 +63,12 @@ add_library(hubcore STATIC
     src/core/scan/Headers.cpp
     src/core/scan/DiscReader.cpp
     src/core/scan/DiscIndex.cpp
+    src/core/scan/DiscMemo.h
+    src/core/scan/DiscMemo.cpp
     src/core/pinball/Art.cpp
     src/core/pinball/Art.h
+    src/core/pinball/Build.cpp
+    src/core/pinball/Build.h
     src/core/pinball/Gamepad.cpp
     src/core/pinball/Gamepad.h
     src/core/pinball/Pinball.cpp
@@ -73,8 +77,14 @@ add_library(hubcore STATIC
     src/core/pinball/Script.h
     src/core/pinball/Roms.cpp
     src/core/pinball/Roms.h
+    src/core/pinball/RomList.cpp
+    src/core/pinball/RomList.h
+    src/core/pinball/Scores.cpp
+    src/core/pinball/Scores.h
     src/core/pinball/Identity.cpp
     src/core/pinball/Identity.h
+    src/core/pinball/VpsMatch.cpp
+    src/core/pinball/VpsMatch.h
     src/core/match/TitleMatch.cpp
     src/core/match/TitleMatch.h
     src/core/model3/Model3.cpp
@@ -158,11 +168,13 @@ target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PRIVATE zlibstatic)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
-    target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid crypt32)
+    target_link_libraries(hubcore PRIVATE version shell32 ole32 oleaut32 advapi32 uuid crypt32)
 endif()
 ac_project_warnings(hubcore)
 qt_add_resources(hubcore disc_metadata PREFIX /data BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json ../data/dreamcast-disc-index.json ../data/disc-profiles.json)
 qt_add_resources(hubcore scan_metadata PREFIX /scan BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json)
+# High score locations from the Pinball Memory Maps project (ODbL), built by tools/pinball_score_maps.py.
+qt_add_resources(hubcore pinball_scores PREFIX /pinball BASE ../data FILES ../data/pinball-score-maps.json)
 
 add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
@@ -331,6 +343,11 @@ if(BUILD_TESTING)
     ac_project_warnings(title-match-tests)
     set_target_properties(title-match-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-title-match COMMAND title-match-tests -o -,txt)
+    qt_add_executable(vps-match-tests tests/VpsMatchTest.cpp)
+    target_link_libraries(vps-match-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(vps-match-tests)
+    set_target_properties(vps-match-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-vps-match COMMAND vps-match-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)
@@ -355,6 +372,8 @@ if(BUILD_TESTING)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_script_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-rom-check COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_check_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-scores COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_score_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-pinball-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_identity_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
     add_test(NAME hub-universal-controls-text COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/universal_controls_text.py)

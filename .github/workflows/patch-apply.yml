@@ -47,6 +47,11 @@ jobs:
             repo_key: repository
             commit_key: source_commit
             patch: patch/acvr-hotd2-vr.patch
+          - setup: vpx-vr
+            pin: upstream-pin.json
+            repo_key: repository
+            commit_key: source_commit
+            patch: patch/apply_acvr.py
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
