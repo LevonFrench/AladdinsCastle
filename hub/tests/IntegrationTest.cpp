@@ -751,6 +751,89 @@ private slots:
     QVERIFY(row("ps1-point-blank-2")["problem"].toString().contains("Point Blank 2.chd"));
     QVERIFY(row("ps1-time-crisis")["problem"].toString().contains("no entry")); // Not in this launcher at all.
  }
+ // Selected routes must not inherit a sibling route's missing disc. Exercise the UI's actual
+ // listing and click gates, without connecting HubServices or starting a process.
+ void launcherViewMediaIsIndependent_data(){
+    QTest::addColumn<QString>("system");QTest::addColumn<QString>("game");
+    QTest::addColumn<QString>("goodView");QTest::addColumn<QString>("badView");
+    QTest::newRow("scripted-nested-views")<<QString("dreamcast")<<QString("synthetic")<<QString("theatre")<<QString("depth-trial");
+    QTest::newRow("ps1-separate-keys")<<QString("ps1")<<QString("time-crisis")<<QString("standard")<<QString("open-frame");
+    QTest::newRow("n64-separate-keys")<<QString("n64")<<QString("mario-kart-64")<<QString("3d")<<QString("flat");
+ }
+ void launcherViewMediaIsIndependent(){
+    QFETCH(QString,system);QFETCH(QString,game);QFETCH(QString,goodView);QFETCH(QString,badView);
+    QTemporaryDir t;const auto launcher=t.filePath("play/launch.ps1"),media=t.filePath("play/good.iso");
+    ac::install::atomicWrite(launcher,"synthetic");ac::install::atomicWrite(media,"synthetic");
+    QJsonObject entries;
+    if(system=="dreamcast")entries[game]=QJsonObject{{"views",QJsonObject{
+        {goodView,QJsonObject{{"disc","good.iso"}}},{badView,QJsonObject{{"disc","absent.iso"}}}}}};
+    else if(system=="ps1")entries=QJsonObject{{game,QJsonObject{{"disc","good.iso"}}},{game+"-open-frame",QJsonObject{{"disc","absent.iso"}}}};
+    else entries=QJsonObject{{game+"-3d",QJsonObject{{"rom","good.iso"}}},{game,QJsonObject{{"rom","absent.iso"}}}};
+    ac::install::atomicWrite(t.filePath("play/games.json"),QJsonDocument(entries).toJson());
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set(system+"Launcher",launcher);
+    ac::UiController ui(&games,&filter,&settings);const auto id=system+"-"+game;
+    const auto row=[&]{for(const auto &value:ui.otherGames())if(value.toMap()["id"]==id)return value.toMap();return QVariantMap{};};
+    const auto initial=row();QCOMPARE(initial["view"].toString(),goodView);
+    QVERIFY2(initial["found"].toBool(),qPrintable(initial["problem"].toString()));
+    QSignalSpy plays(&ui,&ac::UiController::otherPlayRequested);
+    ui.playGame(id,goodView);QCOMPARE(plays.size(),1);QCOMPARE(plays.last()[1].toString(),goodView);
+    ui.playGame(id,badView);QCOMPARE(plays.size(),1); // Reject the requested route, even while the default is healthy.
+    ui.playGame(id,"not-listed");QCOMPARE(plays.size(),1);
+    ui.playOtherGame(id);QCOMPARE(plays.size(),2);QCOMPARE(plays.last()[1].toString(),goodView);
+    ui.chooseGameView(id,badView);const auto missing=row();
+    QVERIFY(!missing["found"].toBool());QVERIFY(missing["problem"].toString().contains("absent.iso"));
+    ui.playOtherGame(id);QCOMPARE(plays.size(),2);
+    ui.playGame(id,goodView);QCOMPARE(plays.size(),3); // An explicit healthy sibling can launch from an unavailable default.
+    ui.chooseGameView(id,goodView);QVERIFY(row()["found"].toBool()); // Cache the healthy row.
+    QVERIFY(QFile::remove(media));
+    ui.playGame(id,goodView);ui.playOtherGame(id);QCOMPARE(plays.size(),3); // Recheck at click time.
+ }
+ void launcherSharedMediaBlocksEveryView(){
+    QTemporaryDir t;const auto launcher=t.filePath("play/launch.ps1");
+    ac::install::atomicWrite(launcher,"synthetic");ac::install::atomicWrite(t.filePath("play/good.iso"),"synthetic");
+    ac::install::atomicWrite(t.filePath("play/games.json"),R"({"synthetic":{"disc":"shared-missing.iso","views":{"theatre":{"disc":"good.iso"},"depth-trial":{}}}})");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("dreamcastLauncher",launcher);
+    ac::UiController ui(&games,&filter,&settings);QSignalSpy plays(&ui,&ac::UiController::otherPlayRequested);
+    for(const auto &view:{QString("theatre"),QString("depth-trial")}){
+        ui.chooseGameView("dreamcast-synthetic",view);
+        QVariantMap row;for(const auto &value:ui.otherGames())if(value.toMap()["id"]=="dreamcast-synthetic")row=value.toMap();
+        QVERIFY(!row["found"].toBool());QVERIFY(row["problem"].toString().contains("shared-missing.iso"));
+        ui.playGame("dreamcast-synthetic",view);ui.playOtherGame("dreamcast-synthetic");
+    }
+    QCOMPARE(plays.size(),0);
+ }
+ // Core-supported legacy view ids remain valid at the UI gate. No HubServices connection or process launch.
+ void legacyViewAliasesPreserveReadiness_data(){
+    QTest::addColumn<QString>("system");QTest::addColumn<QString>("game");
+    QTest::addColumn<QString>("alias");QTest::addColumn<QString>("canonical");
+    QTest::newRow("model2-screen")<<QString("model2")<<QString("vcop2")<<QString("screen")<<QString("3d");
+    QTest::newRow("ps1-theatre")<<QString("ps1")<<QString("time-crisis")<<QString("theatre")<<QString("standard");
+ }
+ void legacyViewAliasesPreserveReadiness(){
+    QFETCH(QString,system);QFETCH(QString,game);QFETCH(QString,alias);QFETCH(QString,canonical);
+    QTemporaryDir t;QString media;
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));
+    if(system=="model2"){
+        const auto program=t.filePath("build/mame/emulator.exe");
+        ac::install::atomicWrite(program,"synthetic");ac::install::atomicWrite(t.filePath("build/presenter/model2-viewer.exe"),"synthetic");
+        QVERIFY(QDir().mkpath(t.filePath("build/runtime")));media=t.filePath("sets/vcop2.zip");
+        settings.set("model2Executable",program);settings.set("model2GameFolder",t.filePath("sets"));
+    }else{
+        const auto launcher=t.filePath("play/launch.ps1");ac::install::atomicWrite(launcher,"synthetic");
+        ac::install::atomicWrite(t.filePath("play/games.json"),R"({"time-crisis":{"disc":"good.iso"},"time-crisis-open-frame":{"disc":"absent.iso"}})");
+        media=t.filePath("play/good.iso");settings.set("ps1Launcher",launcher);
+    }
+    ac::install::atomicWrite(media,"synthetic");ac::UiController ui(&games,&filter,&settings);
+    const auto id=system+"-"+game;QSignalSpy plays(&ui,&ac::UiController::otherPlayRequested);
+    ui.playGame(id,alias);QCOMPARE(plays.size(),1);QCOMPARE(plays.last()[1].toString(),alias);
+    ui.playGame(id,canonical);QCOMPARE(plays.size(),2);QCOMPARE(plays.last()[1].toString(),canonical);
+    ui.playGame(id,"not-listed");QCOMPARE(plays.size(),2);
+    if(system=="ps1"){ui.playGame(id,"open-frame");QCOMPARE(plays.size(),2);} // A valid alias does not excuse a bad sibling route.
+    QVERIFY(QFile::remove(media));ui.playGame(id,alias);ui.playGame(id,canonical);QCOMPARE(plays.size(),2);
+ }
  // The 3DS game that runs straight through acvr-ps1 and its profile shows once its settings name the program, the core
  // and the dumps folder, and says what is missing until then. The paths are synthetic and nothing is started.
  void threeDsGameComesFromSettings(){

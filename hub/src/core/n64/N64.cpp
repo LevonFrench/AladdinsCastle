@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "N64.h"
+#include "core/scripted/Scripted.h"
 #include "core/install/Install.h"
 #include <QDir>
 #include <QFile>
@@ -106,6 +107,7 @@ QVariantMap launchPlan(const QString &game,const QString &launcher,const QString
  if(!issue.isEmpty())throw install::Error("E_N64_SETUP",issue);
  const auto key=launcherKey(game,view);
  if(key.isEmpty()||!launcherKeys(launcher).contains(key))throw install::Error("E_N64_VIEW","Your N64 launcher has no entry for this view. Choose another view.");
+ if(const auto media=scripted::missingMedia(launcher,{key});!media.isEmpty())throw install::Error("E_N64_SETUP",media);
  const QFileInfo script(launcher);
  // Windows PowerShell 5.1 from the system folder, never one found on PATH.
  const auto windows=QProcessEnvironment::systemEnvironment().value("SystemRoot","C:\\Windows");

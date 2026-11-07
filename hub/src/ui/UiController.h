@@ -447,7 +447,7 @@ class UiController : public QObject {
  // the signal is being emitted, before any connected slot runs, so clearing them in a slot came too late.
  void listsChanged(){m_model3Cache.reset();m_otherCache.reset();emit model3Changed();}
  QVariantList buildModel3Games()const;
- QVariantList buildOtherGames()const;
+ QVariantList buildOtherGames(const QString &requestedId=QString(),const QString &requestedView=QString())const;
  // Pictures that could not be downloaded, or whose download is off: a notice until the next run or the setting changes.
  QVariantMap artNotice()const;
  bool m_artworkOffline=false,m_artworkOff=false;

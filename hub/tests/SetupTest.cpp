@@ -497,7 +497,7 @@ private slots:
     QCOMPARE(ac::scripted::viewLabel("soft-edges"),QString("Soft edges"));
   }
   // A launcher's game whose own file is gone is not found, and the path is said: a disc, ROM or file on the
-  // entry or on any of its views, a relative one read beside games.json. A game naming no file is not judged.
+  // entry or the selected view, a relative one read beside games.json. A game naming no file is not judged.
   void launcherGameFilesAreChecked() {
     QTemporaryDir t;const auto launcher=t.filePath("play/wii/launch-wii.ps1");write(launcher,"synthetic");
     const auto here=t.filePath("discs/here.iso");write(here,"synthetic");write(t.filePath("play/wii/beside.iso"),"synthetic");
@@ -511,11 +511,29 @@ private slots:
     QVERIFY(ac::scripted::missingMedia(launcher,{"beside"}).isEmpty());
     const auto gone=ac::scripted::missingMedia(launcher,{"gone"});
     QVERIFY2(gone.startsWith("Game file not found: ")&&gone.contains(native(t.filePath("discs/gone.cdi"))),qPrintable(gone));
-    QVERIFY(ac::scripted::missingMedia(launcher,{"view-gone"}).contains("other.iso"));
+    QVERIFY(ac::scripted::missingMedia(launcher,{"view-gone"}).isEmpty()); // Only common media without a selected view.
+    QVERIFY(ac::scripted::missingMedia(launcher,{"view-gone"},"headset").isEmpty());
+    QVERIFY(ac::scripted::missingMedia(launcher,{"view-gone"},"pointer").contains("other.iso"));
+    QVERIFY(ac::scripted::missingMedia(launcher,{"gone"},"theatre").contains("gone.cdi"));
+    QVERIFY(!ac::scripted::launchPlan(launcher,"view-gone","headset").isEmpty());
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(launcher,"view-gone","pointer"));
     QVERIFY(ac::scripted::missingMedia(launcher,{"no-file"}).isEmpty());
     QVERIFY(ac::scripted::missingMedia(launcher,{"not-listed"}).isEmpty());
     QVERIFY(!ac::scripted::missingMedia(launcher,{"here","gone"}).isEmpty());
     QVERIFY(ac::scripted::missingMedia(t.filePath("nowhere/launch.ps1"),{"gone"}).isEmpty());
+  }
+  // The launch planners also recheck media for diagnostic/direct callers that bypass the UI cache.
+  void launcherViewPlansCheckOnlySelectedKeys() {
+    QTemporaryDir t;const auto launcher=t.filePath("play/launch.ps1"),media=t.filePath("play/good.iso");
+    write(launcher,"synthetic");write(media,"synthetic");
+    write(t.filePath("play/games.json"),R"({"time-crisis":{"disc":"good.iso"},"time-crisis-open-frame":{"disc":"absent.iso"},"mario-kart-64-3d":{"rom":"good.iso"},"mario-kart-64":{"rom":"absent.iso"}})");
+    QCOMPARE(ac::ps1::launchPlan("time-crisis",launcher,"standard")["args"].toStringList().last(),QString("time-crisis"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps1::launchPlan("time-crisis",launcher,"open-frame"));
+    QCOMPARE(ac::n64::launchPlan("mario-kart-64",launcher,"3d")["args"].toStringList().last(),QString("mario-kart-64-3d"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::n64::launchPlan("mario-kart-64",launcher,"flat"));
+    QVERIFY(QFile::remove(media));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps1::launchPlan("time-crisis",launcher,"standard"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::n64::launchPlan("mario-kart-64",launcher,"3d"));
   }
   // A Set-up report's stamp: the same while nothing it reads changed; different once a folder, a launcher's
   // games.json or a setting changes. The order the systems were read in does not matter.

@@ -487,14 +487,28 @@ QVariantList UiController::readyCatalogGames()const{
  return rows;
 }
 QVariantList UiController::otherGames()const{if(!m_otherCache)m_otherCache=buildOtherGames();return *m_otherCache;}
-QVariantList UiController::buildOtherGames()const{
+QVariantList UiController::buildOtherGames(const QString &requestedId,const QString &requestedView)const{
  const auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();QVariantList rows;
- const auto add=[&](QVariantMap row,const QVariantList &views){
+ const auto add=[&](QVariantMap row,const QVariantList &views,const QString &mediaLauncher=QString()){
   auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
   for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
   // The default is the first view that is not opt-in (soft edges, roll steer, body motion...).
   if(!known){view=views.first().toMap().value("id").toString();for(const auto &value:views)if(!value.toMap().value("optIn").toBool()){view=value.toMap().value("id").toString();break;}}
   row["viewChosen"]=known;
+  if(row.value("id")==requestedId&&!requestedView.isEmpty()){
+   view=requestedView;bool offered=false;
+   // Keep the explicit legacy id for the launch planner, but validate against its offered equivalent.
+   const auto system=row.value("system").toString();
+   const auto offeredView=system=="model2"&&view=="screen"?QString("3d"):system=="ps1"&&view=="theatre"?QString("standard"):view;
+   for(const auto &value:views)if(value.toMap().value("id")==offeredView)offered=true;
+   if(!offered&&row.value("problem").toString().isEmpty())row["problem"]="Your launcher has no such view for this game. Choose another view.";
+  }
+  if(!mediaLauncher.isEmpty()&&row.value("problem").toString().isEmpty()){
+   const auto system=row.value("system").toString(),game=row.value("id").toString().section('-',1);
+   // PS1/N64 views are separate launcher keys; scripted views inherit the game's common media.
+   const auto key=system=="ps1"?ps1::launcherKey(game,view):system=="n64"?n64::launcherKey(game,view):game;
+   row["problem"]=scripted::missingMedia(mediaLauncher,{key},view);
+  }
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;
   // A copy chosen on the game's page is used at once, before the next Rescan.
@@ -507,8 +521,6 @@ QVariantList UiController::buildOtherGames()const{
   row["artId"]=row.value("id");addArt(row,row.value("id").toString(),row.value("system").toString());
   rows<<row;
  };
- // A game started through a launcher whose own file (disc, ROM) is gone is not found, whatever the launcher lists.
- const auto media=[](const QString &problem,const QString &launcher,const QStringList &keys){return problem.isEmpty()?scripted::missingMedia(launcher,keys):problem;};
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
  if(!model2Program.isEmpty()||!model2Folder.isEmpty()||m_library.value("systems").toMap().contains("model2"))for(const auto &value:model2::games()){
@@ -522,16 +534,16 @@ QVariantList UiController::buildOtherGames()const{
  if(!ps2Launcher.isEmpty())for(const auto &value:ps2::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",media(ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString()),ps2Launcher,{id})}},
-   ps2::views(id,ps2Launcher));
+   {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
+   ps2::views(id,ps2Launcher),ps2Launcher);
  }
  // PS1 light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the gun.
  const auto ps1Launcher=m_settings->get("ps1Launcher",QString()).toString();
  if(!ps1Launcher.isEmpty())for(const auto &value:ps1::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps1-"+id},{"system","ps1"},{"pill","PS1"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",media(ps1::problem(id,ps1Launcher),ps1Launcher,[&]{QStringList keys{id};for(const auto &view:ps1::views(id,ps1Launcher))keys<<ps1::launcherKey(id,view.toMap().value("id").toString());return keys;}())}},
-   [&]{auto views=ps1::views(id,ps1Launcher);if(views.isEmpty())views<<QVariantMap{{"id","standard"},{"label",ps1::viewLabel(id,"standard")},{"help","Not in your PS1 launcher yet."}};return views;}());
+   {"problem",ps1::problem(id,ps1Launcher)}},
+   [&]{auto views=ps1::views(id,ps1Launcher);if(views.isEmpty())views<<QVariantMap{{"id","standard"},{"label",ps1::viewLabel(id,"standard")},{"help","Not in your PS1 launcher yet."}};return views;}(),ps1Launcher);
  }
  // N64: through the user's launcher and acvr-ps1; the views are the ones the launcher lists for the game.
  const auto n64Launcher=m_settings->get("n64Launcher",QString()).toString();
@@ -540,15 +552,15 @@ QVariantList UiController::buildOtherGames()const{
   auto views=n64::views(id,n64Launcher);
   if(views.isEmpty())views<<QVariantMap{{"id","flat"},{"label",n64::viewLabel(id,"flat")},{"help","Not in your N64 launcher yet."}};
   add({{"id","n64-"+id},{"system","n64"},{"pill","N64"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",media(n64::problem(id,n64Launcher),n64Launcher,[&]{QStringList keys{id};for(const auto &view:views)keys<<n64::launcherKey(id,view.toMap().value("id").toString());return keys;}())}},views);
+   {"problem",n64::problem(id,n64Launcher)}},views,n64Launcher);
  }
  // Saturn light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the Stunner.
  const auto saturnLauncher=launcherFor("saturn");
  if(!saturnLauncher.isEmpty())for(const auto &value:saturn::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","saturn-"+id},{"system","saturn"},{"pill","SATURN"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",media(saturn::problem(id,saturnLauncher),saturnLauncher,{id})}},
-   {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
+   {"problem",saturn::problem(id,saturnLauncher)}},
+   {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}},saturnLauncher);
  }
  // 3DS: straight through acvr-ps1, the Azahar core and the game's profile; every location is a Hub setting.
  {
@@ -578,8 +590,8 @@ QVariantList UiController::buildOtherGames()const{
    // Atomiswave boards run in the same Flycast build; they get their own shelf.
    const bool atomiswave=system.id=="dreamcast"&&group=="atomiswave";
    add({{"id",system.id+"-"+game.value("id").toString()},{"system",atomiswave?QString("atomiswave"):system.id},{"pill",atomiswave?QString("ATOMISWAVE"):system.pill},
-        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"artFile",game.value("file")},{"warning",game.value("controls")},{"problem",scripted::missingMedia(launcher,{game.value("id").toString()})},
-        {"launcher",launcher},{"status",game.value("status")}},game.value("views").toList());
+        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"artFile",game.value("file")},{"warning",game.value("controls")},{"problem",QString()},
+        {"launcher",launcher},{"status",game.value("status")}},game.value("views").toList(),launcher);
   }
  }
  // Wii: the discs of the last scan, in the headset through the DolphinXR build. A game the build is
@@ -645,9 +657,9 @@ void UiController::playGame(const QString &id,const QString &view){
  if(refuseSecondLaunch())return;
  m_launchInFlight=true;const auto landed=qScopeGuard([this]{m_launchInFlight=false;emit launchGateChanged();});
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
- for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}
+ for(const auto &value:buildOtherGames(id,view)){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}
 }
-void UiController::playOtherGame(const QString &id){if(refuseSecondLaunch())return;for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
+void UiController::playOtherGame(const QString &id){if(refuseSecondLaunch())return;for(const auto &value:buildOtherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
 void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
  queueSession(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
 }
