@@ -116,7 +116,7 @@ QString problem(const QString &launcher,const QString &key,const QString &view){
  }
  return "Your launcher has no entry for this game.";
 }
-QString missingMedia(const QString &launcher,const QStringList &keys){
+QString missingMedia(const QString &launcher,const QStringList &keys,const QString &view){
  const auto all=read(launcher);if(all.isEmpty())return {};
  const QDir beside=QFileInfo(launcher).absoluteDir();
  const auto check=[&](const QJsonObject &object)->QString{
@@ -132,13 +132,14 @@ QString missingMedia(const QString &launcher,const QStringList &keys){
   const auto entry=all.value(key).toObject();if(entry.isEmpty())continue;
   if(const auto issue=check(entry);!issue.isEmpty())return issue;
   const auto views=entry.value("views");
-  if(views.isObject())for(const auto &view:views.toObject())if(view.isObject())if(const auto issue=check(view.toObject());!issue.isEmpty())return issue;
+  if(!view.isEmpty()&&views.isObject())if(const auto issue=check(views.toObject().value(view).toObject());!issue.isEmpty())return issue;
  }
  return {};
 }
 QVariantMap launchPlan(const QString &launcher,const QString &key,const QString &view){
  const auto issue=problem(launcher,key,view);
  if(!issue.isEmpty()||view.isEmpty())throw install::Error("E_LAUNCHER_SETUP",issue.isEmpty()?QString("Choose a view."):issue);
+ if(const auto media=missingMedia(launcher,{key},view);!media.isEmpty())throw install::Error("E_LAUNCHER_SETUP",media);
  const QFileInfo script(launcher);
  // Windows PowerShell 5.1 from the system folder, never one found on PATH.
  const auto windows=QProcessEnvironment::systemEnvironment().value("SystemRoot","C:\\Windows");

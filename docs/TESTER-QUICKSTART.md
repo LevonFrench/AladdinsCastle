@@ -6,6 +6,19 @@ is a complete game system: the Hub comes with no emulators and no games, and the
 release owner must say which artifact (and which separately supported system
 build) you were given.
 
+## Identify the candidate first
+
+Ask the release owner for the exact workflow/run and source commit, the ZIP name
+and SHA-256, and the supported first game and view. The current workflow artifact
+is `AladdinsCastle-Windows-x64`, containing `AladdinsCastle.zip`; after extraction,
+check the source commit in `BUILD-INFO.txt` against the handoff. An artifact from a
+draft PR can differ from main and from a development installation.
+
+The handoff must also identify the separate emulator/host build and all required
+DLLs, cores, profiles and launcher scripts. A successful compile or a passing
+`fresh-install` job does not supply or test that complete route. If any required
+piece is missing, ask for a complete handoff before trying to play.
+
 ## What you need
 
 - Windows x64 and the complete portable Hub folder or ZIP. The package is checked
@@ -13,9 +26,13 @@ build) you were given.
   or BIOS file may be. Extract the **whole** folder somewhere writable; do not
   move just `aladdinscastle-hub.exe`.
 - A headset connected to the PC and SteamVR. The Hub does not install or set up
-  the headset connection. (Quest through ALVR is the tested route.)
+  the headset connection. (Quest through ALVR has historical headset results;
+  the supplied candidate still needs its own check.)
 - The supported emulator or VR program for the system you want to try. These are
-  separate from the Hub; see the matching [setup README](../setups/).
+  separate from the Hub; see the matching [setup README](../setups/). Stock
+  emulator downloads are not interchangeable with the documented VR builds.
+  Some routes also need a launcher and its interpreter, manifest or profiles;
+  see the [system fields](../hub/SETUP.md#systems) and the supplied handoff.
 - Your own legally obtained game files, and any BIOS that system needs. The Hub
   never supplies them, and Set-up never says where to get them.
 
@@ -40,7 +57,8 @@ build) you were given.
    If SteamVR is not running the Hub may start it and wait up to two minutes
    (there is a Cancel). The setting **Let the Hub start SteamVR**, or the
    environment variable `AC_NO_STEAMVR_START`, turns that off.
-5. **Put the headset on.** Controls are the same in every game:
+5. **Put the headset on.** The intended universal controls below require the
+   compatible patched build; verifying them is part of this test:
    - left stick click = Start;
    - right stick click = Select or Coin;
    - click both sticks together = put the screen in front of you again;
@@ -48,8 +66,9 @@ build) you were given.
 
    The left Menu button opens the SteamVR dashboard, where the Hub panel is:
    that is the way back to the Hub from any game. Use the large **Back** button
-   in the panel to go back a page. A pinball table is the one exception to the
-   quit: leave it from the Hub panel with **Exit game**.
+   in the panel to go back a page. For pinball, use **Exit game** in the Hub panel unless the handoff explicitly
+   supplies the patched hold-to-quit VPX build. Its compile artifact alone does
+   not establish that the control works in your headset.
 
 If something is wrong, Set-up is always under **···**, **Set-up**, and **Rescan**
 reads the folders again. "Found, can start" means the game's files and its
@@ -66,6 +85,16 @@ gives the report's missing-game-files message.
 The folder check does not prove a complete working game. If you do not have the
 correct build and legal game files, stop here: there is no complete public
 download-to-first-game route to recommend yet.
+
+## Record the first-game result
+
+Record the Hub source commit and ZIP hash, system-build identity, game and view,
+and whether Set-up, launch, real display, headset picture, controls, recentre,
+Exit game and restart each worked. Keep private file paths and raw logs out of
+public reports. Record any skipped step as untested. A scan result, compile or
+synthetic clean-folder check does not count as a real clean-PC game pass; a past
+headset result does not accept the new candidate. Use the
+[release gates](release/0.01-checklist.md#before-saying-001) for the full checklist.
 
 ## Reporting a problem
 
