@@ -156,6 +156,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: ./tools/dolphinxr-sitting/Test-Sitting.ps1
+      - name: Fresh-install process ownership (synthetic Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        timeout-minutes: 2
+        run: ./hub/packaging/tests/Test-FreshInstallOwnership.ps1
       - name: Read package identity
         shell: python
         run: |

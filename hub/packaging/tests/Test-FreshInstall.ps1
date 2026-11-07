@@ -109,8 +109,14 @@ Note 'install: user folder starts empty' ((@(Get-ChildItem -LiteralPath (Join-Pa
 Copy-Item -LiteralPath (Join-Path $TestPluginDir 'qoffscreen.dll') -Destination (Join-Path $package 'platforms/qoffscreen.dll')
 
 # ---- 3. Run the packaged Hub ----------------------------------------------------------------------------------
-function Stop-HubTree([System.Diagnostics.Process]$Process) {
-    if ($Process -and -not $Process.HasExited) { & taskkill.exe /T /F /PID $Process.Id | Out-Null; $Process.WaitForExit(15000) | Out-Null }
+$hubProcesses = New-Object 'Collections.Generic.List[System.Diagnostics.Process]'
+function Stop-HubProcess([System.Diagnostics.Process]$Process) {
+    # Invoke-Hub retains the Process and pins its OS handle while it is alive. Never rediscover by name or PID.
+    # This offscreen proof starts no games or child processes; terminate only the exact Hub it started.
+    if ($Process -and -not $Process.HasExited) {
+        $Process.Kill()
+        if (-not $Process.WaitForExit(15000)) { throw 'The owned Hub process did not stop.' }
+    }
 }
 # Starts the packaged Hub with the sandbox profile and a bare PATH, waits for it to write its picture and quit.
 function Invoke-Hub([string]$Name,[hashtable]$Extra) {
@@ -130,12 +136,14 @@ function Invoke-Hub([string]$Name,[hashtable]$Extra) {
     try {
         $process = Start-Process -FilePath (Join-Path $package $hubExe) -ArgumentList @('--quit-after-ms', ([string]($HubTimeoutSeconds * 1000 - 10000))) `
             -WorkingDirectory $WorkDir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -WindowStyle Hidden
+        $hubProcesses.Add($process)
         $null = $process.Handle   # Windows PowerShell 5.1 loses the exit code of a -PassThru process unless its handle is read while it runs
-        if (-not $process.WaitForExit($HubTimeoutSeconds * 1000)) { Stop-HubTree $process; return [pscustomobject]@{ Name = $Name; TimedOut = $true; ExitCode = -1; Picture = $picture; Out = $out; Err = $err } }
+        if (-not $process.WaitForExit($HubTimeoutSeconds * 1000)) { Stop-HubProcess $process; return [pscustomobject]@{ Name = $Name; TimedOut = $true; ExitCode = -1; Picture = $picture; Out = $out; Err = $err } }
         return [pscustomobject]@{ Name = $Name; TimedOut = $false; ExitCode = $process.ExitCode; Picture = $picture; Out = $out; Err = $err }
     } finally {
-        Stop-HubTree $process
-        foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key, $saved[$key], 'Process') }
+        try { Stop-HubProcess $process } finally {
+            foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key, $saved[$key], 'Process') }
+        }
     }
 }
 function Get-Text([string]$Path) { if (Test-Path -LiteralPath $Path) { return [IO.File]::ReadAllText($Path) } else { return '' } }
@@ -177,6 +185,7 @@ function Count-Of($Value) { return @($Value | Where-Object { $null -ne $_ }).Cou
 function Slash([string]$Path) { return $Path.Replace('\', '/') }
 
 # 3a. First run: no games, no folders, no settings.
+try {
 $run = Invoke-Hub 'first-run' @{}
 Assert-HubRun $run 'first run'
 Note 'first run: the Hub counted its catalog' ((Get-Text $run.Out) -match ':\s*[1-9][0-9]* games') ((Get-Text $run.Out).Trim())
@@ -257,9 +266,9 @@ foreach ($name in @('hub-settings.toml', 'cache/setup-report.json')) {
 ('{0} bytes, {1} files unpacked' -f (Get-Item -LiteralPath $PackageZip).Length, $fileCount) | Set-Content -LiteralPath (Join-Path $ArtifactDir 'package-size.txt') -Encoding ascii
 
 # ---- 5. Uninstall: delete the folder, then look for anything left outside it -----------------------------------
-$stillRunning = @(Get-Process -Name ($hubExe -replace '\.exe$', '') -ErrorAction SilentlyContinue)
+$stillRunning = @($hubProcesses | Where-Object { -not $_.HasExited })
 Note 'uninstall: no Hub process is left running' ($stillRunning.Count -eq 0) "$($stillRunning.Count) running"
-foreach ($p in $stillRunning) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+foreach ($p in $stillRunning) { Stop-HubProcess $p }
 $removed = $false
 for ($try = 0; $try -lt 5 -and -not $removed; ++$try) {
     try { Remove-Item -LiteralPath $install -Recurse -Force; $removed = $true } catch { Start-Sleep -Seconds 2 }
@@ -287,3 +296,9 @@ $newProfile | Set-Content -LiteralPath (Join-Path $ArtifactDir 'profile-new-entr
 Write-Summary
 if ($failures.Count) { throw ("Fresh-install check failed:`n - " + ($failures -join "`n - ")) }
 Write-Output ("Fresh-install check passed: {0} checks." -f $results.Count)
+} finally {
+    # Also cover assertion, receipt, settings and uninstall exceptions. Keep handles until cleanup completes.
+    try { foreach ($p in $hubProcesses) { Stop-HubProcess $p } } finally {
+        foreach ($p in $hubProcesses) { $p.Dispose() }
+    }
+}
