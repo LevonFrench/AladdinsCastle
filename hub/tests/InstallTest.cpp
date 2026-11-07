@@ -34,6 +34,9 @@ class HttpsServer : public QTcpServer {
 public:
   QByteArray payload = "synthetic tool artifact";
   bool notModified = false;
+  bool always416 = false;
+  bool release416 = false;
+  QByteArray artifactType = "application/octet-stream";
   QByteArray releasePayload = "{\"tag_name\":\"v1\",\"assets\":[]}";
   QList<QByteArray> requests;
   QString url() const {
@@ -69,6 +72,8 @@ public:
       else if (route.contains("/releases/tags/limited"))
         response = "HTTP/1.1 429 Limited\r\nRetry-After: 60\r\nContent-Length: "
                    "0\r\n\r\n";
+      else if (release416 && route.contains("/releases/tags/"))
+        response = "HTTP/1.1 416 Range Not Satisfiable\r\nContent-Length: 0\r\n\r\n";
       else if (route.contains("/releases/tags/")) {
         const QByteArray body = releasePayload;
         response = "HTTP/1.1 200 OK\r\nETag: test-v1\r\nContent-Length: " +
@@ -83,15 +88,19 @@ public:
         const auto range = req.toLower().indexOf("range: bytes=");
         if (range >= 0)
           offset = req.mid(range + 13).split('-').first().toLongLong();
-        const auto body = payload.mid(offset);
-        response = offset ? "HTTP/1.1 206 Partial\r\nContent-Range: bytes " +
-                                QByteArray::number(offset) + "-" +
-                                QByteArray::number(payload.size() - 1) + "/" +
-                                QByteArray::number(payload.size()) + "\r\n"
-                          : QByteArray("HTTP/1.1 200 OK\r\n");
-        response += "ETag: test-v1\r\nContent-Type: "
-                    "application/octet-stream\r\nContent-Length: " +
-                    QByteArray::number(body.size()) + "\r\n\r\n" + body;
+        if (always416 || (range >= 0 && offset >= payload.size())) {
+          response = "HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */" +
+                     QByteArray::number(payload.size()) + "\r\nContent-Length: 0\r\n\r\n";
+        } else {
+          const auto body = payload.mid(offset);
+          response = offset ? "HTTP/1.1 206 Partial\r\nContent-Range: bytes " +
+                                  QByteArray::number(offset) + "-" +
+                                  QByteArray::number(payload.size() - 1) + "/" +
+                                  QByteArray::number(payload.size()) + "\r\n"
+                            : QByteArray("HTTP/1.1 200 OK\r\n");
+          response += "ETag: test-v1\r\nContent-Type: " + artifactType + "\r\nContent-Length: " +
+                      QByteArray::number(body.size()) + "\r\n\r\n" + body;
+        }
       }
       socket->write(response);
       socket->disconnectFromHost();
@@ -1214,6 +1223,74 @@ private slots:
     QVERIFY(server.requests.last().toLower().contains("range: bytes=4-"));
     QVERIFY(server.requests.last().toLower().contains("if-range: test-v1"));
   }
+  void retainedPart416Recovery_data() {
+    QTest::addColumn<bool>("oversized");
+    QTest::addColumn<QString>("failure");
+    for (const bool oversized : {false, true})
+      for (const auto &failure : {QString(), QString("hash"), QString("size"),
+                                 QString("cap"), QString("type"), QString("magic"),
+                                 QString("content"), QString("repeat416")}) {
+        const auto name = (oversized ? "oversized-" : "complete-") +
+                          (failure.isEmpty() ? QString("valid") : failure);
+        QTest::newRow(qPrintable(name)) << oversized << failure;
+      }
+  }
+  void retainedPart416Recovery() {
+    QFETCH(bool, oversized);
+    QFETCH(QString, failure);
+    HttpsServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temp;
+    TestTrust trust;
+    trust.baseUrl = server.url(); trust.hosts = {"localhost"};
+    trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
+    const auto actual = sha256(server.payload);
+    const auto pin = failure == "hash" ? QString(64, '0') : actual;
+    Json step{{"do", "download"}, {"url", "https://github.com/artifact"},
+              {"sha256", pin.toStdString()}, {"bytes", server.payload.size()}};
+    auto guard = testGuard();
+    QString code;
+    if (failure == "hash") code = "E_HASH_MISMATCH";
+    if (failure == "size") { step["bytes"] = server.payload.size() + 1; code = "E_FORMAT"; }
+    if (failure == "cap") { step["max_bytes"] = server.payload.size() - 1; code = "E_ARTIFACT_TOO_LARGE"; }
+    if (failure == "type") { server.artifactType = "text/html"; code = "E_FORMAT"; }
+    if (failure == "magic") { step["kind"] = "exe"; code = "E_FORMAT"; }
+    if (failure == "content") { guard["sha256"].push_back(actual.toStdString()); code = "E_CONTENT_GUARD"; }
+    if (failure == "repeat416") { server.always416 = true; code = "E_NETWORK"; }
+    const auto final = temp.path() + "/user/cache/artifacts/" + pin;
+    const auto part = final + ".part";
+    atomicWrite(part, server.payload + (oversized ? QByteArray("stale bytes") : QByteArray()));
+    atomicWrite(part + ".validator", "test-v1");
+    ArtifactStore store(temp.path(), {}, trust);
+    if (code.isEmpty()) {
+      QCOMPARE(store.acquire(step, guard), final);
+      QCOMPARE(readBytes(final), server.payload);
+      QVERIFY(!QFileInfo(part).exists());
+      QVERIFY(!QFileInfo(part + ".validator").exists());
+    } else {
+      try { store.acquire(step, guard); QFAIL("Invalid restarted artifact accepted"); }
+      catch (const Error &e) { QCOMPARE(e.code, code); }
+      QVERIFY(!QFileInfo(final).exists());
+    }
+    QCOMPARE(server.requests.size(), 2);
+    QVERIFY(server.requests[0].toLower().contains("range: bytes="));
+    QVERIFY(server.requests[0].toLower().contains("if-range: test-v1"));
+    QVERIFY(!server.requests[1].toLower().contains("range:"));
+  }
+  void metadata416IsNotRetried() {
+    HttpsServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    server.release416 = true;
+    QTemporaryDir temp;
+    TestTrust trust;
+    trust.baseUrl = server.url(); trust.hosts = {"localhost"};
+    trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
+    ArtifactStore store(temp.path(), {}, trust);
+    try { store.githubRelease("synthetic/example", "v1"); QFAIL("Metadata 416 accepted"); }
+    catch (const Error &e) { QCOMPARE(e.code, QString("E_NETWORK")); }
+    QCOMPARE(server.requests.size(), 1);
+    QVERIFY(!server.requests[0].toLower().contains("range:"));
+  }
   void githubCrosscheckUnavailableUsesPin() {
     HttpsServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
     QTemporaryDir temp;
@@ -2274,6 +2351,74 @@ private slots:
     QCOMPARE(left.size(), 1);
     QVERIFY(left[0].startsWith("flat.previous-"));
     QCOMPARE(readBytes(parent + left[0] + "/example.exe"), QByteArray("synthetic binary v2"));
+  }
+  void lateCancellationPreservesPriorInstallation_data() {
+    QTest::addColumn<bool>("update");
+    QTest::addColumn<QString>("boundary");
+    for (const bool update : {false, true})
+      for (const auto &boundary : {QString("final-step"), QString("verification"),
+                                  QString("final-checkpoint"), QString("committed")})
+        QTest::newRow(qPrintable((update ? "update-" : "repair-") + boundary)) << update << boundary;
+  }
+  void lateCancellationPreservesPriorInstallation() {
+    QFETCH(bool, update);
+    QFETCH(QString, boundary);
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    Options normal; normal.survivalMs = 0;
+    QVERIFY(Engine(normal).install(r).success);
+    const auto live = temp.path() + "/installed/synthetic/flat";
+    atomicWrite(live + "/unowned.txt", "leave me alone");
+    const auto before = tree(live);
+    const auto stateBefore = readEnvelope(stateBase(r) + ".toml");
+    const auto manifestBefore = readEnvelope(stateBase(r) + ".manifest.toml");
+    if (update) bumpVersion(r, temp.path(), "v2");
+    else atomicWrite(temp.path() + "/games/synthetic/setup/example.exe", "repaired synthetic binary");
+    std::atomic_bool cancel = false;
+    bool requested = false, verifying = false;
+    auto options = normal; options.cancel = &cancel;
+    options.event = [&](const QVariantMap &e) {
+      if (e.value("kind") == "verify") {
+        verifying = true;
+        if (boundary == "verification") { requested = true; cancel = true; }
+      }
+      if (boundary == "final-step" && e.value("kind") == "ok" && e.value("step") == "settings") {
+        requested = true; cancel = true;
+      }
+    };
+    options.fault = [&](const QString &point) {
+      if ((boundary == "final-checkpoint" && verifying && point == "after-manifest") ||
+          (boundary == "committed" && point == "commit")) {
+        requested = true; cancel = true;
+      }
+    };
+    const auto result = Engine(options).install(r);
+    QVERIFY(requested);
+    const auto after = readEnvelope(stateBase(r) + ".toml");
+    if (boundary == "committed") {
+      QVERIFY2(result.success, qPrintable(result.message));
+      QCOMPARE(result.exitCode, 0);
+      QCOMPARE(string(after, "installed_version"), update ? QString("v2") : QString("v1"));
+      QCOMPARE(readBytes(live + "/example.exe"), update ? QByteArray("synthetic binary v2") : QByteArray("repaired synthetic binary"));
+      QVERIFY(Engine(normal).recover(r).success);
+      QVERIFY(readEnvelope(stateBase(r) + ".toml") == after);
+    } else {
+      QVERIFY(!result.success);
+      QCOMPARE(result.exitCode, 3);
+      QCOMPARE(result.code, QString("E_CANCELLED"));
+      QCOMPARE(tree(live), before);
+      QVERIFY(readEnvelope(stateBase(r) + ".manifest.toml") == manifestBefore);
+      // Rollback retains the prior durable state, adding only failure diagnostics.
+      QCOMPARE(string(after, "last_error"), QString("E_CANCELLED"));
+      QCOMPARE(string(after, "previous_state"), string(stateBefore, "state"));
+      auto prior = after;
+      prior.erase("last_error"); prior.erase("previous_state");
+      QVERIFY(prior == stateBefore);
+      QVERIFY(previousGenerations(temp.path()).isEmpty());
+      QVERIFY(QDir(temp.path() + "/installed/synthetic").entryList(
+          {"flat.staging-*"}, QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
+      QVERIFY(Engine(normal).recover(r).success);
+      QCOMPARE(tree(live), before);
+    }
   }
   void aRollbackThatCannotFinishReportsIncompleteAndRecoverRepeatsIt() {
     QTemporaryDir temp; auto r = fixture(temp.path());

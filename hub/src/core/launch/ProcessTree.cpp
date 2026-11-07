@@ -33,18 +33,19 @@ BOOL CALLBACK postClose(HWND window,LPARAM parameter){
     if(reinterpret_cast<WindowSearch *>(parameter)->pids.contains(qint64(pid))&&GetWindow(window,GW_OWNER)==nullptr)PostMessageW(window,WM_CLOSE,0,0);
     return TRUE;
 }
-qint64 msSinceEpoch(const FILETIME &time){
-    ULARGE_INTEGER value;value.LowPart=time.dwLowDateTime;value.HighPart=time.dwHighDateTime;
-    return qint64(value.QuadPart/10000ULL)-11644473600000LL;
 }
+ProcessTree::ProcessTree(std::function<bool(qint64)> adoptionGate):adoptionGate_(std::move(adoptionGate)){job_=CreateJobObjectW(nullptr,nullptr);endWithHub();}
+ProcessTree::~ProcessTree(){
+    if(!job_)return;
+    // Explicit teardown must preserve neverTouch members even when the last job
+    // handle closes. Crash cleanup remains enabled until this orderly teardown.
+    end();CloseHandle(job_);
 }
-ProcessTree::ProcessTree(){job_=CreateJobObjectW(nullptr,nullptr);endWithHub();}
-ProcessTree::~ProcessTree(){if(job_)CloseHandle(job_);}
 bool ProcessTree::adopt(qint64 pid){
     if(pid<=0)return false;
     bool held=false;
-    if(job_)if(const HANDLE process=OpenProcess(PROCESS_SET_QUOTA|PROCESS_TERMINATE,FALSE,DWORD(pid))){held=AssignProcessToJobObject(job_,process)!=0;CloseHandle(process);}
-    resumeThreads(DWORD(pid));
+    if(job_&&(!adoptionGate_||adoptionGate_(pid)))if(const HANDLE process=OpenProcess(PROCESS_SET_QUOTA|PROCESS_TERMINATE,FALSE,DWORD(pid))){held=AssignProcessToJobObject(job_,process)!=0;CloseHandle(process);}
+    if(held)resumeThreads(DWORD(pid));
     return held;
 }
 QList<qint64> ProcessTree::members()const{
@@ -55,38 +56,54 @@ QList<qint64> ProcessTree::members()const{
         for(DWORD i=0;i<list->NumberOfProcessIdsInList;++i)result<<qint64(list->ProcessIdList[i]);
     return result;
 }
-void ProcessTree::closeWindows()const{closeProcessWindows(members());}
+void ProcessTree::closeWindows()const{
+    QList<qint64> pids;QList<HANDLE> handles;
+    for(const auto pid:members()){
+        const HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,DWORD(pid));
+        if(!process)continue;
+        BOOL owned=FALSE;wchar_t path[32768];DWORD size=32768;
+        if(IsProcessInJob(process,job_,&owned)&&owned&&QueryFullProcessImageNameW(process,0,path,&size)){
+            ProcessInfo info;info.pid=pid;info.path=QString::fromWCharArray(path,int(size));info.name=QFileInfo(info.path).fileName();
+            if(!neverTouch(info)){pids<<pid;handles<<process;continue;}
+        }
+        CloseHandle(process);
+    }
+    // Retained handles prevent a PID from being reused while windows are enumerated.
+    closeProcessWindows(pids);for(const auto handle:handles)CloseHandle(handle);
+}
 void ProcessTree::end(){
     if(!job_)return;
-    // A game that started SteamVR itself has it in its tree: everything else ends, SteamVR never.
-    const auto pids=members();QList<qint64> spared;
-    for(const auto &p:listProcesses())if(pids.contains(p.pid)&&neverTouch(p))spared<<p.pid;
-    if(spared.isEmpty()){TerminateJobObject(job_,1);return;}
-    QList<qint64> rest;for(const auto pid:pids)if(!spared.contains(pid))rest<<pid;
-    endProcesses(rest);
+    QList<HANDLE> safe;bool selective=false;
+    for(const auto pid:members()){
+        const HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|PROCESS_TERMINATE,FALSE,DWORD(pid));
+        if(!process){selective=true;continue;}
+        BOOL owned=FALSE;wchar_t path[32768];DWORD size=32768;
+        if(IsProcessInJob(process,job_,&owned)&&owned&&QueryFullProcessImageNameW(process,0,path,&size)){
+            ProcessInfo info;info.pid=pid;info.path=QString::fromWCharArray(path,int(size));info.name=QFileInfo(info.path).fileName();
+            if(!neverTouch(info)){safe<<process;continue;}
+        }
+        // Unknown identities and protected members prohibit indiscriminate job
+        // termination. A failed identity check never authorizes a process kill.
+        selective=true;CloseHandle(process);
+    }
+    if(!selective){
+        // Preserve the atomic job boundary for ordinary games, including any
+        // descendants born after enumeration but before termination. Keep the
+        // kill-on-close fallback active through the final handle close as well.
+        TerminateJobObject(job_,1);
+    }else{
+        // Kill-on-close cannot express exclusions. Disable it only for jobs
+        // requiring selective cleanup, before any final job handle can close.
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+        SetInformationJobObject(job_,JobObjectExtendedLimitInformation,&limits,sizeof limits);
+        for(const auto process:safe)TerminateProcess(process,1);
+    }
+    for(const auto process:safe)CloseHandle(process);
 }
 void ProcessTree::endWithHub(){
     if(!job_)return;
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};limits.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     SetInformationJobObject(job_,JobObjectExtendedLimitInformation,&limits,sizeof limits);
-}
-QList<qint64> strayHelpers(const QStringList &programNames,qint64 sinceMs){
-    QList<qint64> result;if(programNames.isEmpty())return result;
-    const HANDLE snapshot=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
-    if(snapshot==INVALID_HANDLE_VALUE)return result;
-    PROCESSENTRY32W entry{};entry.dwSize=sizeof entry;
-    for(BOOL more=Process32FirstW(snapshot,&entry);more;more=Process32NextW(snapshot,&entry)){
-        const auto name=QString::fromWCharArray(entry.szExeFile);
-        bool wanted=false;for(const auto &program:programNames)wanted=wanted||name.compare(program,Qt::CaseInsensitive)==0;
-        if(!wanted)continue;
-        if(const HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,entry.th32ProcessID)){
-            FILETIME created,exited,kernel,user;
-            if(GetProcessTimes(process,&created,&exited,&kernel,&user)&&msSinceEpoch(created)>=sinceMs)result<<qint64(entry.th32ProcessID);
-            CloseHandle(process);
-        }
-    }
-    CloseHandle(snapshot);
-    return result;
 }
 void closeProcessWindows(const QList<qint64> &pids){if(pids.isEmpty())return;WindowSearch search{pids};EnumWindows(postClose,reinterpret_cast<LPARAM>(&search));}
 void endProcesses(const QList<qint64> &pids){
@@ -97,14 +114,13 @@ bool processAlive(qint64 pid){
     const bool alive=WaitForSingleObject(process,0)==WAIT_TIMEOUT;CloseHandle(process);return alive;
 }
 #else
-ProcessTree::ProcessTree()=default;
+ProcessTree::ProcessTree(std::function<bool(qint64)> adoptionGate):adoptionGate_(std::move(adoptionGate)){}
 ProcessTree::~ProcessTree()=default;
 bool ProcessTree::adopt(qint64){return false;}
 QList<qint64> ProcessTree::members()const{return {};}
 void ProcessTree::closeWindows()const{}
 void ProcessTree::end(){}
 void ProcessTree::endWithHub(){}
-QList<qint64> strayHelpers(const QStringList &,qint64){return {};}
 void closeProcessWindows(const QList<qint64> &){}
 void endProcesses(const QList<qint64> &){}
 bool processAlive(qint64 pid){return pid>0&&QFileInfo::exists("/proc/"+QString::number(pid));}

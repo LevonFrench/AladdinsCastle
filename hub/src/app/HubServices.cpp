@@ -847,7 +847,6 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);
         // Windows starts these for VPX outside its process tree; those started during the table end with it.
-        request.helperPrograms={"B2SBackglassServerEXE.exe","B2SBackglassServer.exe","dmdext.exe","PinUpDisplay.exe","DOF2DMD.exe"};
         retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;retainedPinballView_=view;
         request.pinSteamVrOpenXr=view=="headset"; // VPX's OpenXR build finds SteamVR's runtime, never another.
 #ifdef Q_OS_WIN

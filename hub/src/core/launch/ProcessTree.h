@@ -3,16 +3,17 @@
 #include <QList>
 #include <QStringList>
 #include <QtGlobal>
+#include <functional>
 namespace ac::launch {
 // Every process a launch started, children and grandchildren included, held in one
 // Windows job object so the Hub can close or end them together. Elsewhere it holds nothing.
 class ProcessTree {
 public:
-    ProcessTree();
+    explicit ProcessTree(std::function<bool(qint64)> adoptionGate = {});
     ~ProcessTree();
     ProcessTree(const ProcessTree &)=delete;ProcessTree &operator=(const ProcessTree &)=delete;
     // Puts a process the Hub started suspended into the job, then lets it run.
-    // It always lets it run, even when it could not be put in the job.
+    // Failure leaves it suspended; the caller must kill its exact QProcess.
     bool adopt(qint64 pid);
     QList<qint64> members()const;
     // Asks every window of the tree to close, the ordinary way.
@@ -24,10 +25,8 @@ public:
     void endWithHub();
 private:
     void *job_=nullptr;
+    std::function<bool(qint64)> adoptionGate_;
 };
-// Processes with one of these program names started after sinceMs (ms since the epoch):
-// helpers Windows starts on a game's behalf, outside its tree, such as a backglass server.
-QList<qint64> strayHelpers(const QStringList &programNames,qint64 sinceMs);
 void closeProcessWindows(const QList<qint64> &pids);
 void endProcesses(const QList<qint64> &pids);
 bool processAlive(qint64 pid);

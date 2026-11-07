@@ -23,10 +23,22 @@ BUILT_MODELS = LEGACY_BUILD_MODELS + REDESIGN_PLAN_MODELS
 # tools/hand_assembly.py reads from the GLB.
 EXTRA_ASSEMBLY_MODELS = ('arc-light-gun','funcon','con-pointer-remote')
 HAND_ASSEMBLY_MODELS = BUILT_MODELS + EXTRA_ASSEMBLY_MODELS
-# The redesigned specials are checked and assembled from source-plan adapters,
-# but their GLBs are built only by src-redesign/build_render.py. Keep the legacy
-# Blender batch away from those IDs so it cannot overwrite redesigned assets.
-BUILDABLE_MODELS = LEGACY_BUILD_MODELS
+# Plans remain available to checkers/assembly, but every former legacy-batch
+# output now has a shipped redesign, including generic-pistol (decision deferred).
+PROTECTED_MODELS = HAND_ASSEMBLY_MODELS
+BUILDABLE_MODELS = tuple(mid for mid in LEGACY_BUILD_MODELS if mid not in PROTECTED_MODELS)
+
+
+def guard_legacy_output(model_id, output, preview_dir=None):
+    """Allow isolated legacy candidates, never replace a shipped redesign/proof."""
+    gun_root = ROOT / 'assets/guns'
+    protected_outputs = {(gun_root / (mid + '.glb')).resolve() for mid in PROTECTED_MODELS}
+    canonical_preview = (gun_root / 'preview').resolve()
+    if (Path(output).resolve() in protected_outputs or
+            (model_id in PROTECTED_MODELS and preview_dir is not None and
+             Path(preview_dir).resolve() == canonical_preview)):
+        raise ValueError('legacy export cannot overwrite shipped redesign: ' + model_id +
+                         '; use an isolated candidate output and preview directory')
 # Colour contract: body and accent base factors are 1.0 so the TOML tint is the
 # colour every renderer shows; dark and glass are fixed.
 MATERIAL_RGBA = {'body':(1,1,1,1), 'accent':(1,1,1,1),
@@ -292,17 +304,18 @@ def geometry(part, lod):
 
 
 def blender_run(model_id, parameters, spec=None, meta=None):
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--preview-dir',type=Path)
+    parser.add_argument('--samples',type=int,default=64)
+    args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
+    guard_legacy_output(model_id,args.out,args.preview_dir)
     import bpy
     import bmesh
     from mathutils import Vector
     from bpy_extras.object_utils import world_to_camera_view
     if bpy.app.version[:2] != (5,2):
         raise RuntimeError('This approved batch requires installed Blender 5.2')
-    parser=argparse.ArgumentParser()
-    parser.add_argument('--out',type=Path,required=True)
-    parser.add_argument('--preview-dir',type=Path)
-    parser.add_argument('--samples',type=int,default=64)
-    args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
     if not bpy.app.background or args.samples!=64:
         raise RuntimeError('Approved art pass requires headless Blender and 64 samples')
     scene=bpy.context.scene

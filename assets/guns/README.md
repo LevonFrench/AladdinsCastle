@@ -97,7 +97,7 @@ faces, budgets kept. `tools/check_gun_assets.py` reports 0 errors. Node names, a
 conventions above, so hosts load them unchanged.
 
 - `src/` still provides each model's plan and metadata (nodes, motion, buttons) used by the tools and tests.
-  Running `build.py` would rebuild the old designs over these nine: build them with `src-redesign/` instead.
+  The legacy batch now rejects these IDs before launching Blender; use the redesign builder for isolated candidates.
 - `assets/hands/assembly.json` label bind positions come from `src/` plans and still describe the old
   `mnt-mg-heavy`; hosts do not read them (hands attach by node name: `grip`, `grip_two`).
 - The previews in `preview/` for these nine still show the old designs; the review renders and measurements are
@@ -115,15 +115,23 @@ targets Blender 5.2, with factory startup, no add-ons,
 sequential processes, four CPU threads and Cycles explicitly set to CPU.
 The approval flag records an existing approval; it does not grant one.
 
-```powershell
-python assets/guns/build.py --blender '<path-to-existing-blender-executable>' --owner-approved-cpu-batch
-```
+The legacy batch is disabled: all its former
+outputs are shipped redesigns. Default and explicit model selections fail before
+launching Blender. This includes `generic-pistol`; its design decision remains
+deferred. Plan, checker and assembly model sets remain available.
+
+Use the redesign candidate builder's documented isolated output-root workflow
+above; this guard adds no
+promotion or design-selection step.
 
 Or, after approval, build an individual script with `--background`,
 `--factory-startup`, `--python-exit-code 1`, `--threads 4`, `--python <script>`,
 then `-- --out <absolute-output.glb> --preview-dir <absolute-preview-directory>`.
 Use `--samples 64` (default and required for this art pass).
-`build.py --model <id>` selects a subset.
+Direct legacy scripts may still export isolated candidates, but reject shipped
+redesign GLB destinations and the canonical preview directory before importing
+Blender or writing output. Use absolute candidate paths outside the shipped
+model and preview directories.
 No application installation, downloads, GPU renderer, editor/MCP, or game files
 are involved. The builder exports the neutral model before multiplying its
 linear body/accent base factors (1.0 since the 2026-10-25 colour contract) by the p1 palette tint for previews, matching

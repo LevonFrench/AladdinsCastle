@@ -64,6 +64,26 @@ int main(int argc,char **argv){
         QTimer::singleShot(60000,&child,&QCoreApplication::quit);return child.exec();
     }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    // Keeps creating owned descendants while the test ends its job. Every
+    // child has a bounded lifetime; no real application or user process is used.
+    if(argc==3&&QByteArray(argv[1])=="--spawn-while-active"){
+        QCoreApplication app(argc,argv);const auto folder=QString::fromLocal8Bit(argv[2]);
+        int sequence=0;QTimer spawn;
+        QObject::connect(&spawn,&QTimer::timeout,&app,[&]{
+            if(sequence==16){spawn.stop();return;}
+            const auto ready=folder+"/spawn-"+QString::number(++sequence)+".ready";
+            QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--lifetime",ready,folder+"/release"});
+        });spawn.start(0);
+        QTimer::singleShot(60000,&app,&QCoreApplication::quit);return app.exec();
+    }
+    // Exact-process lifetime fixture: entry is observable, and only its release
+    // file ends it normally. A bounded failsafe prevents a failed test orphan.
+    if(argc==4&&QByteArray(argv[1])=="--lifetime"){
+        QCoreApplication app(argc,argv);const auto ready=QString::fromLocal8Bit(argv[2]),release=QString::fromLocal8Bit(argv[3]);
+        {QFile file(ready);if(!file.open(QIODevice::WriteOnly))return 3;file.write(QByteArray::number(QCoreApplication::applicationPid()));}
+        QTimer poll;QObject::connect(&poll,&QTimer::timeout,&app,[&]{if(QFileInfo::exists(release))app.quit();});poll.start(25);
+        QTimer::singleShot(60000,&app,&QCoreApplication::quit);return app.exec();
+    }
     // PS2 stand-in for the Python running the launcher: it waits for the stop file, then ends normally.
     if(argc==3&&QByteArray(argv[1]).endsWith("launch_ps2.py")){
         QCoreApplication child(argc,argv);const auto stop=qEnvironmentVariable("AC_SYNTHETIC_PS2_STOP");QTimer poll;

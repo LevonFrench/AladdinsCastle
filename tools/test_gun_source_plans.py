@@ -4,9 +4,14 @@ from pathlib import Path
 import runpy
 import sys
 import unittest
+from unittest.mock import patch
+import contextlib
+import io
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
+import common
 from common import (TIERS, BUILT_MODELS, BUILDABLE_MODELS, LEGACY_BUILD_MODELS,
                     REDESIGN_PLAN_MODELS, MATERIAL_RGBA, metadata, plan,
                     preview_material_rgba, geometry, runtime_preview_rgba,
@@ -185,17 +190,56 @@ class SourcePlanTests(unittest.TestCase):
             self.assertAlmostEqual(nodes['limit_recoil']['at'][2]-nodes['slide_recoil']['at'][2],.015,places=8)
 
     def test_redesign_plans_are_excluded_from_legacy_blender_dispatch(self):
-        self.assertEqual(BUILDABLE_MODELS,LEGACY_BUILD_MODELS)
         self.assertEqual(BUILT_MODELS,LEGACY_BUILD_MODELS+REDESIGN_PLAN_MODELS)
-        self.assertTrue(set(REDESIGN_PLAN_MODELS).isdisjoint(BUILDABLE_MODELS))
+        self.assertEqual(BUILDABLE_MODELS,())
+        self.assertTrue(set(BUILT_MODELS).issubset(common.PROTECTED_MODELS))
+        self.assertIn('con-pointer-remote',common.PROTECTED_MODELS)
         build=runpy.run_path(str(ROOT/'assets/guns/build.py'))
-        self.assertEqual(build['BUILDABLE_MODELS'],BUILDABLE_MODELS)
-        self.assertEqual(build['select_models'](),list(BUILDABLE_MODELS))
-        self.assertEqual(build['select_models'](['generic-pistol']),['generic-pistol'])
-        for mid in REDESIGN_PLAN_MODELS:
+        with self.assertRaisesRegex(ValueError,'legacy batch disabled'):
+            build['select_models']()
+        for mid in common.PROTECTED_MODELS:
             with self.subTest(model=mid):
                 with self.assertRaisesRegex(ValueError,'not built by the legacy batch'):
                     build['select_models']([mid])
+
+    def test_default_and_explicit_batch_fail_before_subprocess_or_overwrite(self):
+        build=runpy.run_path(str(ROOT/'assets/guns/build.py'))
+        with TemporaryDirectory() as temp:
+            output=Path(temp)/'generic-pistol.glb'
+            output.write_bytes(b'shipped redesign sentinel')
+            for selection in ([],*[['--model',mid] for mid in common.PROTECTED_MODELS]):
+                with self.subTest(selection=selection), patch.object(sys,'argv',[
+                        'build.py','--blender',str(output),'--owner-approved-cpu-batch',*selection]), \
+                        patch('subprocess.run') as run, patch('subprocess.call') as call, \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as caught:
+                        build['main']()
+                    self.assertEqual(caught.exception.code,2)
+                    run.assert_not_called();call.assert_not_called()
+                    self.assertEqual(output.read_bytes(),b'shipped redesign sentinel')
+
+    def test_direct_legacy_scripts_guard_shipped_outputs_before_blender_import(self):
+        with TemporaryDirectory() as temp, patch.object(common,'ROOT',Path(temp)):
+            gun_root=Path(temp)/'assets/guns';gun_root.mkdir(parents=True)
+            for mid in LEGACY_BUILD_MODELS+('funcon','con-pointer-remote'):
+                output=gun_root/(mid+'.glb');output.write_bytes(b'shipped redesign sentinel')
+                with self.subTest(model=mid), patch.object(sys,'argv',[
+                        mid+'.py','--','--out',str(output)]), \
+                        patch.dict(sys.modules,{'bpy':None}):
+                    with self.assertRaisesRegex(ValueError,'cannot overwrite shipped redesign'):
+                        runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')),run_name='__main__')
+                    self.assertEqual(output.read_bytes(),b'shipped redesign sentinel')
+
+    def test_legacy_candidate_guard_protects_previews_and_other_model_outputs(self):
+        with TemporaryDirectory() as temp, patch.object(common,'ROOT',Path(temp)):
+            gun_root=Path(temp)/'assets/guns'
+            for mid in common.PROTECTED_MODELS:
+                with self.subTest(model=mid):
+                    with self.assertRaisesRegex(ValueError,'cannot overwrite shipped redesign'):
+                        common.guard_legacy_output(mid,Path(temp)/'candidate.glb',gun_root/'preview')
+                    with self.assertRaisesRegex(ValueError,'cannot overwrite shipped redesign'):
+                        common.guard_legacy_output(mid,gun_root/'generic-pistol.glb')
+                    common.guard_legacy_output(mid,Path(temp)/'candidate.glb',Path(temp)/'preview')
 
     def test_mounted_grip_is_at_rear_handle(self):
         path = ROOT/'assets/guns/src/mnt-mg-heavy.py'
