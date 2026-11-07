@@ -8,7 +8,7 @@ slide split off). Its asset and previews are CC BY 4.0, not CC0; credit and chan
 with `python tools/check_gun_assets.py --model arc-light-gun`. Its preview set also has
 `arc-light-gun-recoil.png` and `arc-light-gun-front-recoil.png` (slide fully back).
 
-The owner-promoted `con-remote-shell` and companion `con-stick-grip` are built
+The owner-promoted `con-remote-shell` and companion `con-stick-grip` were originally built
 alongside the seven original tier 1 guns. Their authored scripts contain no
 imported/traced shapes or maker labels. The shell is held at its trigger grip;
 `grip_two` is its rear docking anchor. The separate controller is an
@@ -23,11 +23,23 @@ the split/docked/two-remotes and handedness policy in
 `data/controls/wii/shell-and-stick.toml`; physical drawing/docking is separate
 from these CPU previews. Native dual-player aim is unsupported by the pin.
 
-After owner approval, `Build-ShellStick.ps1 -OwnerApprovedCpuBuild -Blender <existing-executable>` rebuilds the
-two models and their sheet with Windows PowerShell 5.1, factory startup and CPU
-only. `-CheckOnly` invokes no Blender. Both script paths were actually exercised
-in Windows PowerShell 5.1. The original seven-model sheets are retained.
-Omit `-Blender` only when the existing executable is available on PATH.
+To check the existing shell/stick assets and generated Wii control profiles in
+Windows PowerShell 5.1, use:
+
+```powershell
+& '<absolute-repository-path>/assets/guns/Build-ShellStick.ps1' -CheckOnly
+```
+
+`-CheckOnly` requires neither Blender nor the build-approval flag and does not
+rebuild assets or previews. The wrapper's legacy build mode no longer rebuilds
+the two shipped models or their sheet: protected-model selection fails before
+Blender is launched. Supplying `-OwnerApprovedCpuBuild` and a valid path to Blender
+does not bypass that guard.
+
+For isolated shell/stick candidates, use the redesign workflow below with
+`--model con-remote-shell` or `--model con-stick-grip` and a separate
+`--output-root`. Blender use still requires owner approval. Generating a candidate
+does not promote it; the gun design/version decision remains deferred.
 
 Seven tier 1 source designs have independently authored closed side outlines
 (25–50 points in millimetres), symmetric extrusion and rounded edges. Shared
