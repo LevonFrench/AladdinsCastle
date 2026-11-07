@@ -226,6 +226,10 @@ Json ArtifactStore::request(const QString &input, const QString &method,
       atomicWrite(backoffPath, QByteArray::fromStdString(backoff.dump()));
       return result;
     }
+    // Only a resumed artifact transfer may hand 416 back to acquire() for a
+    // single clean restart. Metadata requests and fresh downloads still fail.
+    if (status == 416 && !destination.isEmpty() && offset > 0)
+      return result;
     if (status == 404)
       throw Error("E_RELEASE_NOT_FOUND", "Pinned release not found");
     if (error != QNetworkReply::NoError)
@@ -381,8 +385,16 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
   const auto validator = QFileInfo::exists(part + ".validator")
                              ? readBytes(part + ".validator")
                              : QByteArray();
-  const auto response = request(url, "GET", part, validator,
-                                validator.isEmpty() ? 0 : offset, cap);
+  auto response = request(url, "GET", part, validator,
+                          validator.isEmpty() ? 0 : offset, cap);
+  if (response.value("status", 0) == 416) {
+    // A complete or oversized retained part cannot satisfy another Range.
+    // Discard it rather than promoting bytes that have not passed every guard.
+    for (const auto &path : {part, part + ".validator"})
+      if (QFileInfo::exists(path) && !QFile::remove(path))
+        throw Error("E_WRITE_DENIED", "Cannot reset retained artifact download");
+    response = request(url, "GET", part, {}, 0, cap);
+  }
   if (response.value("status", 0) == 403 || response.value("status", 0) == 429)
     throw Error("E_RATE_LIMITED", "Artifact host rate limited");
   if (string(response, "type").contains("text/html"))

@@ -13,6 +13,9 @@ from common import BUILDABLE_MODELS
 def select_models(requested=None):
     """Keep the legacy batch away from redesigned source-plan adapters."""
     if not requested:
+        if not BUILDABLE_MODELS:
+            raise ValueError('legacy batch disabled: all former outputs are shipped redesigns; '
+                             'use the redesign builder with an isolated candidate directory')
         return list(BUILDABLE_MODELS)
     unknown=set(requested)-set(BUILDABLE_MODELS)
     if unknown:
@@ -24,12 +27,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--blender', type=Path, required=True)
     parser.add_argument('--owner-approved-cpu-batch', action='store_true', required=True)
-    parser.add_argument('--model', action='append', choices=BUILDABLE_MODELS)
+    parser.add_argument('--model', action='append')
     parser.add_argument('--samples', type=int, default=64)
     args = parser.parse_args()
+    try:
+        models = select_models(args.model)
+    except ValueError as exc:
+        parser.error(str(exc))
     if not args.blender.is_file():
         parser.error('Use the absolute path to an existing Blender executable; this tool never installs it')
-    models = select_models(args.model)
     for model in models:
         subprocess.run([str(args.blender.resolve()), '--background', '--factory-startup',
                         '--python-exit-code','1','--threads','4','--python',str(HERE/'src'/(model+'.py')),

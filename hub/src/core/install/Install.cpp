@@ -699,7 +699,12 @@ public:
   void copy(const QString &source, const QString &destination, const QString &origin, const QString &step) {
     write(destination, {}, origin, step, Json::array(), {}, source);
   }
-  void commit(const QString &state, const QString &version) {
+  void checkCancelled() const {
+    if (options.cancel && options.cancel->load())
+      throw Error("E_CANCELLED", "Cancelled before transaction commit");
+  }
+  void commit(const QString &state, const QString &version,
+              bool honorCancellation = false) {
     checkpoint();
     Json final{{"game", r.gameId.toStdString()},
                {"variant", r.variantId.toStdString()},
@@ -711,6 +716,11 @@ public:
                {"bindings", r.bindings}};
     if (!previousGeneration.isEmpty())
       final["previous_generation"] = previousGeneration.toStdString();
+    // The durable commit record is terminal for recovery. Honor cancellation
+    // up to this boundary, including requests during the final checkpoint;
+    // never reinterpret cancellation after this append as a rollback request.
+    if (honorCancellation)
+      checkCancelled();
     append(Json{{"kind", "commit"}, {"state", final}, {"manifest", manifest}});
     fault(options, "commit");
     fault(options, "before-state");
@@ -1469,7 +1479,9 @@ Result Engine::install(const Request &r) {
       event(tx->options, tx->run, "ok", "Step complete", {}, id, index,
             static_cast<int>(p.steps.size()));
       tx->activeStep.clear();
+      tx->checkCancelled();
     }
+    tx->checkCancelled();
     for (const auto &row : tx->baseline.value("file", Json::array())) {
       bool present = false;
       for (const auto &current : tx->manifest["file"])
@@ -1492,10 +1504,12 @@ Result Engine::install(const Request &r) {
     }
     tx->checkpoint();
     event(tx->options, tx->run, "verify", "Checking installed files");
+    tx->checkCancelled();
     verify(*tx, p);
     QThread::msleep(
         static_cast<unsigned long>(std::max(0, options_.survivalMs)));
     verify(*tx, p);
+    tx->checkCancelled();
     if (update) {
       const auto previous = live + ".previous-" + tx->run;
       tx->rename(live, previous);
@@ -1516,7 +1530,7 @@ Result Engine::install(const Request &r) {
                            ? QString("installed-with-skipped")
                        : tx->warning ? QString("installed-with-warnings")
                                      : QString("installed");
-    tx->commit(state, p.version);
+    tx->commit(state, p.version, true);
     cleanStaging(r, tx->run);
     cleanMediaRemovals(r, tx->run, options_);
     pruneOldGenerations(r, live, tx->previousGeneration, tx->options, tx->run);

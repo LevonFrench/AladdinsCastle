@@ -8,7 +8,7 @@ slide split off). Its asset and previews are CC BY 4.0, not CC0; credit and chan
 with `python tools/check_gun_assets.py --model arc-light-gun`. Its preview set also has
 `arc-light-gun-recoil.png` and `arc-light-gun-front-recoil.png` (slide fully back).
 
-The owner-promoted `con-remote-shell` and companion `con-stick-grip` are built
+The owner-promoted `con-remote-shell` and companion `con-stick-grip` were originally built
 alongside the seven original tier 1 guns. Their authored scripts contain no
 imported/traced shapes or maker labels. The shell is held at its trigger grip;
 `grip_two` is its rear docking anchor. The separate controller is an
@@ -23,11 +23,23 @@ the split/docked/two-remotes and handedness policy in
 `data/controls/wii/shell-and-stick.toml`; physical drawing/docking is separate
 from these CPU previews. Native dual-player aim is unsupported by the pin.
 
-After owner approval, `Build-ShellStick.ps1 -OwnerApprovedCpuBuild -Blender <existing-executable>` rebuilds the
-two models and their sheet with Windows PowerShell 5.1, factory startup and CPU
-only. `-CheckOnly` invokes no Blender. Both script paths were actually exercised
-in Windows PowerShell 5.1. The original seven-model sheets are retained.
-Omit `-Blender` only when the existing executable is available on PATH.
+To check the existing shell/stick assets and generated Wii control profiles in
+Windows PowerShell 5.1, use:
+
+```powershell
+& '<absolute-repository-path>/assets/guns/Build-ShellStick.ps1' -CheckOnly
+```
+
+`-CheckOnly` requires neither Blender nor the build-approval flag and does not
+rebuild assets or previews. The wrapper's legacy build mode no longer rebuilds
+the two shipped models or their sheet: protected-model selection fails before
+Blender is launched. Supplying `-OwnerApprovedCpuBuild` and a valid path to Blender
+does not bypass that guard.
+
+For isolated shell/stick candidates, use the redesign workflow below with
+`--model con-remote-shell` or `--model con-stick-grip` and a separate
+`--output-root`. Blender use still requires owner approval. Generating a candidate
+does not promote it; the gun design/version decision remains deferred.
 
 Seven tier 1 source designs have independently authored closed side outlines
 (25–50 points in millimetres), symmetric extrusion and rounded edges. Shared
@@ -97,7 +109,7 @@ faces, budgets kept. `tools/check_gun_assets.py` reports 0 errors. Node names, a
 conventions above, so hosts load them unchanged.
 
 - `src/` still provides each model's plan and metadata (nodes, motion, buttons) used by the tools and tests.
-  Running `build.py` would rebuild the old designs over these nine: build them with `src-redesign/` instead.
+  The legacy batch now rejects these IDs before launching Blender; use the redesign builder for isolated candidates.
 - `assets/hands/assembly.json` label bind positions come from `src/` plans and still describe the old
   `mnt-mg-heavy`; hosts do not read them (hands attach by node name: `grip`, `grip_two`).
 - The previews in `preview/` for these nine still show the old designs; the review renders and measurements are
@@ -115,15 +127,23 @@ targets Blender 5.2, with factory startup, no add-ons,
 sequential processes, four CPU threads and Cycles explicitly set to CPU.
 The approval flag records an existing approval; it does not grant one.
 
-```powershell
-python assets/guns/build.py --blender '<path-to-existing-blender-executable>' --owner-approved-cpu-batch
-```
+The legacy batch is disabled: all its former
+outputs are shipped redesigns. Default and explicit model selections fail before
+launching Blender. This includes `generic-pistol`; its design decision remains
+deferred. Plan, checker and assembly model sets remain available.
+
+Use the redesign candidate builder's documented isolated output-root workflow
+above; this guard adds no
+promotion or design-selection step.
 
 Or, after approval, build an individual script with `--background`,
 `--factory-startup`, `--python-exit-code 1`, `--threads 4`, `--python <script>`,
 then `-- --out <absolute-output.glb> --preview-dir <absolute-preview-directory>`.
 Use `--samples 64` (default and required for this art pass).
-`build.py --model <id>` selects a subset.
+Direct legacy scripts may still export isolated candidates, but reject shipped
+redesign GLB destinations and the canonical preview directory before importing
+Blender or writing output. Use absolute candidate paths outside the shipped
+model and preview directories.
 No application installation, downloads, GPU renderer, editor/MCP, or game files
 are involved. The builder exports the neutral model before multiplying its
 linear body/accent base factors (1.0 since the 2026-10-25 colour contract) by the p1 palette tint for previews, matching

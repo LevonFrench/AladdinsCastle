@@ -76,6 +76,13 @@ const steam::Node *find(const steam::Node &n, const QByteArray &key) {
 class LaunchSteamTest : public QObject {
   Q_OBJECT
 private slots:
+  void replacementCompanionSurvivesOldDeadline();
+  void matchingUnownedHelperSurvivesCleanup_data();
+  void matchingUnownedHelperSurvivesCleanup();
+  void failedJobAdoptionNeverExecutes_data();
+  void failedJobAdoptionNeverExecutes();
+  void protectedJobMemberSurvivesTreeDestruction();
+  void spawningDescendantsEndAtomically();
   void steamCopiesShareTargetLock_data();
   void steamCopiesShareTargetLock();
   void managedToolUsersExcludeMutation();
@@ -1355,6 +1362,128 @@ void LaunchSteamTest::childLaunchAndLogs() {
   QCOMPARE(launch::lastLines(log).split('\n').size(), 40);
   if (exitCode)
     QVERIFY(done[0][2].toString().contains("line 49"));
+}
+void LaunchSteamTest::replacementCompanionSurvivesOldDeadline() {
+  QTemporaryDir temp;QVERIFY(temp.isValid());
+  launch::Request request;request.root=temp.path();request.gameId="deadline-first";request.variantId="flat-test";
+  request.prepareProfile=false;request.plan.executable=QStringLiteral(AC_STAND_IN);request.plan.cwd=temp.path();
+  request.companion.executable=QStringLiteral(AC_STAND_IN);request.companion.cwd=temp.path();
+  const auto configure=[&](const QString &suffix){
+    request.plan.args={"--lifetime",temp.filePath("main-"+suffix+".ready"),temp.filePath("main-"+suffix+".release")};
+    request.companion.args={"--lifetime",temp.filePath("helper-"+suffix+".ready"),temp.filePath("helper-"+suffix+".release")};
+  };
+  configure("a");launch::LaunchService service;QSignalSpy done(&service,&launch::LaunchService::finished);
+  const auto cleanup=qScopeGuard([&]{service.endEverything();});
+  QVERIFY(service.start(request));
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("helper-a.ready")),5000);
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("main-a.ready")),5000);
+  write(temp.filePath("main-a.release"),"release");
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,5000);
+  write(temp.filePath("helper-a.release"),"release");
+  QTRY_VERIFY_WITH_TIMEOUT(!service.busy(),1500);
+  request.gameId="deadline-replacement";configure("b");QVERIFY(service.start(request));
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("helper-b.ready")),5000);
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("main-b.ready")),5000);
+  const auto helper=service.companionProcessId(),main=service.processId();
+  QTest::qWait(4300); // Cross both old cleanup deadlines with the replacement assembled.
+  QCOMPARE(done.size(),1);QVERIFY(service.childRunning());QVERIFY(service.companionRunning());
+  QCOMPARE(service.companionProcessId(),helper);QCOMPARE(service.processId(),main);
+  write(temp.filePath("main-b.release"),"release");write(temp.filePath("helper-b.release"),"release");
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,5000);
+}
+void LaunchSteamTest::matchingUnownedHelperSurvivesCleanup_data(){
+  QTest::addColumn<bool>("force");QTest::newRow("normal-retirement")<<false;QTest::newRow("end-everything")<<true;
+}
+void LaunchSteamTest::matchingUnownedHelperSurvivesCleanup(){
+#ifndef Q_OS_WIN
+  QSKIP("Windows job membership and legacy helper-name cleanup.");
+#else
+  QFETCH(bool,force);QTemporaryDir temp;QVERIFY(temp.isValid());
+  const auto program=temp.filePath("dmdext.exe");QVERIFY(QFile::copy(QStringLiteral(AC_STAND_IN),program));
+  launch::Request request;request.root=temp.path();request.gameId="owned-tree";request.variantId="flat-test";request.prepareProfile=false;
+  request.plan.executable=program;request.plan.cwd=temp.path();request.plan.args={"--spawn-tree",temp.path(),"root",force?"stay":"leave"};
+  request.helperPrograms={"dmdext.exe"};launch::LaunchService service;QProcess unrelated;
+  QSignalSpy done(&service,&launch::LaunchService::finished);
+  const auto cleanup=qScopeGuard([&]{service.endEverything();if(unrelated.state()!=QProcess::NotRunning){unrelated.kill();unrelated.waitForFinished(3000);}});
+  QVERIFY(service.start(request));
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("grandchild.pid")),5000);
+  QList<qint64> owned;for(const auto &name:QStringList{"root","child1","child2","grandchild"}){
+    QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath(name+".pid")),5000);
+    owned<<install::readBytes(temp.filePath(name+".pid")).toLongLong();
+  }
+  unrelated.start(program,{"--lifetime",temp.filePath("unrelated.ready"),temp.filePath("unrelated.release")});
+  QVERIFY(unrelated.waitForStarted(5000));QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("unrelated.ready")),5000);
+  if(force)service.endEverything();
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,7000);
+  QTRY_VERIFY_WITH_TIMEOUT(([&]{for(const auto pid:owned)if(launch::processAlive(pid))return false;return true;})(),7000);
+  QTest::qWait(3300); // Also cross the old delayed stray kill.
+  QCOMPARE(unrelated.state(),QProcess::Running);
+  write(temp.filePath("unrelated.release"),"release");QVERIFY(unrelated.waitForFinished(5000));
+#endif
+}
+void LaunchSteamTest::failedJobAdoptionNeverExecutes_data(){
+  QTest::addColumn<int>("failAt");QTest::newRow("main")<<1;QTest::newRow("companion")<<0;QTest::newRow("main-after-companion")<<2;
+}
+void LaunchSteamTest::failedJobAdoptionNeverExecutes(){
+#ifndef Q_OS_WIN
+  QSKIP("Only Windows starts children suspended for job adoption.");
+#else
+  QFETCH(int,failAt);QTemporaryDir temp;QVERIFY(temp.isValid());
+  launch::Request request;request.root=temp.path();request.gameId="adoption-failure";request.variantId="flat-test";request.prepareProfile=false;
+  request.plan.executable=QStringLiteral(AC_STAND_IN);request.plan.cwd=temp.path();
+  request.plan.args={"--lifetime",temp.filePath("main.executed"),temp.filePath("main.release")};
+  if(failAt!=1){request.companion=request.plan;request.companion.args={"--lifetime",temp.filePath("helper.executed"),temp.filePath("helper.release")};}
+  launch::LaunchService service;QList<qint64> attempts;QList<HANDLE> handles;
+  const auto cleanup=qScopeGuard([&]{service.endEverything();for(const auto handle:handles)CloseHandle(handle);});
+  service.setProcessAdoptionGate([&](qint64 pid){
+    attempts<<pid;handles<<OpenProcess(SYNCHRONIZE,FALSE,DWORD(pid));
+    return attempts.size()!=(failAt==0?1:failAt);
+  });
+  QSignalSpy done(&service,&launch::LaunchService::finished),started(&service,&launch::LaunchService::started);
+  QVERIFY(service.start(request));QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,5000);
+  QVERIFY(done[0][1].toInt()!=0);QVERIFY(done[0][2].toString().contains("safely adopt"));QCOMPARE(started.size(),0);
+  QVERIFY(!QFileInfo::exists(temp.filePath("main.executed")));
+  if(failAt==0)QVERIFY(!QFileInfo::exists(temp.filePath("helper.executed")));
+  QCOMPARE(attempts.size(),failAt==2?2:1);
+  for(const auto handle:handles){QVERIFY(handle);QTRY_COMPARE_WITH_TIMEOUT(WaitForSingleObject(handle,0),DWORD(WAIT_OBJECT_0),5000);}
+  QVERIFY(!service.busy());
+#endif
+}
+void LaunchSteamTest::spawningDescendantsEndAtomically(){
+#ifndef Q_OS_WIN
+  QSKIP("Windows job-wide termination while descendants are being created.");
+#else
+  // Repeat a bounded concurrent-spawn scenario; job membership catches even
+  // descendants whose creator is killed before it can write their PID receipt.
+  for(int round=0;round<3;++round){
+    QTemporaryDir temp;QVERIFY(temp.isValid());launch::ProcessTree tree;QProcess spawner;
+    const auto cleanup=qScopeGuard([&]{tree.end();write(temp.filePath("release"),"release");if(spawner.state()!=QProcess::NotRunning){spawner.kill();spawner.waitForFinished(3000);}});
+    spawner.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args){args->flags|=CREATE_SUSPENDED;});
+    spawner.start(QStringLiteral(AC_STAND_IN),{"--spawn-while-active",temp.path()});
+    QVERIFY(spawner.waitForStarted(5000));QVERIFY(tree.adopt(spawner.processId()));
+    QTRY_VERIFY_WITH_TIMEOUT(QDir(temp.path()).entryList({"spawn-*.ready"},QDir::Files).size()>=2,5000);
+    tree.end();
+    QTRY_VERIFY_WITH_TIMEOUT(tree.members().isEmpty(),5000);
+    QTest::qWait(200);QVERIFY(tree.members().isEmpty());
+    QTRY_COMPARE_WITH_TIMEOUT(spawner.state(),QProcess::NotRunning,5000);
+  }
+#endif
+}
+void LaunchSteamTest::protectedJobMemberSurvivesTreeDestruction(){
+#ifndef Q_OS_WIN
+  QSKIP("Windows job close behavior and SteamVR exclusions.");
+#else
+  QTemporaryDir temp;QVERIFY(temp.isValid());const auto program=temp.filePath("vrserver.exe");
+  QVERIFY(QFile::copy(QStringLiteral(AC_STAND_IN),program));QProcess protectedProcess;
+  protectedProcess.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args){args->flags|=CREATE_SUSPENDED;});
+  const auto cleanup=qScopeGuard([&]{if(protectedProcess.state()!=QProcess::NotRunning){protectedProcess.kill();protectedProcess.waitForFinished(3000);}});
+  protectedProcess.start(program,{"--lifetime",temp.filePath("protected.ready"),temp.filePath("protected.release")});
+  QVERIFY(protectedProcess.waitForStarted(5000));
+  {launch::ProcessTree tree;QVERIFY(tree.adopt(protectedProcess.processId()));
+    QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(temp.filePath("protected.ready")),5000);tree.end();}
+  QTest::qWait(300);QCOMPARE(protectedProcess.state(),QProcess::Running);
+  write(temp.filePath("protected.release"),"release");QVERIFY(protectedProcess.waitForFinished(5000));
+#endif
 }
 void LaunchSteamTest::boundedLogsAndConcurrentLastPlayed() {
   QTemporaryDir temp; QVERIFY(temp.isValid());

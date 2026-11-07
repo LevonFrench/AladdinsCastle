@@ -36,8 +36,8 @@ struct Request {
   RuntimeInputs runtimeInputs;
   bool prepareProfile = true, materializeAliases = false;
   QMap<QString,QString> discIdentities;
-  // Helper programs Windows may start for the game outside its process tree (a
-  // backglass server, for one): those started during the session end with it.
+  // Legacy request metadata only. Names and launch times never establish ownership;
+  // automatic cleanup is restricted to the session job and exact QProcess objects.
   QStringList helperPrograms;
   // A game started for the headset: its OpenXR runtime is pinned to SteamVR's (XR_RUNTIME_JSON), so it
   // never lands on another runtime the PC has set as its default.
@@ -81,6 +81,8 @@ public:
   setRuntimeStateSource(std::function<RuntimeState(const QString &)> source);
   // Whether SteamVR is running; the tests give a stand-in. The launch service only ever checks it:
   // starting SteamVR is the Hub's Play in headset alone.
+  // Optional admission veto for controlled failure tests; never bypasses real job adoption.
+  void setProcessAdoptionGate(std::function<bool(qint64)> gate) { adoptionGate_ = std::move(gate); }
   void setVrServerProbe(std::function<bool()> probe) { vrServerProbe_ = std::move(probe); }
 signals:
   void playingChanged();
@@ -110,16 +112,16 @@ private:
   std::unique_ptr<QLockFile> lock_;
   std::function<RuntimeState(const QString &)> runtimeSource_;
   std::function<bool()> vrServerProbe_;
-  QString logPath_;
+  QString logPath_, launchError_;
+  std::function<bool(qint64)> adoptionGate_;
   int waitedMs_ = 0;
   bool busy_ = false, childStarted_ = false, completing_ = false;
   quint64 generation_ = 0;
   bool preparationCancelled_ = false;
   bool closeRequested_ = false;
-  // The running session's process tree, trees left over after their game ended, and when the session began.
+  // The running session's process tree and trees left after their game ended.
   std::unique_ptr<ProcessTree> tree_;
   QList<std::shared_ptr<ProcessTree>> leftovers_;
-  qint64 sessionStartMs_ = 0;
   void endTree();
   void retireTree();
 };
